@@ -76,7 +76,7 @@ export function validateScene(scene: Scene): boolean {
     if (!idSet.has(obj.parentId)) return false
   }
 
-  // Check for cycles
+  // Check for cycles in parent chain
   for (const obj of scene.objects) {
     let current = obj.parentId
     const visited = new Set<string>()
@@ -86,6 +86,21 @@ export function validateScene(scene: Scene): boolean {
       const parent = scene.objects.find(o => o.id === current)
       if (!parent) return false
       current = parent.parentId
+    }
+  }
+
+  // Check for cycles in children hierarchy
+  for (const obj of scene.objects) {
+    const visited = new Set<string>()
+    const stack = [...obj.children]
+    while (stack.length > 0) {
+      const current = stack.pop()!
+      if (visited.has(current)) return false
+      visited.add(current)
+      const child = scene.objects.find(o => o.id === current)
+      if (child) {
+        stack.push(...child.children)
+      }
     }
   }
 
