@@ -76,6 +76,12 @@ export function validateScene(scene: Scene): boolean {
     if (!idSet.has(obj.parentId)) return false
   }
 
+  // Build parent map for ancestor checking
+  const parentMap = new Map<string, string>()
+  for (const obj of scene.objects) {
+    parentMap.set(obj.id, obj.parentId)
+  }
+
   // Check for cycles in parent chain
   for (const obj of scene.objects) {
     let current = obj.parentId
@@ -101,6 +107,24 @@ export function validateScene(scene: Scene): boolean {
       if (child) {
         stack.push(...child.children)
       }
+    }
+  }
+
+  // Check for cross-reference cycles (parent-child cross-references)
+  for (const obj of scene.objects) {
+    // Build ancestor chain for this object
+    const ancestors = new Set<string>()
+    let current = obj.parentId
+    while (current !== 'scene_root') {
+      ancestors.add(current)
+      const parent = scene.objects.find(o => o.id === current)
+      if (!parent) break
+      current = parent.parentId
+    }
+
+    // Check if any child in children array is an ancestor
+    for (const childId of obj.children) {
+      if (ancestors.has(childId)) return false
     }
   }
 

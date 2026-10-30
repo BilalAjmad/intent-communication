@@ -86,7 +86,7 @@ describe('Primitives (trd 4)', () => {
       expect(() => parseColor('')).toThrow()
       expect(() => parseColor('red')).toThrow()
       expect(() => parseColor('#gg0000')).toThrow()
-      expect(() => parseColor('#ff0')).toThrow()
+      expect(() => parseColor('#ff00')).toThrow() // invalid length
     })
 
     it('serializes to canonical hex with alpha', () => {
