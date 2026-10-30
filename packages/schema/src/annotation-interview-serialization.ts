@@ -91,7 +91,7 @@ export function validateInterviewState(state: InterviewState): boolean {
   if (!['none', 'active', 'paused', 'completed', 'aborted'].includes(state.status)) return false
   if (state.meter < 0 || state.meter > 1) return false
   if (!Array.isArray(state.delegated)) return false
-  if (!Array.isArray(state.answers)) return false
+  if (typeof state.answers !== 'object' || state.answers === null) return false
   if (!Array.isArray(state.reopen)) return false
   return true
 }

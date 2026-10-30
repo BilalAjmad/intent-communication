@@ -67,11 +67,15 @@ export function createError(
   details?: Record<string, unknown>,
   hint?: string
 ): ErrorBody {
+  let hintText = hint || ERROR_HINTS[code]
+  if (details && details.objectId) {
+    hintText += ` (objectId: ${details.objectId})`
+  }
   return {
     code,
     message: message || ERROR_MESSAGES[code],
     details,
-    hint: hint || ERROR_HINTS[code],
+    hint: hintText,
   }
 }
 

@@ -96,10 +96,6 @@ export function validatePatch(patch: Patch): boolean {
   return true
 }
 
-export function isValidOpType(type: string): type is OpType {
-  return ['create', 'update', 'delete', 'move', 'lock', 'unlock'].includes(type)
-}
-
 export type CreateOp = {
   type: 'create'
   objectId: string
