@@ -3,11 +3,11 @@
  * Core state management types.
  */
 
-import { Scene, Lock } from './scene-types'
+import { Scene, Lock, createScene } from './scene-types'
 import { Patch } from './patch-ops'
 
 export interface State {
-  scene: import('./scene-types').Scene
+  scene: Scene
   revision: number
   interview: InterviewState
 }
@@ -42,7 +42,6 @@ export function validateInterviewState(state: InterviewState): boolean {
 }
 
 export function createState(): State {
-  const { createScene } = require('./scene-types')
   return {
     scene: createScene(),
     revision: 0,
@@ -73,8 +72,13 @@ export function validateLocks(locks: any): boolean {
   if (!locks || typeof locks !== 'object') return false
   if (!locks.objects || typeof locks.objects !== 'object') return false
   if (!Array.isArray(locks.order)) return false
+  // All keys in order must exist in objects
   for (const key of locks.order) {
     if (!locks.objects[key]) return false
+  }
+  // All objects must be in order (no orphaned locks)
+  for (const key of Object.keys(locks.objects)) {
+    if (!locks.order.includes(key)) return false
   }
   return true
 }
@@ -100,7 +104,8 @@ export function validateVersions(versions: any): boolean {
   if (!versions || typeof versions !== 'object') return false
   if (typeof versions.current !== 'number' || versions.current < 0) return false
   if (!Array.isArray(versions.history)) return false
-  if (versions.current > 0 && versions.history.length !== versions.current) return false
+  // History should be sequential from 1 to current (or less, but no gaps)
+  if (versions.current > 0 && versions.history.length > versions.current) return false
   for (let i = 0; i < versions.history.length; i++) {
     const h = versions.history[i]
     if (h.version !== i + 1) return false

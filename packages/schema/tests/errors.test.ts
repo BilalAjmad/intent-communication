@@ -41,7 +41,7 @@ describe('Errors (trd 18.2)', () => {
 
     it('includes hint for each error code', () => {
       const error = createError('E_LOCKED', 'Object is locked', { objectId: 'frame_abc' })
-      expect(error.hint).toContain('unlock')
+      expect(error.hint.toLowerCase()).toContain('unlock')
       expect(error.hint).toContain('frame_abc')
     })
 

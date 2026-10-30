@@ -3,7 +3,7 @@
  * Unique identifiers for all entities in the Intent system.
  */
 
-export const ID_REGEX = /^[a-z][a-z0-9]*_[a-z0-9]+$/
+export const ID_REGEX = /^[a-z][a-z0-9]*(?:_[a-z0-9]+)+$/
 
 export type SchemaId = string & { readonly __brand: unique symbol }
 export type SceneId = string & { readonly __brand: unique symbol }

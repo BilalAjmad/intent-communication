@@ -78,7 +78,7 @@ describe('Primitives (trd 4)', () => {
     })
 
     it('parses valid hex colors with alpha', () => {
-      expect(parseColor('#ff000080')).toEqual({ r: 255, g: 0, b: 0, a: 0.5 })
+      expect(parseColor('#ff000080')).toEqual({ r: 255, g: 0, b: 0, a: 128 / 255 })
       expect(parseColor('#00000000')).toEqual({ r: 0, g: 0, b: 0, a: 0 })
     })
 

@@ -60,7 +60,7 @@ describe('M1 Scene and Object Types (trd 5.1-5.4)', () => {
         rect: { x: 0, y: 0, width: 200, height: 150 },
         children: [],
         props: { src: 'https://example.com/image.png', fit: 'cover' },
-      })
+      };
       expect(obj.type).toBe('image')
       expect(obj.props.src).toContain('https://')
     })

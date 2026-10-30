@@ -1,4 +1,17 @@
 /**
+ * Zod Schemas - Closed Grammars (trd 5.1-5.4)
+ * All schemas reject unknown properties (closed grammars).
+ */
+
+import { z } from 'zod'
+import { Point, Rect, Color } from './primitives'
+import { SceneObject, ObjectType, Scene, Lock } from './scene-types'
+import { Op, Patch, CreateOp, UpdateOp, DeleteOp, MoveOp, LockOp, UnlockOp } from './patch-ops'
+import { ErrorCode, ErrorBody } from './errors'
+import { Config } from './config'
+import { InterviewState } from './state-locks-versions'
+import { Migration } from './migration-scaffold'
+
 // Op schemas
 export const CreateOpSchema = z.object({
   type: z.literal('create'),

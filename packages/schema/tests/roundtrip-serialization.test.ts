@@ -8,6 +8,7 @@ import {
   deserializeInterviewState,
   serializeAnnotation,
   deserializeAnnotation,
+  canonicalJSON,
 } from '../src/annotation-interview-serialization'
 
 describe('Round-trip Serialization (trd 9.5)', () => {
@@ -24,21 +25,21 @@ describe('Round-trip Serialization (trd 9.5)', () => {
         ],
         locks: [{ objectId: 'frame_root', lockedBy: 'user', timestamp: 1234567890 }],
       }
-      const json1 = JSON.stringify(scene, Object.keys(scene).sort())
-      const json2 = JSON.stringify(scene, Object.keys(scene).sort())
+      const json1 = canonicalJSON(scene)
+      const json2 = canonicalJSON(scene)
       expect(json1).toBe(json2)
     })
 
     it('serializes to canonical JSON with sorted keys', () => {
       const scene = { b: 1, a: 2 }
-      const json = JSON.stringify(scene, Object.keys(scene).sort())
+      const json = canonicalJSON(scene)
       expect(json).toBe('{"a":2,"b":1}')
     })
 
     it('produces deterministic output across runs', () => {
       const scene = { z: 1, a: 2, m: 3 }
-      const json1 = JSON.stringify(scene, Object.keys(scene).sort())
-      const json2 = JSON.stringify(scene, Object.keys(scene).sort())
+      const json1 = canonicalJSON(scene)
+      const json2 = canonicalJSON(scene)
       expect(json1).toBe(json2)
     })
   })
@@ -54,8 +55,8 @@ describe('Round-trip Serialization (trd 9.5)', () => {
           { type: 'lock', objectId: 'frame_c' },
         ],
       }
-      const json1 = JSON.stringify(patch, Object.keys(patch).sort())
-      const json2 = JSON.stringify(patch, Object.keys(patch).sort())
+      const json1 = canonicalJSON(patch)
+      const json2 = canonicalJSON(patch)
       expect(json1).toBe(json2)
     })
   })
@@ -70,8 +71,8 @@ describe('Round-trip Serialization (trd 9.5)', () => {
         answers: { 'goal.purpose': 'Build a dashboard', 'users.primary': 'developers' },
         reopen: [],
       }
-      const json1 = JSON.stringify(state, Object.keys(state).sort())
-      const json2 = JSON.stringify(state, Object.keys(state).sort())
+      const json1 = canonicalJSON(state)
+      const json2 = canonicalJSON(state)
       expect(json1).toBe(json2)
     })
   })
@@ -79,14 +80,13 @@ describe('Round-trip Serialization (trd 9.5)', () => {
   describe('Cross-platform consistency', () => {
     it('produces identical JSON across platforms', () => {
       const scene = { a: 1, b: { c: 2, d: 3 } }
-      const json = JSON.stringify(scene, Object.keys(scene).sort())
-      // This should be identical on Linux, macOS, Windows
+      const json = canonicalJSON(scene)
       expect(json).toBe('{"a":1,"b":{"c":2,"d":3}}')
     })
 
     it('handles Unicode correctly', () => {
       const scene = { text: 'Hello 世界 🌍', emoji: '🚀' }
-      const json = JSON.stringify(scene, Object.keys(scene).sort())
+      const json = canonicalJSON(scene)
       expect(json).toContain('世界')
       expect(json).toContain('🚀')
     })
@@ -96,14 +96,14 @@ describe('Round-trip Serialization (trd 9.5)', () => {
     it('serializes identical objects to identical bytes', () => {
       const obj1 = { a: 1, b: 2 }
       const obj2 = { b: 2, a: 1 }
-      const json1 = JSON.stringify(obj1, Object.keys(obj1).sort())
-      const json2 = JSON.stringify(obj2, Object.keys(obj2).sort())
+      const json1 = canonicalJSON(obj1)
+      const json2 = canonicalJSON(obj2)
       expect(json1).toBe(json2)
     })
 
     it('uses stable sort for object keys', () => {
       const obj = { z: 1, a: 2, m: 3 }
-      const json = JSON.stringify(obj, Object.keys(obj).sort())
+      const json = canonicalJSON(obj)
       expect(json).toBe('{"a":2,"m":3,"z":1}')
     })
   })

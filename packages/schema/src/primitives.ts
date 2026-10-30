@@ -76,7 +76,11 @@ export function serializeRect(rect: Rect): string {
  * Supports #rrggbb, #rrggbbaa, #rgb, #rgba
  */
 export function parseColor(str: string): Color {
-  const hex = str.startsWith('#') ? str.slice(1) : str
+  if (!str.startsWith('#')) throw new Error(`Invalid color format: ${str}`)
+  const hex = str.slice(1)
+  const validHex = /^[0-9a-f]+$/i
+  if (!validHex.test(hex)) throw new Error(`Invalid color format: ${str}`)
+  
   if (hex.length === 3) {
     return {
       r: parseInt(hex[0] + hex[0], 16),

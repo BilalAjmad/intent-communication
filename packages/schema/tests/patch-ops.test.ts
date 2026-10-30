@@ -59,7 +59,7 @@ describe('Patch and Ops (trd 6)', () => {
         type: 'update',
         objectId: 'frame_abc123',
         props: { width: 200, color: '#ff0000ff' },
-      })
+      };
       expect(op.type).toBe('update')
       expect(op.objectId).toMatch(/^frame_/)
       expect(op.props).toEqual({ width: 200, color: '#ff0000ff' })

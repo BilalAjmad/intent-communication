@@ -76,6 +76,26 @@ export interface InterviewState {
   reopen: string[]
 }
 
+export function createInterviewState(): InterviewState {
+  return {
+    status: 'none',
+    meter: 0,
+    currentQuestion: null,
+    delegated: [],
+    answers: {},
+    reopen: [],
+  }
+}
+
+export function validateInterviewState(state: InterviewState): boolean {
+  if (!['none', 'active', 'paused', 'completed', 'aborted'].includes(state.status)) return false
+  if (state.meter < 0 || state.meter > 1) return false
+  if (!Array.isArray(state.delegated)) return false
+  if (!Array.isArray(state.answers)) return false
+  if (!Array.isArray(state.reopen)) return false
+  return true
+}
+
 /**
  * Canonical serialization (trd 9.5)
  * All serialization uses sorted keys for deterministic output.
