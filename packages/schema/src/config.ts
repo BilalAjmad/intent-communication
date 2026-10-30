@@ -79,15 +79,17 @@ export const ConfigSchema = z.object({
   }),
 })
 
-export const defaultConfig: Config = {
-  version: 1,
-  scene: { maxObjects: 500, maxDepth: 10 },
-  lock: { timeoutMs: 5000, maxRetries: 3 },
-  write: { atomic: true, coalesceMs: 10 },
-  interview: { maxQuestions: 5, defaultMode: 'full' },
-  server: { port: 3000, host: '127.0.0.1' },
-  mcp: { maxBytes: 32768 },
-  linter: { strict: true },
+export function defaultConfig(): Config {
+  return {
+    version: 1,
+    scene: { maxObjects: 500, maxDepth: 10 },
+    lock: { timeoutMs: 5000, maxRetries: 3 },
+    write: { atomic: true, coalesceMs: 10 },
+    interview: { maxQuestions: 5, defaultMode: 'full' },
+    server: { port: 3000, host: '127.0.0.1' },
+    mcp: { maxBytes: 32768 },
+    linter: { strict: true },
+  }
 }
 
 export function validateConfig(config: unknown): config is Config {
