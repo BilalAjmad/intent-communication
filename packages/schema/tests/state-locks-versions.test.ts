@@ -18,7 +18,14 @@ describe('State, Locks, Versions', () => {
       expect(state.scene.id).toMatch(/^scene_/)
       expect(state.scene.version).toBe(0)
       expect(state.revision).toBe(0)
-      expect(state.interview).toEqual({ status: 'none', meter: 0, currentQuestion: null, delegated: [] })
+      expect(state.interview).toEqual({
+        status: 'none',
+        meter: 0,
+        currentQuestion: null,
+        delegated: [],
+        answers: {},
+        reopen: [],
+      })
     })
 
     it('validates state structure', () => {
@@ -58,12 +65,19 @@ describe('State, Locks, Versions', () => {
     })
 
     it('validates versions structure', () => {
-      const versions = { current: 5, history: [{ version: 4, timestamp: Date.now(), sceneHash: 'abc', patchId: 'patch_123' }] }
+      const versions = {
+        current: 3,
+        history: [
+          { version: 1, timestamp: Date.now(), sceneHash: 'abc1', patchId: 'patch_1' },
+          { version: 2, timestamp: Date.now(), sceneHash: 'abc2', patchId: 'patch_2' },
+          { version: 3, timestamp: Date.now(), sceneHash: 'abc3', patchId: 'patch_3' },
+        ],
+      }
       expect(validateVersions(versions)).toBe(true)
     })
 
     it('rejects versions with gaps', () => {
-      const versions = { current: 5, history: [{ version: 3, timestamp: Date.now(), sceneHash: 'abc', patchId: 'patch_123' }] }
+      const versions = { current: 3, history: [{ version: 1, timestamp: Date.now(), sceneHash: 'abc', patchId: 'patch_1' }, { version: 3, timestamp: Date.now(), sceneHash: 'abc', patchId: 'patch_3' }] }
       expect(validateVersions(versions)).toBe(false)
     })
   })

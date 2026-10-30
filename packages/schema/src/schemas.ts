@@ -157,3 +157,52 @@ export const Schemas = {
   InterviewState: InterviewStateSchema,
   Migration: MigrationSchema,
 }
+
+// Primitive schemas
+export const PointSchema = z.object({
+  x: z.number(),
+  y: z.number(),
+})
+
+export const RectSchema = z.object({
+  x: z.number(),
+  y: z.number(),
+  width: z.number().nonnegative(),
+  height: z.number().nonnegative(),
+})
+
+export const ColorSchema = z.object({
+  r: z.number().int().min(0).max(255),
+  g: z.number().int().min(0).max(255),
+  b: z.number().int().min(0).max(255),
+  a: z.number().min(0).max(1),
+})
+
+// ObjectType schema (closed grammar - only M1 types allowed)
+export const ObjectTypeSchema = z.enum(['frame', 'text', 'image', 'vector', 'component'])
+
+// SceneObject schema
+export const SceneObjectSchema = z.object({
+  id: z.string().regex(/^[a-z][a-z0-9]*_[a-z0-9]+$/),
+  type: z.enum(['frame', 'text', 'image', 'vector', 'component']),
+  parentId: z.string(),
+  rect: RectSchema,
+  children: z.array(z.string()),
+  props: z.record(z.unknown()),
+})
+
+// Lock schema
+export const LockSchema = z.object({
+  objectId: z.string(),
+  lockedBy: z.string(),
+  timestamp: z.number().int().positive(),
+})
+
+// Scene schema (closed grammar)
+export const SceneSchema = z.object({
+  id: z.string().regex(/^[a-z][a-z0-9]*_[a-z0-9]+$/),
+  version: z.number().int().nonnegative(),
+  rootId: z.string().regex(/^[a-z][a-z0-9]*_[a-z0-9]+$/),
+  objects: z.array(SceneObjectSchema),
+  locks: z.array(LockSchema),
+}).strict()

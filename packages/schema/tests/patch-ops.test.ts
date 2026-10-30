@@ -36,13 +36,13 @@ describe('Patch and Ops (trd 6)', () => {
       const op: CreateOp = {
         type: 'create',
         objectId: 'frame_new',
-        type: 'frame',
+        objectType: 'frame',
         parentId: 'frame_parent',
         rect: { x: 0, y: 0, width: 100, height: 100 },
         props: {},
-      }
-      expect(op.type).toBe('create')
-      expect(op.objectId).toMatch(/^frame_/)
+      };
+      expect(op.type).toBe('create');
+      expect(op.objectId).toMatch(/^frame_/);
     })
 
     it('requires objectId and type', () => {

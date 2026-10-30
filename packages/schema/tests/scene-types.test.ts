@@ -73,7 +73,7 @@ describe('M1 Scene and Object Types (trd 5.1-5.4)', () => {
         rect: { x: 0, y: 0, width: 100, height: 100 },
         children: [],
         props: { path: 'M0,0 L100,100', strokeWidth: 2, stroke: '#000000ff' },
-      })
+      };
       expect(obj.type).toBe('vector')
     })
 
