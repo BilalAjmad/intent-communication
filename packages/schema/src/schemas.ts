@@ -134,29 +134,7 @@ export const MigrationSchema = z.object({
   down: z.function().optional(),
 }).strict()
 
-// Export all schemas
-export const Schemas = {
-  Point: PointSchema,
-  Rect: RectSchema,
-  Color: ColorSchema,
-  ObjectType: ObjectTypeSchema,
-  SceneObject: SceneObjectSchema,
-  Lock: LockSchema,
-  Scene: SceneSchema,
-  CreateOp: CreateOpSchema,
-  UpdateOp: UpdateOpSchema,
-  DeleteOp: DeleteOpSchema,
-  MoveOp: MoveOpSchema,
-  LockOp: LockOpSchema,
-  UnlockOp: z.object({ type: z.literal('unlock'), objectId: z.string().regex(/^[a-z][a-z0-9]*_[a-z0-9]+$/) }),
-  Op: OpSchema,
-  Patch: PatchSchema,
-  ErrorCode: ErrorCodeSchema,
-  ErrorBody: ErrorBodySchema,
-  Config: ConfigSchema,
-  InterviewState: InterviewStateSchema,
-  Migration: MigrationSchema,
-}
+// Schema definitions moved below - see end of file
 
 // Primitive schemas
 export const PointSchema = z.object({
@@ -206,3 +184,26 @@ export const SceneSchema = z.object({
   objects: z.array(SceneObjectSchema),
   locks: z.array(LockSchema),
 }).strict()
+// Export all schemas
+export const Schemas = {
+  Point: PointSchema,
+  Rect: RectSchema,
+  Color: ColorSchema,
+  ObjectType: ObjectTypeSchema,
+  SceneObject: SceneObjectSchema,
+  Lock: LockSchema,
+  Scene: SceneSchema,
+  CreateOp: CreateOpSchema,
+  UpdateOp: UpdateOpSchema,
+  DeleteOp: DeleteOpSchema,
+  MoveOp: MoveOpSchema,
+  LockOp: LockOpSchema,
+  UnlockOp: z.object({ type: z.literal('unlock'), objectId: z.string().regex(/^[a-z][a-z0-9]*_[a-z0-9]+$/) }),
+  Op: OpSchema,
+  Patch: PatchSchema,
+  ErrorCode: ErrorCodeSchema,
+  ErrorBody: ErrorBodySchema,
+  Config: ConfigSchema,
+  InterviewState: InterviewStateSchema,
+  Migration: MigrationSchema,
+}
