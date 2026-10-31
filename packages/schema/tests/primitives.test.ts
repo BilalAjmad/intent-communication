@@ -86,7 +86,8 @@ describe('Primitives (trd 4)', () => {
       expect(() => parseColor('')).toThrow()
       expect(() => parseColor('red')).toThrow()
       expect(() => parseColor('#gg0000')).toThrow()
-      expect(() => parseColor('#ff00')).toThrow() // invalid length
+      expect(() => parseColor('#ff0')).toThrow() // 3-digit hex not allowed per trd 4.1
+      expect(() => parseColor('#ff00')).toThrow() // 4-digit hex not allowed per trd 4.1
     })
 
     it('serializes to canonical hex with alpha', () => {

@@ -73,7 +73,8 @@ export function serializeRect(rect: Rect): string {
 
 /**
  * Parses hex color string to Color object
- * Supports #rrggbb, #rrggbbaa, #rgb, #rgba
+ * Supports #rrggbb, #rrggbbaa only (trd 4.1)
+ * 3-digit (#rgb) and 4-digit (#rgba) are NOT supported
  */
 export function parseColor(str: string): Color {
   if (!str.startsWith('#')) throw new Error(`Invalid color format: ${str}`)
@@ -81,22 +82,7 @@ export function parseColor(str: string): Color {
   const validHex = /^[0-9a-f]+$/i
   if (!validHex.test(hex)) throw new Error(`Invalid color format: ${str}`)
   
-  if (hex.length === 3) {
-    return {
-      r: parseInt(hex[0] + hex[0], 16),
-      g: parseInt(hex[1] + hex[1], 16),
-      b: parseInt(hex[2] + hex[2], 16),
-      a: 1,
-    }
-  }
-  if (hex.length === 4) {
-    return {
-      r: parseInt(hex[0] + hex[0], 16),
-      g: parseInt(hex[1] + hex[1], 16),
-      b: parseInt(hex[2] + hex[2], 16),
-      a: parseInt(hex[3] + hex[3], 16) / 255,
-    }
-  }
+  // Only 6-digit (#rrggbb) and 8-digit (#rrggbbaa) are valid per trd 4.1
   if (hex.length === 6) {
     return {
       r: parseInt(hex.slice(0, 2), 16),
