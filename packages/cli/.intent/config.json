@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "projectName": "Intent Project",
+  "previewPort": 3456,
+  "studioPort": 3457,
+  "mcpPort": 3458,
+  "maxBytes": 32768,
+  "autoSave": true,
+  "lockTTL": 30000
+}
