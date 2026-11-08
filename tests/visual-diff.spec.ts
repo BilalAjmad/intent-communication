@@ -4,7 +4,8 @@ import { resolve } from "node:path";
 import { execSync } from "node:child_process";
 
 test.describe("Visual-diff test (S-1-13)", () => {
-  const testDir = "H:\\intent-communication\\.test-visual";
+  const testDir = resolve(process.cwd(), ".test-visual");
+  const cliPath = resolve(process.cwd(), "packages", "cli", "dist", "cli.js");
 
   test.beforeAll(async () => {
     try {
@@ -49,7 +50,7 @@ test.describe("Visual-diff test (S-1-13)", () => {
     await fs.writeFile(resolve(testDir, ".intent", "scenes", "default.json"), JSON.stringify(scene, null, 0));
     await fs.writeFile(resolve(testDir, ".intent", "locks", "default.locks.json"), JSON.stringify({ version: 1, lockedObjects: [], updatedAt: new Date().toISOString() }, null, 0));
 
-    execSync(`node H:\\intent-communication\\packages\\cli\\dist\\cli.js export --path ${testDir}`, { stdio: "pipe", timeout: 30000 });
+    execSync(`node ${cliPath} export --path ${testDir}`, { stdio: "pipe", timeout: 30000 });
   });
 
   test.afterAll(async () => {
@@ -80,7 +81,6 @@ test.describe("Visual-diff test (S-1-13)", () => {
     await page.goto(`file://${htmlPath}`);
     await page.waitForTimeout(500);
 
-    // Screenshot comparison against baseline
     await expect(page).toHaveScreenshot("visual-baseline.png", {
       maxDiffPixels: 100,
       threshold: 0.2,

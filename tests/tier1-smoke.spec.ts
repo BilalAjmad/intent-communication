@@ -4,20 +4,17 @@ import { resolve } from "node:path";
 import { execSync } from "node:child_process";
 
 test.describe("Tier 1 Smoke Test (S-1-14)", () => {
-  const testDir = "H:\\intent-communication\\.test-smoke";
+  const testDir = resolve(process.cwd(), ".test-smoke");
+  const cliPath = resolve(process.cwd(), "packages", "cli", "dist", "cli.js");
 
   test.beforeAll(async () => {
-    // Clean up
     try {
       await fs.rm(testDir, { recursive: true, force: true });
     } catch {
     }
 
-    // Run intent init
-    execSync(`node H:\\intent-communication\\packages\\cli\\dist\\cli.js init --path ${testDir}`, { stdio: "pipe", timeout: 30000 });
-
-    // Run export
-    execSync(`node H:\\intent-communication\\packages\\cli\\dist\\cli.js export --path ${testDir}`, { stdio: "pipe", timeout: 30000 });
+    execSync(`node ${cliPath} init --path ${testDir}`, { stdio: "pipe", timeout: 30000 });
+    execSync(`node ${cliPath} export --path ${testDir}`, { stdio: "pipe", timeout: 30000 });
   });
 
   test.afterAll(async () => {
@@ -42,13 +39,11 @@ test.describe("Tier 1 Smoke Test (S-1-14)", () => {
   });
 
   test("doctor passes", async () => {
-    const output = execSync(`node H:\\intent-communication\\packages\\cli\\dist\\cli.js doctor --path ${testDir}`, { encoding: "utf-8" });
+    const output = execSync(`node ${cliPath} doctor --path ${testDir}`, { encoding: "utf-8" });
     expect(output).toContain("All checks passed");
   });
 
   test("export produces valid HTML", async () => {
-    execSync(`node H:\\intent-communication\\packages\\cli\\dist\\cli.js export --path ${testDir}`, { stdio: "pipe" });
-
     const htmlPath = resolve(testDir, "export-default.html");
     const htmlExists = await fs.access(htmlPath).then(() => true).catch(() => false);
     expect(htmlExists).toBe(true);
