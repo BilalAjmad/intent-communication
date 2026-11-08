@@ -145,7 +145,7 @@ describe("Interview Bank", () => {
   });
 
   describe("TC-INT-02: Parses docs/intent.md tables", () => {
-    const docsDir = resolve(__dirname, "../../../../../intent communication/docs");
+    const docsDir = resolve(__dirname, "../../../../docs");
     const intentMdPath = resolve(docsDir, "intent.md");
 
     it("parses seed table from intent.md and matches seed IDs", async () => {
