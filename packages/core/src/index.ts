@@ -374,7 +374,7 @@ export function applyPatch(scene: Scene, patch: Patch): Scene {
     throw new IntentError(ErrorCodes.E_NOT_FOUND, `Object ${validated.objectId} not found`);
   }
 
-  const pathParts = validated.path.split(".").filter((p): p is string => Boolean(p));
+  const pathParts = validated.path.split(".").filter((p: string): p is string => Boolean(p));
   let current: Record<string, unknown> = obj;
   for (let i = 0; i < pathParts.length - 1; i++) {
     const part = pathParts[i];
