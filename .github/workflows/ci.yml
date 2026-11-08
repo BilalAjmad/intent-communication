@@ -23,7 +23,16 @@ jobs:
           node-version: ${{ matrix.node-version }}
           cache: 'pnpm'
       - run: pnpm install --frozen-lockfile
-      - run: pnpm -r build
+      - run: pnpm --filter @intent/schema build
+      - run: pnpm --filter @intent/core build
+      - run: pnpm --filter @intent/linter build
+      - run: pnpm --filter @intent/adapters-node build
+      - run: pnpm --filter @intent/engine build
+      - run: pnpm --filter @intent/mcp-server build
+      - run: pnpm --filter @intent/server build
+      - run: pnpm --filter @intent/studio build
+      - run: pnpm --filter @intent/skills build
+      - run: pnpm --filter @intent/cli build
       - run: pnpm -r typecheck
       - run: pnpm -r test
 
