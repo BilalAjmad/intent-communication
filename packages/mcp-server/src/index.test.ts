@@ -8,7 +8,7 @@ import {
 import { Scene, Patch, Lock, Feedback, Config } from "@intent/schema";
 
 describe("MCP Server", () => {
-  const testDir = "H:\\intent-communication\\.test-mcp";
+  const testDir = require("os").tmpdir() + "/.test-mcp";
   let context: ReturnType<typeof createMCPContext>;
 
   beforeEach(() => {

@@ -14,7 +14,7 @@ import { Scene, Patch, Lock, LocksFile, Config, Profile, InterviewState, Brief, 
 import { promises as fs } from "node:fs";
 
 describe("Core package", () => {
-  const testDir = "H:\\intent-communication\\.test-intent";
+  const testDir = require("os").tmpdir() + "/.test-intent";
   let storage: ReturnType<typeof createStoragePort>;
   let lockPort: ReturnType<typeof createLockPort>;
 

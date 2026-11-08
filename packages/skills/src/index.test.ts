@@ -4,7 +4,7 @@ import { promises as fs } from "node:fs";
 import { resolve } from "node:path";
 
 describe("Skills package", () => {
-  const testDir = "H:\\intent-communication\\.test-skills";
+  const testDir = require("os").tmpdir() + "/.test-skills";
   const outputDir = resolve(testDir, ".intent", "rules");
 
   beforeEach(async () => {

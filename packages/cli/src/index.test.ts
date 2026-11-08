@@ -4,7 +4,7 @@ import { promises as fs } from "node:fs";
 import { resolve } from "node:path";
 
 describe("CLI package", () => {
-  const testDir = "H:\\intent-communication\\.test-cli";
+  const testDir = require("os").tmpdir() + "/.test-cli";
 
   beforeEach(async () => {
     await fs.mkdir(testDir, { recursive: true });

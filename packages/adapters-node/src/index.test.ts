@@ -10,7 +10,7 @@ import {
 import { Scene, Lock, LocksFile, Config, Profile, InterviewState, Brief, Feedback } from "@intent/schema";
 
 describe("Adapters-Node package", () => {
-  const testDir = "H:\\intent-communication\\.test-intent-adapters";
+  const testDir = require("os").tmpdir() + "/.test-intent-adapters";
   let storage: ReturnType<typeof createFileStoragePort>;
   let lockPort: ReturnType<typeof createFileLockPort>;
   let crypto: ReturnType<typeof createNodeCryptoPort>;

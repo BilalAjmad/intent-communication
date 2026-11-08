@@ -5,7 +5,7 @@ import { createMCPContext } from "@intent/mcp-server";
 import { Scene, Patch, Lock, LocksFile, Feedback, Config as SchemaConfig, validateScene, validatePatch } from "@intent/schema";
 
 describe("Server package", () => {
-  const testDir = "H:\\intent-communication\\.test-server";
+  const testDir = require("os").tmpdir() + "/.test-server";
   let server: ReturnType<typeof createServer>;
   const config: SchemaConfig = {
     version: 1,
