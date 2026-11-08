@@ -17,7 +17,7 @@
     "intent": "./dist/cli.js"
   },
   "scripts": {
-    "build": "tsc -p tsconfig.build.json && tsc -p tsconfig.esm.json && copy dist\\esm\\index.js dist\\index.mjs && rmdir /s /q dist\\esm",
+    "build": "tsc -p tsconfig.build.json && tsc -p tsconfig.esm.json && node -e \"const fs=require('fs');fs.copyFileSync('dist/esm/index.js','dist/index.mjs')\" && node -e \"const fs=require('fs');fs.rmSync('dist/esm',{recursive:true,force:true})\"",
     "test": "vitest run",
     "lint": "eslint src --ext .ts",
     "typecheck": "tsc --noEmit"

@@ -1,7 +1,7 @@
 {
   "name": "@intent/linter",
   "version": "0.1.0",
-  "description": "Intent linter: M1 rules from design.md §9",
+  "description": "Intent linter: M1 rules from design.md \u00c2\u00a79",
   "type": "module",
   "main": "dist/index.js",
   "module": "dist/index.mjs",
@@ -14,7 +14,7 @@
     }
   },
   "scripts": {
-    "build": "tsc -p tsconfig.build.json && tsc -p tsconfig.esm.json && copy dist\\esm\\index.js dist\\index.mjs && rmdir /s /q dist\\esm",
+    "build": "tsc -p tsconfig.build.json && tsc -p tsconfig.esm.json && node -e \"const fs=require('fs');fs.copyFileSync('dist/esm/index.js','dist/index.mjs')\" && node -e \"const fs=require('fs');fs.rmSync('dist/esm',{recursive:true,force:true})\"",
     "test": "vitest run",
     "lint": "eslint src --ext .ts",
     "typecheck": "tsc --noEmit"
