@@ -23,6 +23,7 @@ jobs:
           node-version: ${{ matrix.node-version }}
           cache: 'pnpm'
       - run: pnpm install --frozen-lockfile
+      - run: npx playwright install --with-deps
       - run: pnpm --filter @intent/schema build
       - run: pnpm --filter @intent/core build
       - run: pnpm --filter @intent/linter build
