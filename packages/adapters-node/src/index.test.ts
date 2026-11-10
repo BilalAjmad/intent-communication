@@ -3,22 +3,18 @@ import {
   createFileStoragePort,
   createFileLockPort,
   createNodeCryptoPort,
-  IntentError,
-  ErrorCodes,
-  isIntentError,
 } from "./index";
-import { Scene, Lock, LocksFile, Config, Profile, InterviewState, Brief, Feedback } from "@intent/schema";
+import { Scene, LocksFile, Config, Profile, InterviewState, Brief, Feedback } from "@intent/schema";
+import os from "node:os";
 
 describe("Adapters-Node package", () => {
-  const testDir = require("os").tmpdir() + "/.test-intent-adapters";
   let storage: ReturnType<typeof createFileStoragePort>;
   let lockPort: ReturnType<typeof createFileLockPort>;
-  let crypto: ReturnType<typeof createNodeCryptoPort>;
 
-  beforeEach(async () => {
+  beforeEach(() => {
+    const testDir = os.tmpdir() + "/.test-intent-adapters";
     storage = createFileStoragePort(testDir);
     lockPort = createFileLockPort(storage);
-    crypto = createNodeCryptoPort();
   });
 
   describe("FileStoragePort", () => {
@@ -103,7 +99,7 @@ describe("Adapters-Node package", () => {
 
     it("reads and writes brief", async () => {
       const brief: Brief = {
-        id: "018f0a1b-2c3d-7e5f-8a9b-0c1d2e3f4a5b",
+        id: "o_01ARZ3NDEKTSV4RRFFQ69G5FAV",
         version: 1,
         createdAt: "2026-11-02T22:38:00.000Z",
         updatedAt: "2026-11-02T22:38:00.000Z",
@@ -125,9 +121,9 @@ describe("Adapters-Node package", () => {
 
     it("reads and writes feedback", async () => {
       const feedback: Feedback[] = [{
-        id: "018f0a1b-2c3d-7e5f-8a9b-0c1d2e3f4a5b",
+        id: "o_01ARZ3NDEKTSV4RRFFQ69G5FAV",
         sceneId: "scene-1",
-        objectId: "018f0a1b-2c3d-7e5f-8a9b-0c1d2e3f4a5c",
+        objectId: "o_02ARZ3NDEKTSV4RRFFQ69G5FAV",
         kind: "visual",
         message: "Test feedback",
         severity: "medium",
@@ -153,7 +149,7 @@ describe("Adapters-Node package", () => {
 
   describe("FileLockPort", () => {
     it("acquires and releases lock", async () => {
-      const objectId = "018f0a1b-2c3d-7e5f-8a9b-0c1d2e3f4a5b";
+      const objectId = "o_01ARZ3NDEKTSV4RRFFQ69G5FAV";
       const acquired = await lockPort.acquire("scene-1", objectId);
       expect(acquired).toBe(true);
 
@@ -168,15 +164,15 @@ describe("Adapters-Node package", () => {
     });
 
     it("rejects acquire when already locked", async () => {
-      const objectId = "018f0a1b-2c3d-7e5f-8a9b-0c1d2e3f4a5b";
+      const objectId = "o_01ARZ3NDEKTSV4RRFFQ69G5FAV";
       await lockPort.acquire("scene-1", objectId);
       const acquired = await lockPort.acquire("scene-1", objectId);
       expect(acquired).toBe(false);
     });
 
     it("gets all locked objects", async () => {
-      const objectId1 = "018f0a1b-2c3d-7e5f-8a9b-0c1d2e3f4a5b";
-      const objectId2 = "018f0a1b-2c3d-7e5f-8a9b-0c1d2e3f4a5c";
+      const objectId1 = "o_01ARZ3NDEKTSV4RRFFQ69G5FAV";
+      const objectId2 = "o_02ARZ3NDEKTSV4RRFFQ69G5FAV";
       await lockPort.acquire("scene-1", objectId1);
       await lockPort.acquire("scene-1", objectId2);
       const locks = await lockPort.getLockedObjects("scene-1");
@@ -187,6 +183,7 @@ describe("Adapters-Node package", () => {
   });
 
   describe("NodeCryptoPort", () => {
+    const crypto = createNodeCryptoPort();
     it("generates UUID v7", () => {
       const id = crypto.generateId();
       expect(id).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[0-9a-f]{4}-[0-9a-f]{12}$/);

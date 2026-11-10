@@ -1,9 +1,7 @@
 import { promises as fs } from "node:fs";
 import { resolve, dirname } from "node:path";
-import { fileURLToPath } from "node:url";
 import {
   Scene,
-  Lock,
   LocksFile,
   Config,
   Profile,
@@ -20,9 +18,6 @@ import {
   ErrorCodes,
   isIntentError,
 } from "@intent/core";
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
 
 export function createFileStoragePort(projectRoot: string): StoragePort {
   const intentDir = resolve(projectRoot, ".intent");
@@ -54,6 +49,7 @@ export function createFileStoragePort(projectRoot: string): StoragePort {
         throw new IntentError(ErrorCodes.E_SYMLINK, "Symlinks not allowed");
       }
     } catch {
+      // Ignore: path doesn't exist or is not a symlink
     }
   }
 

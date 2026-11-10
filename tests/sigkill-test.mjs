@@ -2,8 +2,8 @@ import { spawn, execSync } from "node:child_process";
 import { promises as fs } from "node:fs";
 import { resolve } from "node:path";
 
-const testDir = "H:\\intent-communication\\.test-sigkill";
-const workerPath = resolve("H:\\intent-communication", "tests", "multi-process", "worker.mjs");
+const testDir = "H:\\intent communication\\.test-sigkill";
+const workerPath = resolve("H:\\intent communication", "tests", "multi-process", "worker.mjs");
 
 async function setup() {
   const intentDir = resolve(testDir, ".intent");

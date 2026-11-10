@@ -10,27 +10,51 @@ import {
   InterviewStateSchema,
   BriefSchema,
   FeedbackSchema,
-  validateScene,
-  validatePatch,
-  UUIDv7Schema,
+  CrockfordULIDSchema,
   ISODateTimeSchema,
   RevisionSchema,
+  validateScene,
+  validatePatch,
 } from "./index";
 
 describe("Schema validation", () => {
-  describe("UUIDv7Schema", () => {
-    it("accepts valid UUID v7", () => {
-      const uuid = "018f0a1b-2c3d-7e5f-8a9b-0c1d2e3f4a5b";
-      expect(UUIDv7Schema.safeParse(uuid).success).toBe(true);
+  describe("CrockfordULIDSchema", () => {
+    it("accepts valid Crockford ULID with o_ prefix", () => {
+      const id = "o_01ARZ3NDEKTSV4RRFFQ69G5FAV";
+      expect(CrockfordULIDSchema.safeParse(id).success).toBe(true);
     });
 
-    it("rejects invalid UUID", () => {
-      expect(UUIDv7Schema.safeParse("not-a-uuid").success).toBe(false);
+    it("accepts valid Crockford ULID with s_ prefix", () => {
+      const id = "s_01ARZ3NDEKTSV4RRFFQ69G5FAV";
+      expect(CrockfordULIDSchema.safeParse(id).success).toBe(true);
     });
 
-    it("rejects wrong version", () => {
-      const uuidv4 = "123e4567-e89b-12d3-a456-426614174000";
-      expect(UUIDv7Schema.safeParse(uuidv4).success).toBe(false);
+    it("accepts valid Crockford ULID with p_ prefix", () => {
+      const id = "p_01ARZ3NDEKTSV4RRFFQ69G5FAV";
+      expect(CrockfordULIDSchema.safeParse(id).success).toBe(true);
+    });
+
+    it("rejects invalid ID (no prefix)", () => {
+      expect(CrockfordULIDSchema.safeParse("not-a-valid-id").success).toBe(false);
+    });
+
+    it("rejects wrong prefix", () => {
+      expect(CrockfordULIDSchema.safeParse("x_01ARZ3NDEKTSV4RRFFQ69G5FAV").success).toBe(false);
+    });
+
+    it("rejects wrong length", () => {
+      expect(CrockfordULIDSchema.safeParse("o_01ARZ3NDEKTSV4RRFFQ69G5FA").success).toBe(false);
+    });
+
+    it("rejects invalid characters (I, L, O, U)", () => {
+      expect(CrockfordULIDSchema.safeParse("o_01ARZ3NDEKTSV4RRFFQ69G5FAI").success).toBe(false);
+      expect(CrockfordULIDSchema.safeParse("o_01ARZ3NDEKTSV4RRFFQ69G5FAL").success).toBe(false);
+      expect(CrockfordULIDSchema.safeParse("o_01ARZ3NDEKTSV4RRFFQ69G5FAO").success).toBe(false);
+      expect(CrockfordULIDSchema.safeParse("o_01ARZ3NDEKTSV4RRFFQ69G5FAU").success).toBe(false);
+    });
+
+    it("rejects lowercase", () => {
+      expect(CrockfordULIDSchema.safeParse("o_01arz3ndektsv4rrffq69g5fav").success).toBe(false);
     });
   });
 
@@ -60,7 +84,7 @@ describe("Schema validation", () => {
   describe("ScreenSchema", () => {
     it("validates a minimal screen", () => {
       const screen = {
-        id: "018f0a1b-2c3d-7e5f-8a9b-0c1d2e3f4a5b",
+        id: "s_01ARZ3NDEKTSV4RRFFQ69G5FAV",
         type: "screen",
         parentId: null,
         children: [],
@@ -73,9 +97,9 @@ describe("Schema validation", () => {
 
     it("rejects non-null parentId", () => {
       const screen = {
-        id: "018f0a1b-2c3d-7e5f-8a9b-0c1d2e3f4a5b",
+        id: "s_01ARZ3NDEKTSV4RRFFQ69G5FAV",
         type: "screen",
-        parentId: "018f0a1b-2c3d-7e5f-8a9b-0c1d2e3f4a5c",
+        parentId: "o_01ARZ3NDEKTSV4RRFFQ69G5FAV",
         children: [],
         props: {},
         style: {},
@@ -88,9 +112,9 @@ describe("Schema validation", () => {
   describe("ContainerSchema", () => {
     it("validates a container with flex layout", () => {
       const container = {
-        id: "018f0a1b-2c3d-7e5f-8a9b-0c1d2e3f4a5b",
+        id: "o_01ARZ3NDEKTSV4RRFFQ69G5FAV",
         type: "container",
-        parentId: "018f0a1b-2c3d-7e5f-8a9b-0c1d2e3f4a5c",
+        parentId: "s_01ARZ3NDEKTSV4RRFFQ69G5FAV",
         children: [],
         props: { layout: "flex", direction: "column", gap: 16 },
         style: {},
@@ -101,9 +125,9 @@ describe("Schema validation", () => {
 
     it("rejects invalid layout value", () => {
       const container = {
-        id: "018f0a1b-2c3d-7e5f-8a9b-0c1d2e3f4a5b",
+        id: "o_01ARZ3NDEKTSV4RRFFQ69G5FAV",
         type: "container",
-        parentId: "018f0a1b-2c3d-7e5f-8a9b-0c1d2e3f4a5c",
+        parentId: "s_01ARZ3NDEKTSV4RRFFQ69G5FAV",
         children: [],
         props: { layout: "invalid" },
         style: {},
@@ -116,14 +140,14 @@ describe("Schema validation", () => {
   describe("TextSchema", () => {
     it("validates text with token color", () => {
       const text = {
-        id: "018f0a1b-2c3d-7e5f-8a9b-0c1d2e3f4a5b",
+        id: "o_01ARZ3NDEKTSV4RRFFQ69G5FAV",
         type: "text",
-        parentId: "018f0a1b-2c3d-7e5f-8a9b-0c1d2e3f4a5c",
+        parentId: "o_01ARZ3NDEKTSV4RRFFQ69G5FAV",
         children: [],
         props: {
           content: "Hello",
           fontSize: 16,
-          color: { $type: "token", $value: "color.text.primary" },
+          color: { $type: "token", $value: "token.color.text.primary" },
         },
         style: {},
         meta: {},
@@ -135,9 +159,9 @@ describe("Schema validation", () => {
   describe("ButtonSchema", () => {
     it("validates button with variant", () => {
       const button = {
-        id: "018f0a1b-2c3d-7e5f-8a9b-0c1d2e3f4a5b",
+        id: "o_01ARZ3NDEKTSV4RRFFQ69G5FAV",
         type: "button",
-        parentId: "018f0a1b-2c3d-7e5f-8a9b-0c1d2e3f4a5c",
+        parentId: "o_01ARZ3NDEKTSV4RRFFQ69G5FAV",
         children: [],
         props: { label: "Submit", variant: "primary", size: "md" },
         style: {},
@@ -148,9 +172,9 @@ describe("Schema validation", () => {
 
     it("rejects invalid variant", () => {
       const button = {
-        id: "018f0a1b-2c3d-7e5f-8a9b-0c1d2e3f4a5b",
+        id: "o_01ARZ3NDEKTSV4RRFFQ69G5FAV",
         type: "button",
-        parentId: "018f0a1b-2c3d-7e5f-8a9b-0c1d2e3f4a5c",
+        parentId: "o_01ARZ3NDEKTSV4RRFFQ69G5FAV",
         children: [],
         props: { variant: "invalid" },
         style: {},
@@ -163,10 +187,10 @@ describe("Schema validation", () => {
   describe("PatchSchema", () => {
     it("validates a set patch", () => {
       const patch = {
-        id: "018f0a1b-2c3d-7e5f-8a9b-0c1d2e3f4a5b",
-        sceneId: "018f0a1b-2c3d-7e5f-8a9b-0c1d2e3f4a5c",
-        baseRevision: 5,
-        objectId: "018f0a1b-2c3d-7e5f-8a9b-0c1d2e3f4a5d",
+        id: "p_01ARZ3NDEKTSV4RRFFQ69G5FAV",
+        sceneId: "s_01ARZ3NDEKTSV4RRFFQ69G5FAV",
+        baseRevision: 0,
+        objectId: "o_01ARZ3NDEKTSV4RRFFQ69G5FAV",
         op: "set",
         path: "props.label",
         value: "New Label",
@@ -178,10 +202,10 @@ describe("Schema validation", () => {
 
     it("validates unset patch without value", () => {
       const patch = {
-        id: "018f0a1b-2c3d-7e5f-8a9b-0c1d2e3f4a5b",
-        sceneId: "018f0a1b-2c3d-7e5f-8a9b-0c1d2e3f4a5c",
-        baseRevision: 5,
-        objectId: "018f0a1b-2c3d-7e5f-8a9b-0c1d2e3f4a5d",
+        id: "p_01ARZ3NDEKTSV4RRFFQ69G5FAV",
+        sceneId: "s_01ARZ3NDEKTSV4RRFFQ69G5FAV",
+        baseRevision: 0,
+        objectId: "o_01ARZ3NDEKTSV4RRFFQ69G5FAV",
         op: "unset",
         path: "style.background",
         createdAt: "2026-11-02T22:38:00.000Z",
@@ -192,10 +216,10 @@ describe("Schema validation", () => {
 
     it("rejects invalid op", () => {
       const patch = {
-        id: "018f0a1b-2c3d-7e5f-8a9b-0c1d2e3f4a5b",
-        sceneId: "018f0a1b-2c3d-7e5f-8a9b-0c1d2e3f4a5c",
-        baseRevision: 5,
-        objectId: "018f0a1b-2c3d-7e5f-8a9b-0c1d2e3f4a5d",
+        id: "p_01ARZ3NDEKTSV4RRFFQ69G5FAV",
+        sceneId: "s_01ARZ3NDEKTSV4RRFFQ69G5FAV",
+        baseRevision: 0,
+        objectId: "o_01ARZ3NDEKTSV4RRFFQ69G5FAV",
         op: "invalid",
         path: "props.label",
         createdAt: "2026-11-02T22:38:00.000Z",
@@ -283,7 +307,7 @@ describe("Schema validation", () => {
   describe("BriefSchema", () => {
     it("validates approved brief", () => {
       const brief = {
-        id: "018f0a1b-2c3d-7e5f-8a9b-0c1d2e3f4a5b",
+        id: "b_01ARZ3NDEKTSV4RRFFQ69G5FAV",
         version: 1,
         createdAt: "2026-11-02T22:38:00.000Z",
         updatedAt: "2026-11-02T22:38:00.000Z",
@@ -307,9 +331,9 @@ describe("Schema validation", () => {
   describe("FeedbackSchema", () => {
     it("validates visual feedback with screenshot", () => {
       const feedback = {
-        id: "018f0a1b-2c3d-7e5f-8a9b-0c1d2e3f4a5b",
-        sceneId: "018f0a1b-2c3d-7e5f-8a9b-0c1d2e3f4a5c",
-        objectId: "018f0a1b-2c3d-7e5f-8a9b-0c1d2e3f4a5d",
+        id: "a_01ARZ3NDEKTSV4RRFFQ69G5FAV",
+        sceneId: "s_01ARZ3NDEKTSV4RRFFQ69G5FAV",
+        objectId: "o_01ARZ3NDEKTSV4RRFFQ69G5FAV",
         kind: "visual",
         message: "Button too small on mobile",
         severity: "high",
@@ -331,10 +355,10 @@ describe("Schema validation", () => {
 
     it("validatePatch returns parsed patch", () => {
       const patch = {
-        id: "018f0a1b-2c3d-7e5f-8a9b-0c1d2e3f4a5b",
-        sceneId: "018f0a1b-2c3d-7e5f-8a9b-0c1d2e3f4a5c",
+        id: "p_01ARZ3NDEKTSV4RRFFQ69G5FAV",
+        sceneId: "s_01ARZ3NDEKTSV4RRFFQ69G5FAV",
         baseRevision: 1,
-        objectId: "018f0a1b-2c3d-7e5f-8a9b-0c1d2e3f4a5d",
+        objectId: "o_01ARZ3NDEKTSV4RRFFQ69G5FAV",
         op: "set",
         path: "props.label",
         value: "Test",

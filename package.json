@@ -2,7 +2,7 @@
   "name": "intent",
   "version": "0.0.0",
   "private": true,
-  "description": "Intent — browser-first SPA monorepo for closing the intent gap",
+  "description": "Intent \u2014 browser-first SPA monorepo for closing the intent gap",
   "scripts": {
     "build": "pnpm -r run build",
     "test": "pnpm -r run test",
@@ -10,7 +10,8 @@
     "typecheck": "pnpm -r run typecheck",
     "format": "prettier --write \"**/*.{ts,tsx,json,md}\"",
     "docs:index": "node scripts/docs-index.mjs",
-    "context:check": "node scripts/context-check.mjs"
+    "context:check": "node scripts/context-check.mjs",
+    "verify": "node scripts/verify.mjs"
   },
   "devDependencies": {
     "@playwright/test": "^1.65.0",

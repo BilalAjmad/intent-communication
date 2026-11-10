@@ -84,7 +84,7 @@ function createImage(id: string, parentId: string, src: string): Image {
 describe("Engine package", () => {
   describe("normalizeScene", () => {
     it("applies default screen props", () => {
-      const screenId = "018f0a1b-2c3d-7e5f-8a9b-0c1d2e3f4a5a";
+      const screenId = "s_01ARZ3NDEKTSV4RRFFQ69G5FAV";
       const scene = createBaseScene({
         screens: { [screenId]: { ...createScreen(screenId), props: {} } },
         objects: { [screenId]: { ...createScreen(screenId), props: {} } },
@@ -96,8 +96,8 @@ describe("Engine package", () => {
     });
 
     it("applies default container props", () => {
-      const containerId = "018f0a1b-2c3d-7e5f-8a9b-0c1d2e3f4a5b";
-      const screenId = "018f0a1b-2c3d-7e5f-8a9b-0c1d2e3f4a5a";
+      const containerId = "o_01ARZ3NDEKTSV4RRFFQ69G5FAV";
+      const screenId = "s_01ARZ3NDEKTSV4RRFFQ69G5FAV";
       const scene = createBaseScene({
         screens: { [screenId]: createScreen(screenId, "", [containerId]) },
         objects: {
@@ -112,9 +112,9 @@ describe("Engine package", () => {
     });
 
     it("applies default text props", () => {
-      const textId = "018f0a1b-2c3d-7e5f-8a9b-0c1d2e3f4a5c";
-      const containerId = "018f0a1b-2c3d-7e5f-8a9b-0c1d2e3f4a5b";
-      const screenId = "018f0a1b-2c3d-7e5f-8a9b-0c1d2e3f4a5a";
+      const textId = "o_02ARZ3NDEKTSV4RRFFQ69G5FAV";
+      const containerId = "o_01ARZ3NDEKTSV4RRFFQ69G5FAV";
+      const screenId = "s_01ARZ3NDEKTSV4RRFFQ69G5FAV";
       const scene = createBaseScene({
         screens: { [screenId]: createScreen(screenId, "", [containerId]) },
         objects: {
@@ -131,9 +131,9 @@ describe("Engine package", () => {
     });
 
     it("applies default button props", () => {
-      const buttonId = "018f0a1b-2c3d-7e5f-8a9b-0c1d2e3f4a5d";
-      const containerId = "018f0a1b-2c3d-7e5f-8a9b-0c1d2e3f4a5b";
-      const screenId = "018f0a1b-2c3d-7e5f-8a9b-0c1d2e3f4a5a";
+      const buttonId = "o_01ARZ3NDEKTSV4RRFFQ69G5FAV";
+      const containerId = "o_01ARZ3NDEKTSV4RRFFQ69G5FAV";
+      const screenId = "s_01ARZ3NDEKTSV4RRFFQ69G5FAV";
       const scene = createBaseScene({
         screens: { [screenId]: createScreen(screenId, "", [containerId]) },
         objects: {
@@ -151,9 +151,9 @@ describe("Engine package", () => {
     });
 
     it("strips unknown tokens", () => {
-      const textId = "018f0a1b-2c3d-7e5f-8a9b-0c1d2e3f4a5c";
-      const containerId = "018f0a1b-2c3d-7e5f-8a9b-0c1d2e3f4a5b";
-      const screenId = "018f0a1b-2c3d-7e5f-8a9b-0c1d2e3f4a5a";
+      const textId = "o_02ARZ3NDEKTSV4RRFFQ69G5FAV";
+      const containerId = "o_01ARZ3NDEKTSV4RRFFQ69G5FAV";
+      const screenId = "s_01ARZ3NDEKTSV4RRFFQ69G5FAV";
       const scene = createBaseScene({
         screens: { [screenId]: createScreen(screenId, "", [containerId]) },
         objects: {
@@ -170,9 +170,9 @@ describe("Engine package", () => {
     });
 
     it("ensures required image alt", () => {
-      const imageId = "018f0a1b-2c3d-7e5f-8a9b-0c1d2e3f4a5e";
-      const containerId = "018f0a1b-2c3d-7e5f-8a9b-0c1d2e3f4a5b";
-      const screenId = "018f0a1b-2c3d-7e5f-8a9b-0c1d2e3f4a5a";
+      const imageId = "o_01ARZ3NDEKTSV4RRFFQ69G5FAV";
+      const containerId = "o_01ARZ3NDEKTSV4RRFFQ69G5FAV";
+      const screenId = "s_01ARZ3NDEKTSV4RRFFQ69G5FAV";
       const scene = createBaseScene({
         screens: { [screenId]: createScreen(screenId, "", [containerId]) },
         objects: {
@@ -188,10 +188,10 @@ describe("Engine package", () => {
 
   describe("exportToHtml", () => {
     it("generates valid HTML for simple scene", () => {
-      const screenId = "018f0a1b-2c3d-7e5f-8a9b-0c1d2e3f4a5a";
-      const containerId = "018f0a1b-2c3d-7e5f-8a9b-0c1d2e3f4a5b";
-      const textId = "018f0a1b-2c3d-7e5f-8a9b-0c1d2e3f4a5c";
-      const buttonId = "018f0a1b-2c3d-7e5f-8a9b-0c1d2e3f4a5d";
+      const screenId = "s_01ARZ3NDEKTSV4RRFFQ69G5FAV";
+      const containerId = "o_01ARZ3NDEKTSV4RRFFQ69G5FAV";
+      const textId = "o_02ARZ3NDEKTSV4RRFFQ69G5FAV";
+      const buttonId = "o_01ARZ3NDEKTSV4RRFFQ69G5FAV";
 
       const scene = createBaseScene({
         screens: { [screenId]: createScreen(screenId, "Home", [containerId]) },
@@ -217,7 +217,7 @@ describe("Engine package", () => {
     });
 
     it("includes CSS variables when includeStyles=true", () => {
-      const screenId = "018f0a1b-2c3d-7e5f-8a9b-0c1d2e3f4a5a";
+      const screenId = "s_01ARZ3NDEKTSV4RRFFQ69G5FAV";
       const scene = createBaseScene({
         screens: { [screenId]: createScreen(screenId) },
         objects: { [screenId]: createScreen(screenId) },
@@ -229,7 +229,7 @@ describe("Engine package", () => {
     });
 
     it("excludes styles when includeStyles=false", () => {
-      const screenId = "018f0a1b-2c3d-7e5f-8a9b-0c1d2e3f4a5a";
+      const screenId = "s_01ARZ3NDEKTSV4RRFFQ69G5FAV";
       const scene = createBaseScene({
         screens: { [screenId]: createScreen(screenId) },
         objects: { [screenId]: createScreen(screenId) },
@@ -239,7 +239,7 @@ describe("Engine package", () => {
     });
 
     it("includes script with scene data when includeScripts=true", () => {
-      const screenId = "018f0a1b-2c3d-7e5f-8a9b-0c1d2e3f4a5a";
+      const screenId = "s_01ARZ3NDEKTSV4RRFFQ69G5FAV";
       const scene = createBaseScene({
         screens: { [screenId]: createScreen(screenId) },
         objects: { [screenId]: createScreen(screenId) },
@@ -252,9 +252,9 @@ describe("Engine package", () => {
     });
 
     it("escapes HTML in text content", () => {
-      const screenId = "018f0a1b-2c3d-7e5f-8a9b-0c1d2e3f4a5a";
-      const textId = "018f0a1b-2c3d-7e5f-8a9b-0c1d2e3f4a5c";
-      const containerId = "018f0a1b-2c3d-7e5f-8a9b-0c1d2e3f4a5b";
+      const screenId = "s_01ARZ3NDEKTSV4RRFFQ69G5FAV";
+      const textId = "o_02ARZ3NDEKTSV4RRFFQ69G5FAV";
+      const containerId = "o_01ARZ3NDEKTSV4RRFFQ69G5FAV";
       const scene = createBaseScene({
         screens: { [screenId]: createScreen(screenId, "", [containerId]) },
         objects: {
@@ -271,9 +271,9 @@ describe("Engine package", () => {
     });
 
     it("renders multiple screens in screenOrder", () => {
-      const screen1Id = "018f0a1b-2c3d-7e5f-8a9b-0c1d2e3f4a5a";
-      const screen2Id = "018f0a1b-2c3d-7e5f-8a9b-0c1d2e3f4a5b";
-      const screen3Id = "018f0a1b-2c3d-7e5f-8a9b-0c1d2e3f4a5c";
+      const screen1Id = "s_01ARZ3NDEKTSV4RRFFQ69G5FAV";
+      const screen2Id = "o_01ARZ3NDEKTSV4RRFFQ69G5FAV";
+      const screen3Id = "o_02ARZ3NDEKTSV4RRFFQ69G5FAV";
 
       const scene = createBaseScene({
         screens: {
@@ -298,7 +298,7 @@ describe("Engine package", () => {
     });
 
     it("includes CSP nonce when provided", () => {
-      const screenId = "018f0a1b-2c3d-7e5f-8a9b-0c1d2e3f4a5a";
+      const screenId = "s_01ARZ3NDEKTSV4RRFFQ69G5FAV";
       const scene = createBaseScene({
         screens: { [screenId]: createScreen(screenId) },
         objects: { [screenId]: createScreen(screenId) },
@@ -308,9 +308,9 @@ describe("Engine package", () => {
     });
 
     it("renders image with fit class", () => {
-      const screenId = "018f0a1b-2c3d-7e5f-8a9b-0c1d2e3f4a5a";
-      const containerId = "018f0a1b-2c3d-7e5f-8a9b-0c1d2e3f4a5b";
-      const imageId = "018f0a1b-2c3d-7e5f-8a9b-0c1d2e3f4a5c";
+      const screenId = "s_01ARZ3NDEKTSV4RRFFQ69G5FAV";
+      const containerId = "o_01ARZ3NDEKTSV4RRFFQ69G5FAV";
+      const imageId = "o_02ARZ3NDEKTSV4RRFFQ69G5FAV";
 
       const scene = createBaseScene({
         screens: { [screenId]: createScreen(screenId, "", [containerId]) },
@@ -328,9 +328,9 @@ describe("Engine package", () => {
     });
 
     it("renders input with correct attributes", () => {
-      const screenId = "018f0a1b-2c3d-7e5f-8a9b-0c1d2e3f4a5a";
-      const containerId = "018f0a1b-2c3d-7e5f-8a9b-0c1d2e3f4a5b";
-      const inputId = "018f0a1b-2c3d-7e5f-8a9b-0c1d2e3f4a5c";
+      const screenId = "s_01ARZ3NDEKTSV4RRFFQ69G5FAV";
+      const containerId = "o_01ARZ3NDEKTSV4RRFFQ69G5FAV";
+      const inputId = "o_02ARZ3NDEKTSV4RRFFQ69G5FAV";
 
       const scene = createBaseScene({
         screens: { [screenId]: createScreen(screenId, "", [containerId]) },

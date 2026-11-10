@@ -1,16 +1,6 @@
 import { z } from "zod";
 
-export const UUIDv7Schema = z.string().uuid().refine(
-  (val) => {
-    const parts = val.split("-");
-    if (parts.length !== 5) return false;
-    const thirdPart = parts[2];
-    if (!thirdPart) return false;
-    const version = parseInt(thirdPart.charAt(0), 16);
-    return version === 7;
-  },
-  { message: "Must be UUID v7" }
-);
+export const CrockfordULIDSchema = z.string().regex(/^(o_|s_|c_|p_|a_|q_|v_|k_|b_)[0-9A-HJKMNP-TV-Z]{26}$/, { message: "Must be a valid prefixed Crockford ULID (prefix_<26 Crockford base32 chars>)" });
 
 export const ISODateTimeSchema = z.string().datetime({ offset: true }).refine(
   (val) => val.endsWith("Z"),
@@ -19,9 +9,9 @@ export const ISODateTimeSchema = z.string().datetime({ offset: true }).refine(
 
 export const RevisionSchema = z.number().int().nonnegative();
 
-export const ObjectIdSchema = UUIDv7Schema;
+export const ObjectIdSchema = CrockfordULIDSchema;
 
-export const ScreenIdSchema = UUIDv7Schema;
+export const ScreenIdSchema = CrockfordULIDSchema;
 
 export const PrimitiveValueSchema = z.union([
   z.string(),
@@ -153,8 +143,8 @@ export type Screen = z.infer<typeof ScreenSchema>;
 export const PatchOpSchema = z.enum(["set", "unset", "insert", "remove", "move", "replace"]);
 
 export const PatchSchema = z.object({
-  id: UUIDv7Schema,
-  sceneId: UUIDv7Schema,
+  id: CrockfordULIDSchema,
+  sceneId: CrockfordULIDSchema,
   baseRevision: RevisionSchema,
   objectId: ObjectIdSchema,
   op: PatchOpSchema,
@@ -166,7 +156,7 @@ export const PatchSchema = z.object({
   createdAt: ISODateTimeSchema,
   status: z.enum(["pending", "applied", "rejected", "conflict"]).default("pending"),
   appliedAt: ISODateTimeSchema.nullable().default(null),
-  conflictWith: UUIDv7Schema.nullable().default(null),
+  conflictWith: CrockfordULIDSchema.nullable().default(null),
 });
 
 export type Patch = z.infer<typeof PatchSchema>;
@@ -211,7 +201,7 @@ export const ProfileSchema = z.object({
     tokens: z.record(z.string(), z.string()).default({}),
   }).default({}),
   patterns: z.array(z.object({
-    id: UUIDv7Schema,
+    id: CrockfordULIDSchema,
     name: z.string(),
     description: z.string(),
     objectTypes: z.array(z.string()),
@@ -234,14 +224,14 @@ export const InterviewStateSchema = z.object({
   answeredTopics: z.array(z.string()).default([]),
   delegated: z.boolean().default(false),
   delegatedAt: ISODateTimeSchema.nullable().default(null),
-  briefId: UUIDv7Schema.nullable().default(null),
+  briefId: CrockfordULIDSchema.nullable().default(null),
   updatedAt: ISODateTimeSchema,
 });
 
 export type InterviewState = z.infer<typeof InterviewStateSchema>;
 
 export const BriefSchema = z.object({
-  id: UUIDv7Schema,
+  id: CrockfordULIDSchema,
   version: z.literal(1),
   createdAt: ISODateTimeSchema,
   updatedAt: ISODateTimeSchema,
@@ -267,8 +257,8 @@ export const BriefSchema = z.object({
 export type Brief = z.infer<typeof BriefSchema>;
 
 export const FeedbackSchema = z.object({
-  id: UUIDv7Schema,
-  sceneId: UUIDv7Schema,
+  id: CrockfordULIDSchema,
+  sceneId: CrockfordULIDSchema,
   objectId: ObjectIdSchema,
   kind: z.enum(["visual", "behavior", "content", "layout", "accessibility", "other"]),
   message: z.string().min(1),
@@ -277,7 +267,7 @@ export const FeedbackSchema = z.object({
   createdAt: ISODateTimeSchema,
   acknowledgedAt: ISODateTimeSchema.nullable().default(null),
   appliedAt: ISODateTimeSchema.nullable().default(null),
-  patchId: UUIDv7Schema.nullable().default(null),
+  patchId: CrockfordULIDSchema.nullable().default(null),
   screenshot: z.string().optional(),
 });
 
@@ -330,7 +320,7 @@ export const ApplyPatchOutputSchema = z.object({
   success: z.boolean(),
   revision: RevisionSchema,
   conflict: z.object({
-    patchId: UUIDv7Schema,
+    patchId: CrockfordULIDSchema,
     objectId: ObjectIdSchema,
     currentRevision: RevisionSchema,
     baseRevision: RevisionSchema,
@@ -341,7 +331,7 @@ export const ApplyPatchOutputSchema = z.object({
 export type ApplyPatchOutput = z.infer<typeof ApplyPatchOutputSchema>;
 
 export const GetFeedbackInputSchema = z.object({
-  sceneId: UUIDv7Schema,
+  sceneId: CrockfordULIDSchema,
   objectIds: z.array(ObjectIdSchema).optional(),
   includeImageData: z.boolean().default(false),
   since: ISODateTimeSchema.optional(),
@@ -377,14 +367,14 @@ export const AskUserOutputSchema = z.object({
   answer: z.unknown(),
   meter: z.number().min(0).max(100),
   nextQuestion: AskUserInputSchema.nullable().default(null),
-  briefId: UUIDv7Schema.nullable().default(null),
+  briefId: CrockfordULIDSchema.nullable().default(null),
   delegated: z.boolean().default(false),
 });
 
 export type AskUserOutput = z.infer<typeof AskUserOutputSchema>;
 
 export const OpenStudioInputSchema = z.object({
-  sceneId: UUIDv7Schema,
+  sceneId: CrockfordULIDSchema,
   userRequested: z.boolean(),
   quote: z.string().optional(),
 });

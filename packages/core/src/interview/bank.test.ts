@@ -220,7 +220,7 @@ describe("Interview Bank", () => {
     });
 
     it("parses option ids and matches default", async () => {
-      const content = await fs.readFile(intentMdPath, "utf-8");
+      await fs.readFile(intentMdPath, "utf-8");
       for (const seed of INTERVIEW_SEEDS) {
         if (seed.profileKey) {
           const optionIds = seed.options.map(o => o.id);

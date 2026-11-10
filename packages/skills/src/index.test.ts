@@ -2,9 +2,10 @@ import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { generateSkillFiles, SKILL_FILES } from "./index";
 import { promises as fs } from "node:fs";
 import { resolve } from "node:path";
+import os from "node:os";
 
 describe("Skills package", () => {
-  const testDir = require("os").tmpdir() + "/.test-skills";
+  const testDir = os.tmpdir() + "/.test-skills";
   const outputDir = resolve(testDir, ".intent", "rules");
 
   beforeEach(async () => {

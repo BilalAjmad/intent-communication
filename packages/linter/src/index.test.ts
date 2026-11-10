@@ -2,9 +2,8 @@ import { describe, it, expect } from "vitest";
 import {
   lintScene,
   lintSceneWithRules,
-  M1_RULES,
 } from "./index";
-import { Scene, Screen, Text, Button, Image, Container } from "@intent/schema";
+import { Scene, Screen, Text, Button, Container } from "@intent/schema";
 
 function createBaseScene(overrides: Partial<Scene> = {}): Scene {
   return {
@@ -32,7 +31,7 @@ function createScreen(id: string, title: string = "Test Screen"): Screen {
   };
 }
 
-function createText(id: string, parentId: string, content: string, color?: any): Text {
+function createText(id: string, parentId: string, content: string, color?: { $type: "token"; $value: string }): Text {
   return {
     id,
     type: "text",
@@ -44,7 +43,7 @@ function createText(id: string, parentId: string, content: string, color?: any):
   };
 }
 
-function createButton(id: string, parentId: string, label: string, style: any = {}): Button {
+function createButton(id: string, parentId: string, label: string, style: Record<string, unknown> = {}): Button {
   return {
     id,
     type: "button",
@@ -56,18 +55,6 @@ function createButton(id: string, parentId: string, label: string, style: any = 
       minHeight: 44,
       ...style 
     },
-    meta: {},
-  };
-}
-
-function createImage(id: string, parentId: string, src: string, alt: string = ""): Image {
-  return {
-    id,
-    type: "image",
-    parentId,
-    children: [],
-    props: { src, alt, fit: "cover" },
-    style: {},
     meta: {},
   };
 }
@@ -89,10 +76,10 @@ describe("Linter - M1 Rules", () => {
     it("passes with valid screen", () => {
       const scene = createBaseScene({
         objects: {
-          "018f0a1b-2c3d-7e5f-8a9b-0c1d2e3f4a5a": createScreen("018f0a1b-2c3d-7e5f-8a9b-0c1d2e3f4a5a"),
+          "s_01ARZ3NDEKTSV4RRFFQ69G5FAV": createScreen("s_01ARZ3NDEKTSV4RRFFQ69G5FAV"),
         },
         screens: {
-          "018f0a1b-2c3d-7e5f-8a9b-0c1d2e3f4a5a": createScreen("018f0a1b-2c3d-7e5f-8a9b-0c1d2e3f4a5a"),
+          "s_01ARZ3NDEKTSV4RRFFQ69G5FAV": createScreen("s_01ARZ3NDEKTSV4RRFFQ69G5FAV"),
         },
       });
       const result = lintSceneWithRules(scene, ["L-SCHEMA"]);
@@ -102,13 +89,13 @@ describe("Linter - M1 Rules", () => {
     it("fails screen with non-null parentId", () => {
       const scene = createBaseScene({
         objects: {
-          "018f0a1b-2c3d-7e5f-8a9b-0c1d2e3f4a5a": {
-            ...createScreen("018f0a1b-2c3d-7e5f-8a9b-0c1d2e3f4a5a"),
-            parentId: "018f0a1b-2c3d-7e5f-8a9b-0c1d2e3f4a5b",
+          "s_01ARZ3NDEKTSV4RRFFQ69G5FAV": {
+            ...createScreen("s_01ARZ3NDEKTSV4RRFFQ69G5FAV"),
+            parentId: "o_01ARZ3NDEKTSV4RRFFQ69G5FAV",
           },
         },
         screens: {
-          "018f0a1b-2c3d-7e5f-8a9b-0c1d2e3f4a5a": createScreen("018f0a1b-2c3d-7e5f-8a9b-0c1d2e3f4a5a"),
+          "s_01ARZ3NDEKTSV4RRFFQ69G5FAV": createScreen("s_01ARZ3NDEKTSV4RRFFQ69G5FAV"),
         },
       });
       const result = lintSceneWithRules(scene, ["L-SCHEMA"]);
@@ -119,14 +106,14 @@ describe("Linter - M1 Rules", () => {
     it("fails object with non-existent parent", () => {
       const scene = createBaseScene({
         objects: {
-          "018f0a1b-2c3d-7e5f-8a9b-0c1d2e3f4a5b": createText(
-            "018f0a1b-2c3d-7e5f-8a9b-0c1d2e3f4a5b",
-            "018f0a1b-2c3d-7e5f-8a9b-0c1d2e3f4a5c",
+          "o_01ARZ3NDEKTSV4RRFFQ69G5FAV": createText(
+            "o_01ARZ3NDEKTSV4RRFFQ69G5FAV",
+            "o_02ARZ3NDEKTSV4RRFFQ69G5FAV",
             "Hello"
           ),
         },
         screens: {
-          "018f0a1b-2c3d-7e5f-8a9b-0c1d2e3f4a5a": createScreen("018f0a1b-2c3d-7e5f-8a9b-0c1d2e3f4a5a"),
+          "s_01ARZ3NDEKTSV4RRFFQ69G5FAV": createScreen("s_01ARZ3NDEKTSV4RRFFQ69G5FAV"),
         },
       });
       const result = lintSceneWithRules(scene, ["L-SCHEMA"]);
@@ -139,17 +126,17 @@ describe("Linter - M1 Rules", () => {
     it("passes with 4px aligned values", () => {
       const scene = createBaseScene({
         objects: {
-          "018f0a1b-2c3d-7e5f-8a9b-0c1d2e3f4a5b": createText(
-            "018f0a1b-2c3d-7e5f-8a9b-0c1d2e3f4a5b",
-            "018f0a1b-2c3d-7e5f-8a9b-0c1d2e3f4a5a",
+          "o_01ARZ3NDEKTSV4RRFFQ69G5FAV": createText(
+            "o_01ARZ3NDEKTSV4RRFFQ69G5FAV",
+            "s_01ARZ3NDEKTSV4RRFFQ69G5FAV",
             "Hello"
           ),
         },
         screens: {
-          "018f0a1b-2c3d-7e5f-8a9b-0c1d2e3f4a5a": createScreen("018f0a1b-2c3d-7e5f-8a9b-0c1d2e3f4a5a"),
+          "s_01ARZ3NDEKTSV4RRFFQ69G5FAV": createScreen("s_01ARZ3NDEKTSV4RRFFQ69G5FAV"),
         },
       });
-      scene.objects["018f0a1b-2c3d-7e5f-8a9b-0c1d2e3f4a5b"].style = { margin: 16, padding: 8 };
+      scene.objects["o_01ARZ3NDEKTSV4RRFFQ69G5FAV"].style = { margin: 16, padding: 8 };
       const result = lintSceneWithRules(scene, ["L-GRID"]);
       expect(result.pass).toBe(true);
     });
@@ -157,17 +144,17 @@ describe("Linter - M1 Rules", () => {
     it("fails with non-4px aligned value", () => {
       const scene = createBaseScene({
         objects: {
-          "018f0a1b-2c3d-7e5f-8a9b-0c1d2e3f4a5b": createText(
-            "018f0a1b-2c3d-7e5f-8a9b-0c1d2e3f4a5b",
-            "018f0a1b-2c3d-7e5f-8a9b-0c1d2e3f4a5a",
+          "o_01ARZ3NDEKTSV4RRFFQ69G5FAV": createText(
+            "o_01ARZ3NDEKTSV4RRFFQ69G5FAV",
+            "s_01ARZ3NDEKTSV4RRFFQ69G5FAV",
             "Hello"
           ),
         },
         screens: {
-          "018f0a1b-2c3d-7e5f-8a9b-0c1d2e3f4a5a": createScreen("018f0a1b-2c3d-7e5f-8a9b-0c1d2e3f4a5a"),
+          "s_01ARZ3NDEKTSV4RRFFQ69G5FAV": createScreen("s_01ARZ3NDEKTSV4RRFFQ69G5FAV"),
         },
       });
-      scene.objects["018f0a1b-2c3d-7e5f-8a9b-0c1d2e3f4a5b"].style = { margin: 15 };
+      scene.objects["o_01ARZ3NDEKTSV4RRFFQ69G5FAV"].style = { margin: 15 };
       const result = lintSceneWithRules(scene, ["L-GRID"]);
       expect(result.pass).toBe(false);
       expect(result.violations.some(v => v.ruleId === "L-GRID")).toBe(true);
@@ -178,18 +165,18 @@ describe("Linter - M1 Rules", () => {
     it("passes with token color and background meeting WCAG AA", () => {
       const scene = createBaseScene({
         objects: {
-          "018f0a1b-2c3d-7e5f-8a9b-0c1d2e3f4a5b": createText(
-            "018f0a1b-2c3d-7e5f-8a9b-0c1d2e3f4a5b",
-            "018f0a1b-2c3d-7e5f-8a9b-0c1d2e3f4a5a",
+          "o_01ARZ3NDEKTSV4RRFFQ69G5FAV": createText(
+            "o_01ARZ3NDEKTSV4RRFFQ69G5FAV",
+            "s_01ARZ3NDEKTSV4RRFFQ69G5FAV",
             "Hello",
             { $type: "token", $value: "token.color.text.primary" }
           ),
         },
         screens: {
-          "018f0a1b-2c3d-7e5f-8a9b-0c1d2e3f4a5a": createScreen("018f0a1b-2c3d-7e5f-8a9b-0c1d2e3f4a5a"),
+          "s_01ARZ3NDEKTSV4RRFFQ69G5FAV": createScreen("s_01ARZ3NDEKTSV4RRFFQ69G5FAV"),
         },
       });
-      scene.objects["018f0a1b-2c3d-7e5f-8a9b-0c1d2e3f4a5b"].style = { 
+      scene.objects["o_01ARZ3NDEKTSV4RRFFQ69G5FAV"].style = { 
         background: { $type: "token", $value: "token.color.background" } 
       };
       const result = lintSceneWithRules(scene, ["L-CONTRAST"]);
@@ -199,15 +186,15 @@ describe("Linter - M1 Rules", () => {
     it("fails #777777 on #ffffff (ratio 4.48:1 < 4.5)", () => {
       const scene = createBaseScene({
         objects: {
-          "018f0a1b-2c3d-7e5f-8a9b-0c1d2e3f4a5b": {
-            ...createText("018f0a1b-2c3d-7e5f-8a9b-0c1d2e3f4a5b", "018f0a1b-2c3d-7e5f-8a9b-0c1d2e3f4a5a", "Hello"),
+          "o_01ARZ3NDEKTSV4RRFFQ69G5FAV": {
+            ...createText("o_01ARZ3NDEKTSV4RRFFQ69G5FAV", "s_01ARZ3NDEKTSV4RRFFQ69G5FAV", "Hello"),
             props: { content: "Hello", fontSize: 16, color: "#777777" },
             style: { background: "#ffffff" },
             meta: {},
           },
         },
         screens: {
-          "018f0a1b-2c3d-7e5f-8a9b-0c1d2e3f4a5a": createScreen("018f0a1b-2c3d-7e5f-8a9b-0c1d2e3f4a5a"),
+          "s_01ARZ3NDEKTSV4RRFFQ69G5FAV": createScreen("s_01ARZ3NDEKTSV4RRFFQ69G5FAV"),
         },
       });
       const result = lintSceneWithRules(scene, ["L-CONTRAST"]);
@@ -219,15 +206,15 @@ describe("Linter - M1 Rules", () => {
     it("passes #767676 on #ffffff (ratio 4.54:1 >= 4.5)", () => {
       const scene = createBaseScene({
         objects: {
-          "018f0a1b-2c3d-7e5f-8a9b-0c1d2e3f4a5b": {
-            ...createText("018f0a1b-2c3d-7e5f-8a9b-0c1d2e3f4a5b", "018f0a1b-2c3d-7e5f-8a9b-0c1d2e3f4a5a", "Hello"),
+          "o_01ARZ3NDEKTSV4RRFFQ69G5FAV": {
+            ...createText("o_01ARZ3NDEKTSV4RRFFQ69G5FAV", "s_01ARZ3NDEKTSV4RRFFQ69G5FAV", "Hello"),
             props: { content: "Hello", fontSize: 16, color: "#767676" },
             style: { background: "#ffffff" },
             meta: {},
           },
         },
         screens: {
-          "018f0a1b-2c3d-7e5f-8a9b-0c1d2e3f4a5a": createScreen("018f0a1b-2c3d-7e5f-8a9b-0c1d2e3f4a5a"),
+          "s_01ARZ3NDEKTSV4RRFFQ69G5FAV": createScreen("s_01ARZ3NDEKTSV4RRFFQ69G5FAV"),
         },
       });
       const result = lintSceneWithRules(scene, ["L-CONTRAST"]);
@@ -237,15 +224,15 @@ describe("Linter - M1 Rules", () => {
     it("passes large text (18px+) with 3:1 ratio", () => {
       const scene = createBaseScene({
         objects: {
-          "018f0a1b-2c3d-7e5f-8a9b-0c1d2e3f4a5b": {
-            ...createText("018f0a1b-2c3d-7e5f-8a9b-0c1d2e3f4a5b", "018f0a1b-2c3d-7e5f-8a9b-0c1d2e3f4a5a", "Hello"),
+          "o_01ARZ3NDEKTSV4RRFFQ69G5FAV": {
+            ...createText("o_01ARZ3NDEKTSV4RRFFQ69G5FAV", "s_01ARZ3NDEKTSV4RRFFQ69G5FAV", "Hello"),
             props: { content: "Hello", fontSize: 18, color: "#888888" },
             style: { background: "#ffffff" },
             meta: {},
           },
         },
         screens: {
-          "018f0a1b-2c3d-7e5f-8a9b-0c1d2e3f4a5a": createScreen("018f0a1b-2c3d-7e5f-8a9b-0c1d2e3f4a5a"),
+          "s_01ARZ3NDEKTSV4RRFFQ69G5FAV": createScreen("s_01ARZ3NDEKTSV4RRFFQ69G5FAV"),
         },
       });
       const result = lintSceneWithRules(scene, ["L-CONTRAST"]);
@@ -255,18 +242,18 @@ describe("Linter - M1 Rules", () => {
     it("fails non-token color or background", () => {
       const scene = createBaseScene({
         objects: {
-          "018f0a1b-2c3d-7e5f-8a9b-0c1d2e3f4a5b": createText(
-            "018f0a1b-2c3d-7e5f-8a9b-0c1d2e3f4a5b",
-            "018f0a1b-2c3d-7e5f-8a9b-0c1d2e3f4a5a",
+          "o_01ARZ3NDEKTSV4RRFFQ69G5FAV": createText(
+            "o_01ARZ3NDEKTSV4RRFFQ69G5FAV",
+            "s_01ARZ3NDEKTSV4RRFFQ69G5FAV",
             "Hello",
             "#ff0000"
           ),
         },
         screens: {
-          "018f0a1b-2c3d-7e5f-8a9b-0c1d2e3f4a5a": createScreen("018f0a1b-2c3d-7e5f-8a9b-0c1d2e3f4a5a"),
+          "s_01ARZ3NDEKTSV4RRFFQ69G5FAV": createScreen("s_01ARZ3NDEKTSV4RRFFQ69G5FAV"),
         },
       });
-      scene.objects["018f0a1b-2c3d-7e5f-8a9b-0c1d2e3f4a5b"].style = { background: "#ffffff" };
+      scene.objects["o_01ARZ3NDEKTSV4RRFFQ69G5FAV"].style = { background: "#ffffff" };
       const result = lintSceneWithRules(scene, ["L-CONTRAST"]);
       expect(result.pass).toBe(false);
       expect(result.violations.some(v => v.ruleId === "L-CONTRAST")).toBe(true);
@@ -277,15 +264,15 @@ describe("Linter - M1 Rules", () => {
     it("fails button with width < 44px", () => {
       const scene = createBaseScene({
         objects: {
-          "018f0a1b-2c3d-7e5f-8a9b-0c1d2e3f4a5b": createButton(
-            "018f0a1b-2c3d-7e5f-8a9b-0c1d2e3f4a5b",
-            "018f0a1b-2c3d-7e5f-8a9b-0c1d2e3f4a5a",
+          "o_01ARZ3NDEKTSV4RRFFQ69G5FAV": createButton(
+            "o_01ARZ3NDEKTSV4RRFFQ69G5FAV",
+            "s_01ARZ3NDEKTSV4RRFFQ69G5FAV",
             "Click",
             { minWidth: 32, minHeight: 44 }
           ),
         },
         screens: {
-          "018f0a1b-2c3d-7e5f-8a9b-0c1d2e3f4a5a": createScreen("018f0a1b-2c3d-7e5f-8a9b-0c1d2e3f4a5a"),
+          "s_01ARZ3NDEKTSV4RRFFQ69G5FAV": createScreen("s_01ARZ3NDEKTSV4RRFFQ69G5FAV"),
         },
       });
       const result = lintSceneWithRules(scene, ["L-TOUCH"]);
@@ -296,15 +283,15 @@ describe("Linter - M1 Rules", () => {
     it("fails button with height < 44px", () => {
       const scene = createBaseScene({
         objects: {
-          "018f0a1b-2c3d-7e5f-8a9b-0c1d2e3f4a5b": createButton(
-            "018f0a1b-2c3d-7e5f-8a9b-0c1d2e3f4a5b",
-            "018f0a1b-2c3d-7e5f-8a9b-0c1d2e3f4a5a",
+          "o_01ARZ3NDEKTSV4RRFFQ69G5FAV": createButton(
+            "o_01ARZ3NDEKTSV4RRFFQ69G5FAV",
+            "s_01ARZ3NDEKTSV4RRFFQ69G5FAV",
             "Click",
             { minWidth: 44, minHeight: 32 }
           ),
         },
         screens: {
-          "018f0a1b-2c3d-7e5f-8a9b-0c1d2e3f4a5a": createScreen("018f0a1b-2c3d-7e5f-8a9b-0c1d2e3f4a5a"),
+          "s_01ARZ3NDEKTSV4RRFFQ69G5FAV": createScreen("s_01ARZ3NDEKTSV4RRFFQ69G5FAV"),
         },
       });
       const result = lintSceneWithRules(scene, ["L-TOUCH"]);
@@ -315,14 +302,14 @@ describe("Linter - M1 Rules", () => {
     it("passes button with 44px touch target", () => {
       const scene = createBaseScene({
         objects: {
-          "018f0a1b-2c3d-7e5f-8a9b-0c1d2e3f4a5b": createButton(
-            "018f0a1b-2c3d-7e5f-8a9b-0c1d2e3f4a5b",
-            "018f0a1b-2c3d-7e5f-8a9b-0c1d2e3f4a5a",
+          "o_01ARZ3NDEKTSV4RRFFQ69G5FAV": createButton(
+            "o_01ARZ3NDEKTSV4RRFFQ69G5FAV",
+            "s_01ARZ3NDEKTSV4RRFFQ69G5FAV",
             "Click"
           ),
         },
         screens: {
-          "018f0a1b-2c3d-7e5f-8a9b-0c1d2e3f4a5a": createScreen("018f0a1b-2c3d-7e5f-8a9b-0c1d2e3f4a5a"),
+          "s_01ARZ3NDEKTSV4RRFFQ69G5FAV": createScreen("s_01ARZ3NDEKTSV4RRFFQ69G5FAV"),
         },
       });
       const result = lintSceneWithRules(scene, ["L-TOUCH"]);
@@ -334,14 +321,14 @@ describe("Linter - M1 Rules", () => {
     it("passes with no locked objects", () => {
       const scene = createBaseScene({
         objects: {
-          "018f0a1b-2c3d-7e5f-8a9b-0c1d2e3f4a5b": createText(
-            "018f0a1b-2c3d-7e5f-8a9b-0c1d2e3f4a5b",
-            "018f0a1b-2c3d-7e5f-8a9b-0c1d2e3f4a5a",
+          "o_01ARZ3NDEKTSV4RRFFQ69G5FAV": createText(
+            "o_01ARZ3NDEKTSV4RRFFQ69G5FAV",
+            "s_01ARZ3NDEKTSV4RRFFQ69G5FAV",
             "Hello"
           ),
         },
         screens: {
-          "018f0a1b-2c3d-7e5f-8a9b-0c1d2e3f4a5a": createScreen("018f0a1b-2c3d-7e5f-8a9b-0c1d2e3f4a5a"),
+          "s_01ARZ3NDEKTSV4RRFFQ69G5FAV": createScreen("s_01ARZ3NDEKTSV4RRFFQ69G5FAV"),
         },
       });
       const result = lintSceneWithRules(scene, ["L-LOCK"], []);
@@ -351,17 +338,17 @@ describe("Linter - M1 Rules", () => {
     it("fails when object is locked", () => {
       const scene = createBaseScene({
         objects: {
-          "018f0a1b-2c3d-7e5f-8a9b-0c1d2e3f4a5b": createText(
-            "018f0a1b-2c3d-7e5f-8a9b-0c1d2e3f4a5b",
-            "018f0a1b-2c3d-7e5f-8a9b-0c1d2e3f4a5a",
+          "o_01ARZ3NDEKTSV4RRFFQ69G5FAV": createText(
+            "o_01ARZ3NDEKTSV4RRFFQ69G5FAV",
+            "s_01ARZ3NDEKTSV4RRFFQ69G5FAV",
             "Hello"
           ),
         },
         screens: {
-          "018f0a1b-2c3d-7e5f-8a9b-0c1d2e3f4a5a": createScreen("018f0a1b-2c3d-7e5f-8a9b-0c1d2e3f4a5a"),
+          "s_01ARZ3NDEKTSV4RRFFQ69G5FAV": createScreen("s_01ARZ3NDEKTSV4RRFFQ69G5FAV"),
         },
       });
-      const result = lintSceneWithRules(scene, ["L-LOCK"], ["018f0a1b-2c3d-7e5f-8a9b-0c1d2e3f4a5b"]);
+      const result = lintSceneWithRules(scene, ["L-LOCK"], ["o_01ARZ3NDEKTSV4RRFFQ69G5FAV"]);
       expect(result.pass).toBe(false);
       expect(result.violations.some(v => v.ruleId === "L-LOCK")).toBe(true);
     });
@@ -369,10 +356,10 @@ describe("Linter - M1 Rules", () => {
 
   describe("Full lint pass", () => {
     it("passes clean scene", () => {
-      const screenId = "018f0a1b-2c3d-7e5f-8a9b-0c1d2e3f4a5a";
-      const containerId = "018f0a1b-2c3d-7e5f-8a9b-0c1d2e3f4a5b";
-      const textId = "018f0a1b-2c3d-7e5f-8a9b-0c1d2e3f4a5c";
-      const buttonId = "018f0a1b-2c3d-7e5f-8a9b-0c1d2e3f4a5d";
+      const screenId = "s_01ARZ3NDEKTSV4RRFFQ69G5FAV";
+      const containerId = "o_01ARZ3NDEKTSV4RRFFQ69G5FAV";
+      const textId = "o_02ARZ3NDEKTSV4RRFFQ69G5FAV";
+      const buttonId = "o_01ARZ3NDEKTSV4RRFFQ69G5FAV";
 
       const scene = createBaseScene({
         screens: { [screenId]: createScreen(screenId, "Home", [containerId]) },
@@ -398,18 +385,18 @@ describe("Linter - M1 Rules", () => {
     it("collects all violations", () => {
       const scene = createBaseScene({
         objects: {
-          "018f0a1b-2c3d-7e5f-8a9b-0c1d2e3f4a5b": createText(
-            "018f0a1b-2c3d-7e5f-8a9b-0c1d2e3f4a5b",
-            "018f0a1b-2c3d-7e5f-8a9b-0c1d2e3f4a5a",
+          "o_01ARZ3NDEKTSV4RRFFQ69G5FAV": createText(
+            "o_01ARZ3NDEKTSV4RRFFQ69G5FAV",
+            "s_01ARZ3NDEKTSV4RRFFQ69G5FAV",
             "Hello",
             "#ff0000"
           ),
         },
         screens: {
-          "018f0a1b-2c3d-7e5f-8a9b-0c1d2e3f4a5a": createScreen("018f0a1b-2c3d-7e5f-8a9b-0c1d2e3f4a5a"),
+          "s_01ARZ3NDEKTSV4RRFFQ69G5FAV": createScreen("s_01ARZ3NDEKTSV4RRFFQ69G5FAV"),
         },
       });
-      scene.objects["018f0a1b-2c3d-7e5f-8a9b-0c1d2e3f4a5b"].style = { background: "#ffffff" };
+      scene.objects["o_01ARZ3NDEKTSV4RRFFQ69G5FAV"].style = { background: "#ffffff" };
       const result = lintScene(scene, []);
       expect(result.pass).toBe(false);
       expect(result.violations.length).toBeGreaterThan(0);

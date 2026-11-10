@@ -100,10 +100,10 @@ describe("MCP Server", () => {
 
     it("validates a valid patch", async () => {
       const patch = {
-        id: "018f0a1b-2c3d-7e5f-8a9b-0c1d2e3f4a5b",
-        sceneId: "018f0a1b-2c3d-7e5f-8a9b-0c1d2e3f4a5c",
+        id: "o_01ARZ3NDEKTSV4RRFFQ69G5FAV",
+        sceneId: "o_02ARZ3NDEKTSV4RRFFQ69G5FAV",
         baseRevision: 0,
-        objectId: "018f0a1b-2c3d-7e5f-8a9b-0c1d2e3f4a5d",
+        objectId: "o_01ARZ3NDEKTSV4RRFFQ69G5FAV",
         op: "set",
         path: "props.content",
         value: "Test",
@@ -116,10 +116,10 @@ describe("MCP Server", () => {
 
     it("rejects invalid patch", async () => {
       const patch = {
-        id: "018f0a1b-2c3d-7e5f-8a9b-0c1d2e3f4a5b",
-        sceneId: "018f0a1b-2c3d-7e5f-8a9b-0c1d2e3f4a5c",
+        id: "o_01ARZ3NDEKTSV4RRFFQ69G5FAV",
+        sceneId: "o_02ARZ3NDEKTSV4RRFFQ69G5FAV",
         baseRevision: 0,
-        objectId: "018f0a1b-2c3d-7e5f-8a9b-0c1d2e3f4a5d",
+        objectId: "o_01ARZ3NDEKTSV4RRFFQ69G5FAV",
         op: "invalid_op",
         path: "props.content",
         createdAt: "2026-11-02T22:38:00.000Z",
@@ -131,7 +131,7 @@ describe("MCP Server", () => {
 
   describe("openStudioTool", () => {
     it("returns studio URL", async () => {
-      const sceneId = "018f0a1b-2c3d-7e5f-8a9b-0c1d2e3f4a5a";
+      const sceneId = "s_01ARZ3NDEKTSV4RRFFQ69G5FAV";
       const result = await handleMCPRequest("open_studio", { sceneId, userRequested: true }, context);
       expect(result.url).toContain("http://localhost:3457");
       expect(result.url).toContain(`scene=${sceneId}`);
@@ -141,7 +141,7 @@ describe("MCP Server", () => {
 
   describe("getFeedbackTool", () => {
     it("returns empty feedback for missing scene", async () => {
-      const sceneId = "018f0a1b-2c3d-7e5f-8a9b-0c1d2e3f4a5a";
+      const sceneId = "s_01ARZ3NDEKTSV4RRFFQ69G5FAV";
       const result = await handleMCPRequest("get_feedback", { sceneId }, context);
       expect(result.feedback).toEqual([]);
     });
@@ -167,10 +167,10 @@ describe("MCP Server", () => {
   describe("applyPatchTool", () => {
     it("throws not found for missing scene", async () => {
       const patch: Patch = {
-        id: "018f0a1b-2c3d-7e5f-8a9b-0c1d2e3f4a5b",
-        sceneId: "018f0a1b-2c3d-7e5f-8a9b-0c1d2e3f4a5a",
+        id: "o_01ARZ3NDEKTSV4RRFFQ69G5FAV",
+        sceneId: "s_01ARZ3NDEKTSV4RRFFQ69G5FAV",
         baseRevision: 0,
-        objectId: "018f0a1b-2c3d-7e5f-8a9b-0c1d2e3f4a5c",
+        objectId: "o_02ARZ3NDEKTSV4RRFFQ69G5FAV",
         op: "set",
         path: "props.content",
         value: "Test",

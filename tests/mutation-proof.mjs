@@ -2,18 +2,18 @@ import { readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { execSync } from "node:child_process";
 
-const coreIndex = resolve("H:\\intent-communication", "packages", "core", "src", "index.ts");
+const coreIndex = resolve("H:\\intent communication", "packages", "core", "src", "index.ts");
 
 function runTests() {
   try {
-    execSync("cd H:\\intent-communication\\packages\\core && pnpm test", { stdio: "pipe", timeout: 60000 });
+    execSync("cd H:\\intent communication\\packages\\core && pnpm test", { stdio: "pipe", timeout: 60000 });
     return { pass: true, output: "ALL TESTS PASS" };
   } catch (e) {
     return { pass: false, output: e.stdout?.toString() || e.stderr?.toString() || "FAILED" };
   }
 }
 
-console.log("=== MUTATION PROOF ===");
+console.log("=== MUTATION PROOF ===\n");
 console.log("");
 
 // Save original
@@ -83,7 +83,7 @@ console.log("");
 
 // 3. Remove scope check (path traversal)
 console.log("3. Removing scope check (path traversal)...");
-const adapterIndex = resolve("H:\\intent-communication", "packages", "adapters-node", "src", "index.ts");
+const adapterIndex = resolve("H:\\intent communication\\packages\\adapters-node\\src\\index.ts");
 const adapterOriginal = readFileSync(adapterIndex, "utf-8");
 modified = adapterOriginal.replace(
   `    if (!resolved.startsWith(resolvedBase)) {

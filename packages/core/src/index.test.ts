@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from "vitest";
+import { describe, it, expect, beforeEach } from "vitest";
 import {
   createStoragePort,
   createLockPort,
@@ -10,11 +10,12 @@ import {
   ErrorCodes,
   isIntentError,
 } from "./index";
-import { Scene, Patch, Lock, LocksFile, Config, Profile, InterviewState, Brief, Feedback } from "@intent/schema";
+import { Scene, Patch, LocksFile, Config, Profile, InterviewState, Brief, Feedback } from "@intent/schema";
 import { promises as fs } from "node:fs";
+import os from "node:os";
 
 describe("Core package", () => {
-  const testDir = require("os").tmpdir() + "/.test-intent";
+  const testDir = os.tmpdir() + "/.test-intent";
   let storage: ReturnType<typeof createStoragePort>;
   let lockPort: ReturnType<typeof createLockPort>;
 
@@ -111,7 +112,7 @@ describe("Core package", () => {
 
     it("reads and writes brief", async () => {
       const brief: Brief = {
-        id: "018f0a1b-2c3d-7e5f-8a9b-0c1d2e3f4a5b",
+        id: "o_01ARZ3NDEKTSV4RRFFQ69G5FAV",
         version: 1,
         createdAt: "2026-11-02T22:38:00.000Z",
         updatedAt: "2026-11-02T22:38:00.000Z",
@@ -133,9 +134,9 @@ describe("Core package", () => {
 
     it("reads and writes feedback", async () => {
       const feedback: Feedback[] = [{
-        id: "018f0a1b-2c3d-7e5f-8a9b-0c1d2e3f4a5b",
+        id: "o_01ARZ3NDEKTSV4RRFFQ69G5FAV",
         sceneId: "scene-1",
-        objectId: "018f0a1b-2c3d-7e5f-8a9b-0c1d2e3f4a5c",
+        objectId: "o_01ARZ3NDEKTSV4RRFFQ69G5FAV",
         kind: "visual",
         message: "Test feedback",
         severity: "medium",
@@ -161,7 +162,7 @@ describe("Core package", () => {
 
   describe("LockPort", () => {
     it("acquires and releases lock", async () => {
-      const objectId = "018f0a1b-2c3d-7e5f-8a9b-0c1d2e3f4a5b";
+      const objectId = "o_01ARZ3NDEKTSV4RRFFQ69G5FAV";
       const acquired = await lockPort.acquire("scene-1", objectId);
       expect(acquired).toBe(true);
 
@@ -176,15 +177,15 @@ describe("Core package", () => {
     });
 
     it("rejects acquire when already locked", async () => {
-      const objectId = "018f0a1b-2c3d-7e5f-8a9b-0c1d2e3f4a5b";
+      const objectId = "o_01ARZ3NDEKTSV4RRFFQ69G5FAV";
       await lockPort.acquire("scene-1", objectId);
       const acquired = await lockPort.acquire("scene-1", objectId);
       expect(acquired).toBe(false);
     });
 
     it("gets all locked objects", async () => {
-      const objectId1 = "018f0a1b-2c3d-7e5f-8a9b-0c1d2e3f4a5b";
-      const objectId2 = "018f0a1b-2c3d-7e5f-8a9b-0c1d2e3f4a5c";
+      const objectId1 = "o_01ARZ3NDEKTSV4RRFFQ69G5FAV";
+      const objectId2 = "o_02ARZ3NDEKTSV4RRFFQ69G5FAV";
       await lockPort.acquire("scene-1", objectId1);
       await lockPort.acquire("scene-1", objectId2);
       const locks = await lockPort.getLockedObjects("scene-1");
@@ -232,9 +233,9 @@ describe("Core package", () => {
 
   describe("applyPatch", () => {
     it("applies set patch", () => {
-      const sceneId = "018f0a1b-2c3d-7e5f-8a9b-0c1d2e3f4a5a";
-      const objectId = "018f0a1b-2c3d-7e5f-8a9b-0c1d2e3f4a5b";
-      const patchId = "018f0a1b-2c3d-7e5f-8a9b-0c1d2e3f4a5c";
+      const sceneId = "s_01ARZ3NDEKTSV4RRFFQ69G5FAV";
+      const objectId = "o_01ARZ3NDEKTSV4RRFFQ69G5FAV";
+      const patchId = "o_01ARZ3NDEKTSV4RRFFQ69G5FAV";
       
       const scene: Scene = {
         version: 1,
@@ -273,9 +274,9 @@ describe("Core package", () => {
     });
 
     it("applies unset patch", () => {
-      const sceneId = "018f0a1b-2c3d-7e5f-8a9b-0c1d2e3f4a5a";
-      const objectId = "018f0a1b-2c3d-7e5f-8a9b-0c1d2e3f4a5b";
-      const patchId = "018f0a1b-2c3d-7e5f-8a9b-0c1d2e3f4a5c";
+      const sceneId = "s_01ARZ3NDEKTSV4RRFFQ69G5FAV";
+      const objectId = "o_01ARZ3NDEKTSV4RRFFQ69G5FAV";
+      const patchId = "o_01ARZ3NDEKTSV4RRFFQ69G5FAV";
       
       const scene: Scene = {
         version: 1,
@@ -312,9 +313,9 @@ describe("Core package", () => {
     });
 
     it("throws on missing object", () => {
-      const sceneId = "018f0a1b-2c3d-7e5f-8a9b-0c1d2e3f4a5a";
-      const missingObjectId = "018f0a1b-2c3d-7e5f-8a9b-0c1d2e3f4a5d";
-      const patchId = "018f0a1b-2c3d-7e5f-8a9b-0c1d2e3f4a5c";
+      const sceneId = "s_01ARZ3NDEKTSV4RRFFQ69G5FAV";
+      const missingObjectId = "o_01ARZ3NDEKTSV4RRFFQ69G5FAV";
+      const patchId = "o_01ARZ3NDEKTSV4RRFFQ69G5FAV";
       
       const scene: Scene = {
         version: 1,
@@ -343,9 +344,9 @@ describe("Core package", () => {
 
   describe("writePipeline", () => {
     it("applies patches successfully", async () => {
-      const sceneId = "018f0a1b-2c3d-7e5f-8a9b-0c1d2e3f4a5a";
-      const objectId = "018f0a1b-2c3d-7e5f-8a9b-0c1d2e3f4a5b";
-      const patchId = "018f0a1b-2c3d-7e5f-8a9b-0c1d2e3f4a5c";
+      const sceneId = "s_01ARZ3NDEKTSV4RRFFQ69G5FAV";
+      const objectId = "o_01ARZ3NDEKTSV4RRFFQ69G5FAV";
+      const patchId = "o_01ARZ3NDEKTSV4RRFFQ69G5FAV";
       
       const scene: Scene = {
         version: 1,
@@ -386,9 +387,9 @@ describe("Core package", () => {
     });
 
     it("returns conflict on revision mismatch", async () => {
-      const sceneId = "018f0a1b-2c3d-7e5f-8a9b-0c1d2e3f4a5a";
-      const objectId = "018f0a1b-2c3d-7e5f-8a9b-0c1d2e3f4a5b";
-      const patchId = "018f0a1b-2c3d-7e5f-8a9b-0c1d2e3f4a5c";
+      const sceneId = "s_01ARZ3NDEKTSV4RRFFQ69G5FAV";
+      const objectId = "o_01ARZ3NDEKTSV4RRFFQ69G5FAV";
+      const patchId = "o_01ARZ3NDEKTSV4RRFFQ69G5FAV";
       
       const scene: Scene = {
         version: 1,
@@ -419,9 +420,9 @@ describe("Core package", () => {
     });
 
     it("returns locked when object locked by another", async () => {
-      const sceneId = "018f0a1b-2c3d-7e5f-8a9b-0c1d2e3f4a5a";
-      const objectId = "018f0a1b-2c3d-7e5f-8a9b-0c1d2e3f4a5b";
-      const patchId = "018f0a1b-2c3d-7e5f-8a9b-0c1d2e3f4a5c";
+      const sceneId = "s_01ARZ3NDEKTSV4RRFFQ69G5FAV";
+      const objectId = "o_01ARZ3NDEKTSV4RRFFQ69G5FAV";
+      const patchId = "o_01ARZ3NDEKTSV4RRFFQ69G5FAV";
       
       const scene: Scene = {
         version: 1,

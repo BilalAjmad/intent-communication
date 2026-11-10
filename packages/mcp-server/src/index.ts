@@ -18,7 +18,7 @@ import {
   validateInterviewState,
   validateBrief,
   validateFeedback,
-  UUIDv7Schema,
+  CrockfordULIDSchema,
   ISODateTimeSchema,
   RevisionSchema,
   GetSceneInputSchema,
@@ -31,6 +31,8 @@ import {
   AskUserOutputSchema,
   OpenStudioInputSchema,
   OpenStudioOutputSchema,
+  ReadConfigInputSchema,
+  ReadConfigOutputSchema,
   FeedbackSchema,
   SceneSummarySchema,
 } from "@intent/schema";
