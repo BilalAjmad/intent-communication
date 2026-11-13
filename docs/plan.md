@@ -66,7 +66,7 @@ Parking lot:      <titles only>
 |-------|---------|-------------|---------------|
 | 0 | Documents 10 to 13 | No | All 13 docs saved and the user said "next" after the last one |
 | 0 verify | S-0-01 Verification Log | No (writes `docs/versions.md` only) | Every VF row verified, or marked UNVERIFIED with a reason |
-| R | Reconciliation Pass (section 6) | No | Every Pending item ruled on, change-log entries written, user says "start M1" |
+| R | Reconciliation Pass (section 6) | DONE | Every Pending item ruled on, change-log entries written, user says "start M1" |
 | 0 boot | S-0-02, S-0-03 Toolchain, bootstrap, docs tooling | Yes (tooling only) | CI green on 3 operating systems with an empty product |
 | M1 | Walking Skeleton, sub-slices A to D | Yes | Section 8.7 gate |
 | M2 | Real Studio, checkpoints A to D | Yes | Section 9 gate |
@@ -276,6 +276,26 @@ Not in M1 (explicit): drag and resize, pencil, pins, lock UI, undo and redo, nam
 
 **S-1-15 M1 gate.** Size S. Pack T-REVIEW. Depends on S-1-14.
 - Deliver: the review (review.md), the gate checklist in 8.7, planned-versus-actual record (PL-11), docs change-logs, memory handoff, and a release candidate. The user decides about the tag (PL-10).
+
+### 8.3.1 S-1 Step Status (evidence from `pnpm verify`)
+
+| Step | Title | Status | Evidence |
+|------|-------|--------|----------|
+| S-1-01 | schema | Done-local | `packages/schema` builds, typechecks, lints; 31 tests pass; Crockford ULID ID regex per trd 3.1 |
+| S-1-02 | core logic (pure) | Done-local | `packages/core` builds, typechecks, lints; 51 tests pass including write pipeline, locks, conflict, multi-process |
+| S-1-03 | linter M1 | Done-local | `packages/linter` builds, typechecks, lints; 17 tests pass including L-SCHEMA, L-GRID, L-CONTRAST, L-TOUCH, L-LOCK |
+| S-1-04 | adapters-node | Done-local | `packages/adapters-node` builds, typechecks, lints; 16 tests pass |
+| S-1-05 | core write pipeline | Done-local | `packages/core` writePipeline with object-level locks, scene-level write lock, verify-before-write; lost-write bug fixed; all 51 core tests pass |
+| S-1-06 | interview bank and meter | Partial | `packages/core/src/interview/bank.ts` exists with seeds from intent.md 6.3-6.5; meter not yet implemented |
+| S-1-07 | mcp-server | Done-local | `packages/mcp-server` builds, typechecks, lints; 16 tests pass; six MCP tools exposed |
+| S-1-08 | engine and HtmlExporter | Done-local | `packages/engine` builds, typechecks, lints; 17 tests pass; HTML export with escaping and URL allowlist |
+| S-1-09 | skills and cli | Done-local | `packages/skills` and `packages/cli` build, typecheck, lint; CLI `init`/`doctor`/`export` work |
+| S-1-10 | studio server | Done-local | `packages/server` builds, typechecks, lints; 11 tests pass including SEC-01 to SEC-07 |
+| S-1-11 | studio shell and preview | Partial | Studio shell exists; preview renderer is `exportToHtml` in iframe (no separate React renderer yet — S-1-11 not fully done) |
+| S-1-12 | feedback flow | Partial | Studio has Feedback tab and feedback flow; SSE status updates not yet implemented |
+| S-1-13 | fidelity test | Not started | No separate preview renderer exists; visual-diff test compares baseline vs mutations (6 tests pass); threshold 0 px test needs preview renderer |
+| S-1-14 | end-to-end demo and smoke | Not started | Demo D script not written; Tier 1 smoke checklist in `tests/smoke/CHECKLIST.md` (empty) |
+| S-1-15 | M1 gate | Not started | Gate checklist in 8.7 not yet executed |
 
 ### 8.4 Cut line for M1 (what goes first if M1 is too big)
 

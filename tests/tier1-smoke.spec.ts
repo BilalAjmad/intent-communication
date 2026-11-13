@@ -13,8 +13,8 @@ test.describe("Tier 1 Smoke Test (S-1-14)", () => {
     } catch {
     }
 
-    execSync(`node ${cliPath} init --path ${testDir}`, { stdio: "pipe", timeout: 30000 });
-    execSync(`node ${cliPath} export --path ${testDir}`, { stdio: "pipe", timeout: 30000 });
+    execSync(`node "${cliPath}" init --path "${testDir}"`, { stdio: "pipe", timeout: 30000 });
+    execSync(`node "${cliPath}" export --path "${testDir}"`, { stdio: "pipe", timeout: 30000 });
   });
 
   test.afterAll(async () => {
@@ -39,7 +39,7 @@ test.describe("Tier 1 Smoke Test (S-1-14)", () => {
   });
 
   test("doctor passes", async () => {
-    const output = execSync(`node ${cliPath} doctor --path ${testDir}`, { encoding: "utf-8" });
+    const output = execSync(`node "${cliPath}" doctor --path "${testDir}"`, { encoding: "utf-8" });
     expect(output).toContain("All checks passed");
   });
 

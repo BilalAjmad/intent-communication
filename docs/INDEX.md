@@ -1,0 +1,592 @@
+# Documentation Index
+
+Generated: 2026-11-13T01:59:41.864Z
+
+## Plan
+
+- Path: `docs/plan.md`
+- Sections:
+  - 1 1. Purpose and Planning Rules
+  - 2 2. Current Step (L0 block)
+  - 3 3. Phase Map and Dependencies
+  - 3.1 3.1 Phases
+  - 3.2 3.2 Step dependency graph
+  - 3.3 3.3 Critical path
+  - 4 4. Phase 0: Remaining Documents
+  - 5 5. Step 0, Part 1: Verification (docs only)
+  - 6 6. Step R: Reconciliation Pass (resolves memory M4)
+  - 6.1 6.1 Why
+  - 6.2 6.2 Steps
+  - 6.3 6.3 Ruling order (avoids rework, from intent.md 16)
+  - 6.4 6.4 Interpretation of R-B41 (P2)
+  - 7 7. Step 0, Part 2: Toolchain, Bootstrap, Docs Tooling
+  - 8 8. M1: Walking Skeleton (tag v0.1.0)
+  - 8.1 8.1 Scope (from PRD section 8, architecture 22, intent 17.2, with P1)
+  - 8.2 8.2 Sub-slices
+  - 8.3 8.3 Steps
+  - 8.3.1 8.3.1 S-1 Step Status (evidence from `pnpm verify`)
+  - 8.4 8.4 Cut line for M1 (what goes first if M1 is too big)
+  - 8.5 8.5 M1 acceptance criteria
+  - 8.6 8.6 Demo D script (the M1 demo)
+  - 8.7 8.7 M1 gate
+  - 9 9. M2: Real Studio (outline, tag v0.2.0)
+  - 10 10. M3: Intelligence and Polish (outline, tag v1.0.0)
+  - 11 11. Release and Gate Process
+  - 12 12. Open Questions Resolved Here (proposals, pending the user's ruling)
+  - 13 13. Risks
+  - 14 14. Parking Lot
+  - 15 15. Traceability
+  - 16 16. Conflicts, Amendments and Flags
+  - 17 17. Open Questions
+  - 18 18. Flags for Later Documents
+  - 19 19. Change Log
+
+## Architecture
+
+- Path: `docs/architecture.md`
+- Sections:
+  - 1 1. Architectural Drivers
+  - 2 2. System Context
+  - 3 3. Packages and Dependency Rules
+  - 4 4. Adapters and Ports
+  - 5 5. Runtime Processes
+  - 6 6. The `.intent/` Directory (Source of Truth)
+  - 7 7. Scene Model (structure only; field details in trd.md)
+  - 8 8. Patch Model and Lifecycle
+  - 9 9. Concurrency and Consistency
+  - 9.1 9.1 Mechanisms
+  - 9.2 9.2 What is guaranteed
+  - 9.3 9.3 What is not guaranteed
+  - 10 10. Communication Protocols
+  - 10.1 10.1 Agent to system: MCP (stdio)
+  - 10.2 10.2 Browser to Studio server: HTTP + SSE
+  - 10.3 10.3 Studio to preview iframe: postMessage
+  - 11 11. Rendering and Export Pipeline
+  - 12 12. Security Architecture
+  - 13 13. Error Model
+  - 14 14. Linter Architecture
+  - 15 15. Skills Package and Generator
+  - 16 16. Scanner Architecture (M3)
+  - 17 17. Intent Profile and Learning (M3)
+  - 18 18. Performance and Scalability
+  - 19 19. Quality Attributes Mapping
+  - 20 20. Conflicts, Amendments and Flags
+  - 21 21. Architecture Decision Records (summary)
+  - 22 22. Milestone Mapping
+  - 23 23. Open Questions (to resolve in later docs)
+  - 24 24. Flags for Later Documents
+  - 25 25. Change Log
+
+## Context
+
+- Path: `docs/context.md`
+- Sections:
+  - 1 1. Principles
+  - 2 2. Context Tiers
+  - 3 3. Document Map
+  - 4 4. L0: What the Build Agent Always Has
+  - 5 5. Context Packs (L1)
+  - 5.1 5.1 Pack size target
+  - 5.2 5.2 Always-add for every pack
+  - 5.3 5.3 Pack table
+  - 5.4 5.4 Rules for packs
+  - 6 6. Docs Index (`docs/INDEX.md`)
+  - 7 7. Context Hygiene (build agent)
+  - 7.1 7.1 During a task
+  - 7.2 7.2 Never load (L3)
+  - 7.3 7.3 Handoff entry (written at the end of every task)
+  - 8 8. Rule Files (L0 for the runtime agent)
+  - 8.1 8.1 Allocation (resolves C-R4)
+  - 8.2 8.2 Why the split is safe
+  - 8.3 8.3 Delivering "on-request" files to every agent
+  - 8.4 8.4 Trigger line for agents without always-loaded rules (resolves RQ1)
+  - 8.5 8.5 Tool description budget
+  - 9 9. Runtime Context Rules
+  - 10 10. Reading the Scene (cost-aware)
+  - 11 11. Recovery After a Context Reset
+  - 12 12. Injection and Context Safety (runtime)
+  - 13 13. Measurement and Enforcement
+  - 14 14. Anti-Patterns (reject in review)
+  - 15 15. Conflicts, Amendments and Flags
+  - 16 16. Open Questions (to resolve in later documents)
+  - 17 17. Flags for Later Documents
+  - 18 18. Change Log
+
+## Design
+
+- Path: `docs/design.md`
+- Sections:
+  - 1 1. Design Principles
+  - 2 2. Module A: Interview UX
+  - 2.1 2.1 Question card
+  - 2.2 2.2 Understanding Meter
+  - 2.3 2.3 "Here is what I understood" preview
+  - 2.4 2.4 Plain-text fallback (agents without card support)
+  - 3 3. Module B: Studio Layout
+  - 3.1 3.1 Shell (desktop, 1280px wide or more)
+  - 3.2 3.2 Smaller screens
+  - 3.3 3.3 Modes
+  - 4 4. Tools and Interactions
+  - 4.1 4.1 Selection
+  - 4.2 4.2 Move and resize (M2)
+  - 4.3 4.3 Feedback on an object
+  - 4.4 4.4 Pencil layer (M2)
+  - 4.5 4.5 Comment pins (M2)
+  - 4.6 4.6 Lock (M2)
+  - 4.7 4.7 Undo, redo, versions, compare
+  - 4.8 4.8 Patch lifecycle and status
+  - 4.9 4.9 Conflict handling
+  - 4.10 4.10 Send to agent
+  - 4.11 4.11 Keyboard shortcuts (defaults)
+  - 5 5. Device Frames and Theme
+  - 6 6. Studio Visual Language
+  - 6.1 6.1 Tokens
+  - 6.2 6.2 Color roles (semantic, defined as CSS variables, light and dark values)
+  - 6.3 6.3 UI component library (resolves PRD OQ5)
+  - 6.4 6.4 Component states
+  - 7 7. Studio's Own Empty, Loading and Error States
+  - 8 8. Accessibility (Studio chrome)
+  - 9 9. Linter Rules
+  - 10 10. Required Component States (L-STATES)
+  - 11 11. Hierarchy, Layout and Composition Defaults
+  - 12 12. Responsive Rules (M2)
+  - 13 13. Design Profile and the User's Own Design System (M3)
+  - 14 14. Design Acceptance Criteria
+  - 15 15. Open Questions (to resolve in later docs)
+  - 16 16. Flags for Later Documents
+  - 17 17. Change Log
+
+## INDEX
+
+- Path: `docs/INDEX.md`
+
+## Intent
+
+- Path: `docs/intent.md`
+- Sections:
+  - 1 1. Purpose, Scope and Principles
+  - 2 2. The Intent Model
+  - 2.1 2.1 Slots
+  - 2.2 2.2 Topics, weights and slots
+  - 3 3. Interview Modes and Task Sizing
+  - 3.1 3.1 Modes
+  - 3.2 3.2 Sizing
+  - 3.3 3.3 Prompt harvesting
+  - 3.4 3.4 Carry-over (Refine mode)
+  - 4 4. Interview Protocol
+  - 4.1 4.1 States
+  - 4.2 4.2 Turn procedure (agent)
+  - 4.3 4.3 Server duties in each `ask_user` call (summary)
+  - 5 5. Question Design Rules
+  - 6 6. Question Bank (resolves context.md XQ5)
+  - 6.1 6.1 Placement decision
+  - 6.2 6.2 Seed schema
+  - 6.3 6.3 Interview seeds (35)
+  - 6.4 6.4 Deep-dive seeds (6)
+  - 6.5 6.5 Control seeds (5)
+  - 6.6 6.6 Bank rules
+  - 7 7. Understanding Meter
+  - 7.1 7.1 Principle
+  - 7.2 7.2 Calculation
+  - 7.3 7.3 Evidence rules
+  - 7.4 7.4 Worked example (small task, six active topics, total weight 90)
+  - 8 8. Stop Conditions and Fatigue
+  - 9 9. Summary and Approval
+  - 9.1 9.1 Content
+  - 9.2 9.2 Options
+  - 9.3 9.3 Change something
+  - 9.4 9.4 Ask more
+  - 9.5 9.5 Approval record (`.intent/brief.json`, committed, see I7)
+  - 10 10. Delegation Policy
+  - 11 11. Intent Profile: Derivation (resolves rules.md C-R2)
+  - 11.1 11.1 Decision
+  - 11.2 11.2 Closed key list
+  - 11.3 11.3 Signal kinds
+  - 11.4 11.4 Edit and chip mapping (deterministic)
+  - 11.5 11.5 Promotion, confidence, decay
+  - 11.6 11.6 Using the profile
+  - 11.7 11.7 User control and schema changes
+  - 12 12. Interview Metrics (`.intent/metrics.json`, gitignored)
+  - 13 13. Canonical File Mapping
+  - 14 14. Consolidated Tool Contract Changes (all proposed, none applied)
+  - 15 15. Traceability
+  - 16 16. Conflicts, Amendments and Flags
+  - 17 17. Testability and Acceptance
+  - 17.1 17.1 Tests this doc requires (for test.md)
+  - 17.2 17.2 Acceptance per milestone
+  - 18 18. Open Questions
+  - 19 19. Flags for Later Documents
+  - 20 20. Change Log
+
+## Loop
+
+- Path: `docs/loop.md`
+- Sections:
+  - 1 1. Purpose and Principles
+  - 2 2. Loop Card (loaded at the start of every build task)
+  - 3 3. Definitions
+  - 3.1 3.1 Step status words (used in plan.md's current-step block and in handoffs)
+  - 4 4. The Build Loop
+  - 4.1 4.1 Procedure
+  - 4.2 4.2 Loop-back rules
+  - 4.3 4.3 Commit rules in the loop
+  - 5 5. Verification Ladder
+  - 5.1 5.1 What to run by area
+  - 5.2 5.2 Rules for the ladder
+  - 6 6. Attempts, Counting and the Three-Repeat Rule
+  - 6.1 6.1 Rules
+  - 6.2 6.2 Ledger format (shown in the report)
+  - 7 7. Stop Triggers
+  - 8 8. Stop and Report
+  - 8.1 8.1 Procedure
+  - 8.2 8.2 Report format
+  - 8.3 8.3 Resume after a stop
+  - 9 9. Context Reset
+  - 9.1 9.1 Triggers
+  - 9.2 9.2 Procedure
+  - 10 10. Loop Variants by Task Type
+  - 11 11. Runtime Agent Loops
+  - 11.1 11.1 Counting rule for tool errors
+  - 11.2 11.2 Effective retries (resolves L1)
+  - 11.3 11.3 Loops
+  - 11.4 11.4 Runtime rules
+  - 12 12. Self-Review Checklist
+  - 13 13. Loop Metrics
+  - 14 14. Honest Limits
+  - 15 15. Conflicts, Amendments and Flags
+  - 16 16. Open Questions
+  - 17 17. Flags for Later Documents
+  - 18 18. Change Log
+
+## Memory
+
+- Path: `docs/memory.md`
+- Sections:
+  - 1 1. Purpose and Rules for This File
+  - 1.1 1.1 Entry IDs
+  - 1.2 1.2 Status Words (used in every register)
+  - 2 2. Document Registry
+  - 3 3. Working Agreement (how the user wants to work)
+  - 4 4. Handoffs (newest first)
+  - 5 5. Decision Log
+  - 6 6. Amendment Register
+  - 6.1 6.1 From architecture.md section 20
+  - 6.2 6.2 From trd.md section 24
+  - 6.3 6.3 From rules.md section 20
+  - 6.4 6.4 From context.md section 15
+  - 6.5 6.5 Counts and the items that need a real decision
+  - 7 7. Verified Facts
+  - 8 8. Lessons
+  - 9 9. Open Questions Register
+  - 10 10. Waiver Log
+  - 11 11. Glossary
+  - 12 12. Maintenance
+  - 13 13. Conflicts, Amendments and Flags
+  - 14 14. Open Questions (this doc)
+  - 15 15. Flags for Later Documents
+  - 16 16. Change Log
+
+## Parking Lot Review
+
+- Path: `docs/parking-lot-review.md`
+
+## Pr
+
+- Path: `docs/pr.md`
+- Sections:
+  - 1 1. Purpose and Principles
+  - 2 2. The PR Template
+  - 3 3. Required Sections by PR Kind
+  - 4 4. Field Rules
+  - 5 5. Branches, Titles, Commits, Trailers
+  - 5.1 5.1 Branch names
+  - 5.2 5.2 PR title
+  - 5.3 5.3 Commit rules
+  - 6 6. Size and Splitting
+  - 7 7. Lifecycle and Merge Gates
+  - 7.1 7.1 States
+  - 7.2 7.2 Ready gate (author)
+  - 7.3 7.3 Merge gate (user decides)
+  - 7.4 7.4 Merge method (PR1)
+  - 7.5 7.5 After the merge (agent, when told it happened)
+  - 8 8. Special PR Kinds
+  - 9 9. Agent Rules for PRs
+  - 10 10. Enforcement
+  - 11 11. Honest Limits
+  - 12 12. Conflicts, Amendments and Flags
+  - 13 13. Open Questions
+  - 14 14. Flags for Later Documents and Steps
+  - 15 15. Change Log
+
+## Prd
+
+- Path: `docs/prd.md`
+- Sections:
+  - 1 1. Problem
+  - 2 2. Vision
+  - 3 3. Goals and Non-Goals
+  - 4 4. Users
+  - 5 5. Product Overview
+  - 6 6. Non-Functional Requirements
+  - 7 7. Decisions Log
+  - 8 8. Milestones
+  - 9 9. Success Metrics
+  - 10 10. Risks
+  - 11 11. Open Questions (to resolve in later docs)
+  - 12 12. Flags for Later Documents
+  - 13 13. Change Log
+
+## Review
+
+- Path: `docs/review.md`
+- Sections:
+  - 1 1. Purpose and Principles
+  - 2 2. Review Kinds and Triggers
+  - 2.1 2.1 High-risk areas
+  - 2.2 2.2 Security-sensitive areas (kind F)
+  - 2.3 2.3 Independence level (proposal V1)
+  - 3 3. Method
+  - 3.1 3.1 Roles
+  - 3.2 3.2 Reviewer permissions
+  - 3.3 3.3 Reviewer context
+  - 3.4 3.4 Procedure (kind A)
+  - 4 4. Universal Checklist (every kind A review)
+  - 5 5. Checklists by Change Type
+  - 5.1 5.1 `schema`
+  - 5.2 5.2 `core`
+  - 5.3 5.3 `adapters-node` and file safety
+  - 5.4 5.4 `linter`
+  - 5.5 5.5 `engine` and exporters
+  - 5.6 5.6 `mcp-server`
+  - 5.7 5.7 `server` (Studio server)
+  - 5.8 5.8 `studio` (UI)
+  - 5.9 5.9 `skills`, generator, canonical rule files
+  - 5.10 5.10 Interview bank (seeds)
+  - 5.11 5.11 Intent profile (M3)
+  - 5.12 5.12 `cli`
+  - 5.13 5.13 CI checks and workflows
+  - 5.14 5.14 Dependencies
+  - 5.15 5.15 Tests-only changes
+  - 5.16 5.16 Scanner (M3)
+  - 6 6. Document Review (kind B)
+  - 6.1 6.1 Phase 0 documents and any doc change
+  - 6.2 6.2 Applying rulings (Step R and later)
+  - 7 7. Gate Review (kind C)
+  - 7.1 7.1 Procedure
+  - 7.2 7.2 Gate checklist
+  - 7.3 7.3 Gate decision table
+  - 8 8. Stop-Trigger Audit
+  - 9 9. Rules Audit
+  - 9.1 9.1 Part A (R-B): how each rule is verified
+  - 9.2 9.2 Part B, C, D
+  - 9.3 9.3 Rules broken twice (R-G05)
+  - 10 10. Claims Review
+  - 10.1 10.1 Rule
+  - 10.2 10.2 Claims table
+  - 10.3 10.3 Checks the reviewer runs
+  - 11 11. Security-Focused Review (kind F)
+  - 12 12. Release Review (kind D)
+  - 13 13. Findings
+  - 13.1 13.1 Severity
+  - 13.2 13.2 Verdicts
+  - 13.3 13.3 Finding format
+  - 13.4 13.4 Lifecycle and disputes
+  - 14 14. Report Templates
+  - 14.1 14.1 Change or document review
+  - 14.2 14.2 Gate review
+  - 14.3 14.3 Where reports go (proposal V2)
+  - 15 15. Review Metrics and Drills
+  - 16 16. Honest Limits
+  - 17 17. Conflicts, Amendments and Flags
+  - 18 18. Open Questions
+  - 19 19. Flags for Later Documents
+  - 20 20. Change Log
+
+## Rules
+
+- Path: `docs/rules.md`
+- Sections:
+  - 1 1. Conventions
+  - 2 2. Precedence and Conflict Handling
+  - 3 3. Workflow and Scope
+  - 4 4. Honesty and Verification
+  - 5 5. Code Rules
+  - 6 6. Testing
+  - 7 7. Security, Dependencies, Destructive Actions
+  - 8 8. Git
+  - 9 9. Context, Memory, Communication
+  - 10 10. Asking the User
+  - 11 11. Definition of Done
+  - 12 12. Interview (Module A)
+  - 13 13. Reading and Writing the Scene
+  - 14 14. Locks
+  - 15 15. Untrusted Data and Files
+  - 16 16. Studio and Design
+  - 17 17. Error Response Table (normative)
+  - 18 18. Enforcement Map
+  - 19 19. Honest Limits
+  - 20 20. Conflicts, Amendments and Flags
+  - 21 21. Open Questions (to resolve in later documents)
+  - 22 22. Flags for Later Documents
+  - 23 23. Change Log
+
+## Test
+
+- Path: `docs/test.md`
+- Sections:
+  - 1 1. Purpose, Scope and Principles
+  - 2 2. Test Layers
+  - 3 3. Tooling and the Test Kit
+  - 3.1 3.1 Tools
+  - 3.2 3.2 `packages/testkit` (private, never published)
+  - 4 4. Conventions
+  - 4.1 4.1 Test IDs
+  - 4.2 4.2 Layout
+  - 4.3 4.3 Rules for writing tests
+  - 4.4 4.4 Determinism rules for tests
+  - 4.5 4.5 Golden files
+  - 5 5. Fixture Library
+  - 6 6. Test Catalog
+  - 6.1 6.1 `schema` (S-1-01)
+  - 6.2 6.2 `core` (S-1-02, S-1-05)
+  - 6.3 6.3 `linter` (S-1-03). One failing and one passing fixture per rule
+  - 6.4 6.4 Adapters, storage, file safety (S-1-04)
+  - 6.5 6.5 Interview (S-1-06). From intent.md 17.1
+  - 6.6 6.6 MCP tools (S-1-07)
+  - 6.7 6.7 Engine and export (S-1-08)
+  - 6.8 6.8 Studio server and security (S-1-10). Matrix in 7.3
+  - 6.9 6.9 Studio UI (S-1-11, S-1-12)
+  - 6.10 6.10 Generator, CLI and docs tooling (S-1-09, S-0-03)
+  - 6.11 6.11 Migrations (S-1-01 onwards)
+  - 6.12 6.12 Scripted end-to-end (S-1-14)
+  - 6.13 6.13 Performance (trd 21)
+  - 6.14 6.14 Metric correctness (M3, but the formula tests start in M1)
+  - 6.15 6.15 Scanner and profile (M3 outline, detail at S-3-00)
+  - 7 7. Detailed Specifications
+  - 7.1 7.1 Multi-process write tests (`TC-WRT`)
+  - 7.2 7.2 Visual fidelity (`TC-VIS`), resolves OQ3 and TQ1
+  - 7.3 7.3 Security matrix (`SEC`), from trd 22
+  - 7.4 7.4 Interview simulator (`TC-INT-18`)
+  - 7.5 7.5 CI-check proofs (`TC-CIC`), plan S-0-02 and S-0-03
+  - 8 8. Manual Tests
+  - 8.1 8.1 Why manual
+  - 8.2 8.2 Tier 1 smoke checklist (S-1-14, repeated at each gate and release)
+  - 8.3 8.3 Stranger test (resolves PQ4)
+  - 9 9. Measurement Validity (P8, TS1, TS2)
+  - 9.1 9.1 The problem with the acceptance rate
+  - 9.2 9.2 Two numbers (proposal TS1)
+  - 9.3 9.3 Reference scenes and metric tests (scripted)
+  - 9.4 9.4 Human trial (M3.D)
+  - 10 10. Acceptance Map
+  - 10.1 10.1 M1 (plan.md 8.5)
+  - 10.2 10.2 plan.md "Tests first" coverage
+  - 10.3 10.3 M2 and M3
+  - 11 11. CI Pipeline
+  - 12 12. Flake and Quarantine Policy
+  - 13 13. Coverage and Quality Gates
+  - 14 14. Honest Limits
+  - 15 15. Conflicts, Amendments and Flags
+  - 16 16. Open Questions
+  - 17 17. Flags for Later Documents
+  - 18 18. Change Log
+
+## Trd
+
+- Path: `docs/trd.md`
+- Sections:
+  - 1 1. Scope and Conventions
+  - 2 2. Technology Baseline
+  - 2.1 2.1 Choices
+  - 2.2 2.2 Version Policy
+  - 2.3 2.3 Verification Log (the agent fills this in M1 step 0, before any code)
+  - 3 3. Identifiers
+  - 3.1 3.1 Format
+  - 3.2 3.2 Rules
+  - 4 4. Shared Primitives (package `schema`)
+  - 4.1 4.1 Scalars
+  - 4.2 4.2 Tokens
+  - 4.3 4.3 Style, Layout, Size
+  - 4.4 4.4 Responsive Overrides (M2)
+  - 4.5 4.5 Ports Used by Core
+  - 5 5. Scene Schema
+  - 5.1 5.1 Top Level
+  - 5.2 5.2 Object Node
+  - 5.3 5.3 State Representation (closes design.md flag and DQ4)
+  - 5.4 5.4 Interactions
+  - 5.5 5.5 Components and Instances (M2)
+  - 6 6. Patch Schema and Operations
+  - 6.1 6.1 Patch File (`.intent/patches/p_<ULID>.json`)
+  - 6.2 6.2 Op Shapes
+  - 6.3 6.3 The Touched Set and Revision Rules
+  - 6.4 6.4 Draft, Send, Apply Transitions
+  - 7 7. Linter Specification (package `linter`)
+  - 7.1 7.1 Interfaces
+  - 7.2 7.2 Layout Resolver (pure, no DOM)
+  - 7.3 7.3 M1 Rules
+  - 7.4 7.4 M2 Rules (algorithms)
+  - 7.5 7.5 Linter Configuration
+  - 8 8. Core Write Pipeline (the only write path)
+  - 9 9. Storage and Concurrency Details
+  - 9.1 9.1 Atomic Write (FileAdapter.writeAtomic)
+  - 9.2 9.2 Cross-Process Lock (closes AQ2)
+  - 9.3 9.3 `state.json` and External Edit Reconciliation (gitignored)
+  - 9.4 9.4 File Watching (closes AQ1)
+  - 9.5 9.5 Canonical Serialization
+  - 9.6 9.6 Versions (`.intent/versions/`)
+  - 9.7 9.7 Annotations (closes DQ1, with C7)
+  - 10 10. MCP Server Contracts (package `mcp-server`)
+  - 10.1 10.1 General
+  - 10.2 10.2 `ask_user`
+  - 10.3 10.3 `get_scene`
+  - 10.4 10.4 `get_feedback`
+  - 10.5 10.5 `apply_patch`
+  - 10.6 10.6 `validate`
+  - 10.7 10.7 First Scene (closes a gap in architecture)
+  - 10.8 10.8 `open_studio`
+  - 11 11. Studio Server and HTTP API (package `server`)
+  - 11.1 11.1 Process Rules
+  - 11.2 11.2 Session and Auth (refines architecture 12)
+  - 11.3 11.3 Routes
+  - 11.4 11.4 SSE Events
+  - 12 12. Preview Iframe Protocol (refines architecture 10.3)
+  - 12.1 12.1 Construction
+  - 12.2 12.2 Messages
+  - 12.3 12.3 Edit Overlays
+  - 13 13. Rendering and Export (package `engine`)
+  - 13.1 13.1 Normalization
+  - 13.2 13.2 RenderModel
+  - 13.3 13.3 Exporter Interface
+  - 13.4 13.4 HtmlExporter (M1)
+  - 13.5 13.5 Fonts, Images, Assets
+  - 13.6 13.6 What Static HTML Cannot Express (closes DQ4)
+  - 13.7 13.7 ReactExporter (M2 basic, M3 Design Profile)
+  - 13.8 13.8 Fidelity Mechanism (details; threshold decided in test.md)
+  - 14 14. Skills Package and Generator (package `skills`, `cli init`)
+  - 14.1 14.1 Canonical Source
+  - 14.2 14.2 Per-Agent Adapter Interface
+  - 14.3 14.3 CLI
+  - 15 15. Configuration (`.intent/config.json`)
+  - 16 16. Scanner and Design Profile (M3)
+  - 16.1 16.1 `design-profile.json`
+  - 16.2 16.2 Scanner Rules
+  - 17 17. Intent Profile and Metrics (M3)
+  - 17.1 17.1 `profile.json` (learned preferences)
+  - 17.2 17.2 Acceptance-Rate Metric (PRD section 9, precise definition)
+  - 18 18. Logging, Diagnostics, Errors
+  - 18.1 18.1 Logs
+  - 18.2 18.2 Error Codes (extends architecture 13)
+  - 18.3 18.3 Message Style
+  - 19 19. Schema Versioning and Migration (closes OQ4, C8)
+  - 20 20. Limits Summary
+  - 21 21. Performance Requirements (measurable)
+  - 22 22. Security Requirements (testable restatement)
+  - 23 23. Requirement Traceability
+  - 24 24. Conflicts, Amendments and Flags
+  - 25 25. Open Questions (to resolve in later documents)
+  - 26 26. Flags for Later Documents
+  - 27 27. Change Log
+
+## USAGE
+
+- Path: `docs/USAGE.md`
+

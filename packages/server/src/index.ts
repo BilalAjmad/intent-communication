@@ -1,7 +1,6 @@
 import { createServer as createHttpServer, IncomingMessage, ServerResponse } from "node:http";
 import { readFile } from "node:fs/promises";
-import { resolve, extname, dirname, sep } from "node:path";
-import { fileURLToPath } from "node:url";
+import { resolve, extname, sep } from "node:path";
 import {
   StoragePort,
   LockPort,
@@ -9,12 +8,9 @@ import {
   IntentError,
   ErrorCodes,
 } from "@intent/core";
-import { Scene, Patch, Lock, Config, validateScene, validatePatch } from "@intent/schema";
+import { Config, Patch } from "@intent/schema";
 import { createFileStoragePort, createFileLockPort, createNodeCryptoPort } from "@intent/adapters-node";
 import { handleMCPRequest } from "@intent/mcp-server";
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
 
 export interface ServerConfig {
   projectRoot: string;
@@ -29,8 +25,6 @@ export interface SSEClient {
   sceneId: string;
   lastEventId: number;
 }
-
-const ALLOWED_ORIGIN = "http://127.0.0.1";
 
 export class IntentServer {
   private config: ServerConfig;
@@ -239,7 +233,7 @@ export class IntentServer {
       return;
     }
 
-    let filePath = resolve(staticDir, pathname.slice(1) || "index.html");
+    const filePath = resolve(staticDir, pathname.slice(1) || "index.html");
 
     // Additional safety check after resolution
     const normalizedStaticDir = resolve(staticDir);
@@ -293,6 +287,7 @@ export class IntentServer {
         client.response.write(`id: ${revision}\n`);
         client.response.write(`data: ${JSON.stringify({ type: "revision", revision })}\n\n`);
       } catch {
+        // Intentionally swallow SSE delivery errors
       }
     }
   }
@@ -304,6 +299,7 @@ export class IntentServer {
         client.response.write(`id: ${this.revision}\n`);
         client.response.write(`data: ${JSON.stringify({ type: "patch", patch })}\n\n`);
       } catch {
+        // Intentionally swallow SSE delivery errors
       }
     }
   }

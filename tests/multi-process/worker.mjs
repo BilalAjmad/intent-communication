@@ -1,74 +1,95 @@
-import { writeFileSync, readFileSync, existsSync, mkdirSync } from "node:fs";
+import { createStoragePort, createLockPort, writePipeline } from "../../packages/core/dist/index.js";
+import { readFileSync, existsSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 
 const testDir = process.argv[2];
-const workerId = process.argv[3];
+const sceneId = process.argv[3];
 const objectId = process.argv[4];
 const value = process.argv[5];
+const initialBaseRevision = parseInt(process.argv[6], 10);
+const initialExpectedContent = process.argv[7] || undefined;
+const workerIndex = process.argv[8] || "0";
+const logPath = resolve(testDir, `.worker-${workerIndex}.log`);
 
-const intentDir = resolve(testDir, ".intent");
-const scenesDir = resolve(intentDir, "scenes");
-const locksDir = resolve(intentDir, "locks");
-
-function readScene() {
+function log(msg) {
   try {
-    return JSON.parse(readFileSync(resolve(scenesDir, "default.json"), "utf-8"));
-  } catch {
-    return null;
-  }
+    writeFileSync(logPath, `[${Date.now()}] worker-${workerIndex} ${msg}\n`, { flag: "a" });
+  } catch {}
 }
 
-function writeScene(scene) {
-  const tmpPath = resolve(scenesDir, `default.json.tmp.${Date.now()}.${Math.random().toString(36).slice(2)}`);
-  writeFileSync(tmpPath, JSON.stringify(scene, null, 0));
-  // Atomic rename (may fail on Windows, but try)
+const storage = createStoragePort(testDir);
+const lockPort = createLockPort(storage, resolve(testDir, ".intent", "locks"));
+
+async function main() {
   try {
-    const fs = require("node:fs");
-    fs.renameSync(tmpPath, resolve(scenesDir, "default.json"));
+    log("started");
+    const readyPath = resolve(testDir, ".ready");
+    const barrierPath = resolve(testDir, ".barrier");
+
+    // Phase 1: Signal readiness
+    writeFileSync(`${readyPath}.${workerIndex}`, "ready");
+    log("ready");
+
+    // Phase 2: Wait for all 4 workers to be ready
+    for (let i = 0; i < 5000; i++) {
+      const readyFiles = ["0", "1", "2", "3"].map((idx) => existsSync(`${readyPath}.${idx}`));
+      if (readyFiles.every(Boolean)) break;
+      await new Promise((r) => setTimeout(r, 5));
+    }
+    log("barrier crossed");
+
+    // Phase 3: All workers proceed together
+    let patchBaseRevision = initialBaseRevision;
+    let expectedContentMap = initialExpectedContent ? { [objectId]: initialExpectedContent } : undefined;
+
+    let lastResult = { success: false, revision: -1, error: "unknown" };
+    for (let attempt = 0; attempt < 50; attempt++) {
+      log(`attempt ${attempt} start baseRevision=${patchBaseRevision}`);
+      try {
+        const result = await writePipeline(storage, lockPort, sceneId, [
+          {
+            id: objectId,
+            sceneId,
+            baseRevision: patchBaseRevision,
+            objectId,
+            op: "set",
+            path: "props.content",
+            value,
+            createdAt: new Date().toISOString(),
+            status: "pending",
+          },
+        ], false, expectedContentMap);
+        log(`attempt ${attempt} result success=${result.success} revision=${result.revision} error=${result.error}`);
+        lastResult = result;
+        if (result.success) break;
+        if (result.error === "E_CONFLICT") {
+          await new Promise((r) => setTimeout(r, 10 * (attempt + 1)));
+          const scene = JSON.parse(readFileSync(resolve(testDir, ".intent", "scenes", sceneId + ".json"), "utf-8"));
+          patchBaseRevision = scene.revision;
+          const currentObj = scene.objects[objectId];
+          if (currentObj && currentObj.props && currentObj.props.content !== undefined) {
+            expectedContentMap = { [objectId]: currentObj.props.content };
+          }
+          continue;
+        }
+        if (result.error === "E_LOCKED") {
+          await new Promise((r) => setTimeout(r, 10 * (attempt + 1)));
+          continue;
+        }
+        break;
+      } catch (e) {
+        log(`attempt ${attempt} exception: ${e.message}`);
+        lastResult = { success: false, revision: -1, error: e.message };
+        break;
+      }
+    }
+
+    log(`finished: success=${lastResult.success} revision=${lastResult.revision} error=${lastResult.error}`);
+    process.stdout.write(JSON.stringify(lastResult));
   } catch (e) {
-    // Fallback: direct write
-    writeFileSync(resolve(scenesDir, "default.json"), JSON.stringify(scene, null, 0));
+    process.stdout.write(JSON.stringify({ success: false, revision: -1, error: e.message, stack: e.stack }));
   }
-}
-
-function readLocks() {
-  try {
-    return JSON.parse(readFileSync(resolve(locksDir, "default.locks.json"), "utf-8"));
-  } catch {
-    return { version: 1, lockedObjects: [], updatedAt: new Date().toISOString() };
-  }
-}
-
-function writeLocks(locks) {
-  writeFileSync(resolve(locksDir, "default.locks.json"), JSON.stringify(locks, null, 0));
-}
-
-// Try to acquire lock
-const locks = readLocks();
-if (locks.lockedObjects.includes(objectId)) {
-  process.stdout.write(JSON.stringify({ success: false, error: "E_LOCKED", workerId }));
   process.exit(0);
 }
-locks.lockedObjects.push(objectId);
-writeLocks(locks);
 
-// Read scene, apply patch, write
-const scene = readScene();
-if (!scene) {
-  process.stdout.write(JSON.stringify({ success: false, error: "E_NOT_FOUND", workerId }));
-  process.exit(1);
-}
-
-scene.objects[objectId].props.content = value;
-scene.revision = (scene.revision || 0) + 1;
-scene.updatedAt = new Date().toISOString();
-writeScene(scene);
-
-// Release lock
-const locks2 = readLocks();
-const idx = locks2.lockedObjects.indexOf(objectId);
-if (idx !== -1) locks2.lockedObjects.splice(idx, 1);
-writeLocks(locks2);
-
-process.stdout.write(JSON.stringify({ success: true, revision: scene.revision, workerId, value }));
-process.exit(0);
+main();

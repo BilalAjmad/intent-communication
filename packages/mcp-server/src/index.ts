@@ -7,10 +7,6 @@ import {
 } from "@intent/core";
 import {
   Scene,
-  Patch,
-  Lock,
-  Feedback,
-  Config,
   validateScene,
   validatePatch,
   validateConfig,
@@ -18,31 +14,19 @@ import {
   validateInterviewState,
   validateBrief,
   validateFeedback,
-  CrockfordULIDSchema,
-  ISODateTimeSchema,
-  RevisionSchema,
   GetSceneInputSchema,
-  GetSceneOutputSchema,
   ApplyPatchInputSchema,
-  ApplyPatchOutputSchema,
   GetFeedbackInputSchema,
-  GetFeedbackOutputSchema,
   AskUserInputSchema,
-  AskUserOutputSchema,
   OpenStudioInputSchema,
-  OpenStudioOutputSchema,
-  ReadConfigInputSchema,
-  ReadConfigOutputSchema,
-  FeedbackSchema,
-  SceneSummarySchema,
 } from "@intent/schema";
 import { createFileStoragePort, createFileLockPort, createNodeCryptoPort } from "@intent/adapters-node";
 
 export interface MCPTool {
   name: string;
   description: string;
-  inputSchema: any;
-  handler: (input: any, context: MCPContext) => Promise<any>;
+  inputSchema: unknown;
+  handler: (input: unknown, context: MCPContext) => Promise<unknown>;
 }
 
 export interface MCPContext {
@@ -54,18 +38,18 @@ export interface MCPContext {
 
 export function createMCPContext(projectRoot: string): MCPContext {
   const storage = createFileStoragePort(projectRoot);
-  const lockPort = createFileLockPort(storage);
+  const lockPort = createFileLockPort(projectRoot);
   const crypto = createNodeCryptoPort();
   return { projectRoot, storage, lockPort, crypto };
 }
 
-function truncateToBytes(obj: any, maxBytes: number): { data: any; truncated: boolean } {
+function truncateToBytes(obj: unknown, maxBytes: number): { data: unknown; truncated: boolean } {
   const str = JSON.stringify(obj);
   if (Buffer.byteLength(str, "utf-8") <= maxBytes) {
     return { data: obj, truncated: false };
   }
   const truncatedStr = str.slice(0, maxBytes);
-  let parsed: any;
+  let parsed: unknown;
   try {
     parsed = JSON.parse(truncatedStr);
   } catch {
@@ -78,11 +62,11 @@ export const getSceneTool: MCPTool = {
   name: "get_scene",
   description: "Get a scene or scene summary with optional object filtering",
   inputSchema: GetSceneInputSchema,
-  async handler(input: any, context: MCPContext) {
+  async handler(input: unknown, context: MCPContext) {
     const validated = GetSceneInputSchema.parse(input);
     let scene: Scene | null = null;
-    let summary: any = null;
-    let objects: Record<string, any> = {};
+    let summary: unknown = null;
+    const objects: Record<string, unknown> = {};
     let locks: string[] = [];
 
     if (validated.objectIds && validated.objectIds.length > 0) {
@@ -129,7 +113,7 @@ export const getSceneTool: MCPTool = {
     };
 
     const { data, truncated } = truncateToBytes(result, validated.maxBytes ?? 32768);
-    return { ...data, truncated };
+    return { ...(data as Record<string, unknown>), truncated };
   },
 };
 
@@ -137,9 +121,9 @@ export const applyPatchTool: MCPTool = {
   name: "apply_patch",
   description: "Apply a patch to a scene",
   inputSchema: ApplyPatchInputSchema,
-  async handler(input: any, context: MCPContext) {
+  async handler(input: unknown, context: MCPContext) {
     const validated = ApplyPatchInputSchema.parse(input);
-    const { patch, force } = validated;
+    const { patch } = validated;
 
     const scene = await context.storage.readScene(patch.sceneId);
     if (!scene) {
@@ -162,22 +146,8 @@ export const applyPatchTool: MCPTool = {
       };
     }
 
-    if (vp.baseRevision !== scene.revision && !force) {
-      return {
-        success: false,
-        revision: scene.revision,
-        conflict: {
-          patchId: vp.id,
-          objectId: vp.objectId,
-          currentRevision: scene.revision,
-          baseRevision: vp.baseRevision,
-        },
-        error: ErrorCodes.E_CONFLICT,
-      };
-    }
-
     const { writePipeline } = await import("@intent/core");
-    const result = await writePipeline(context.storage, context.lockPort, patch.sceneId, [vp], force);
+    const result = await writePipeline(context.storage, context.lockPort, patch.sceneId, [vp]);
     return result;
   },
 };
@@ -186,7 +156,7 @@ export const getFeedbackTool: MCPTool = {
   name: "get_feedback",
   description: "Get feedback for a scene",
   inputSchema: GetFeedbackInputSchema,
-  async handler(input: any, context: MCPContext) {
+  async handler(input: unknown, context: MCPContext) {
     const validated = GetFeedbackInputSchema.parse(input);
     const feedback = await context.storage.readFeedback(validated.sceneId);
     let filtered = feedback;
@@ -208,7 +178,7 @@ export const askUserTool: MCPTool = {
   name: "ask_user",
   description: "Ask the user a question during interview",
   inputSchema: AskUserInputSchema,
-  async handler(input: any, context: MCPContext) {
+  async handler(input: unknown, _context: MCPContext) {
     const validated = AskUserInputSchema.parse(input);
     return {
       answer: null,
@@ -224,7 +194,7 @@ export const openStudioTool: MCPTool = {
   name: "open_studio",
   description: "Open the Prototype Studio for a scene",
   inputSchema: OpenStudioInputSchema,
-  async handler(input: any, context: MCPContext) {
+  async handler(input: unknown, context: MCPContext) {
     const validated = OpenStudioInputSchema.parse(input);
     const config = await context.storage.readConfig();
     const baseUrl = `http://localhost:${config.studioPort}`;
@@ -249,8 +219,8 @@ export const validateTool: MCPTool = {
     },
     required: ["type", "data"],
   },
-  async handler(input: any, context: MCPContext) {
-    const { type, data } = input;
+  async handler(input: unknown, _context: MCPContext) {
+    const { type, data } = input as { type: string; data: unknown };
     try {
       switch (type) {
         case "scene":
@@ -299,9 +269,9 @@ export function getMCPTool(name: string): MCPTool | undefined {
 
 export async function handleMCPRequest(
   toolName: string,
-  input: any,
+  input: unknown,
   context: MCPContext
-): Promise<any> {
+): Promise<unknown> {
   const tool = getMCPTool(toolName);
   if (!tool) {
     throw new IntentError(ErrorCodes.E_NOT_FOUND, `Tool ${toolName} not found`);

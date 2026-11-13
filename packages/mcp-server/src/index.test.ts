@@ -1,14 +1,15 @@
-import { describe, it, expect, beforeEach, vi } from "vitest";
+import { describe, it, expect, beforeEach } from "vitest";
 import {
   createMCPContext,
   handleMCPRequest,
   getMCPTool,
   MCP_TOOLS,
 } from "./index";
-import { Scene, Patch, Lock, Feedback, Config } from "@intent/schema";
+import { Patch } from "@intent/schema";
+import { tmpdir } from "node:os";
 
 describe("MCP Server", () => {
-  const testDir = require("os").tmpdir() + "/.test-mcp";
+  const testDir = tmpdir() + "/.test-mcp";
   let context: ReturnType<typeof createMCPContext>;
 
   beforeEach(() => {

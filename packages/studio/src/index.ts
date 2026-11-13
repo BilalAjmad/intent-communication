@@ -1,4 +1,4 @@
-import { Scene, SceneObject, validateScene } from "@intent/schema";
+import { Scene } from "@intent/schema";
 import { exportToHtml } from "@intent/engine";
 
 export interface StudioState {
@@ -94,14 +94,15 @@ export class Studio {
     this.state.toolMode = mode;
   }
 
-  async applyPatch(patch: any): Promise<void> {
+  async applyPatch(patch: unknown): Promise<void> {
     if (!this.state.scene) return;
-    this.pushHistory(`Apply patch: ${patch.op} ${patch.path}`);
+    const p = patch as { op?: string; path?: string };
+    this.pushHistory(`Apply patch: ${p.op} ${p.path}`);
 
     const response = await fetch(`${this.mcpBaseUrl}/mcp`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ tool: "apply_patch", input: { patch, force: false } }),
+      body: JSON.stringify({ tool: "apply_patch", input: { patch } }),
     });
     const result = await response.json();
     if (result.success) {
@@ -112,7 +113,7 @@ export class Studio {
     }
   }
 
-  async updateProperty(objectId: string, path: string, value: any): Promise<void> {
+  async updateProperty(objectId: string, path: string, value: unknown): Promise<void> {
     const patch = {
       id: crypto.randomUUID(),
       sceneId: this.state.sceneId,
@@ -149,12 +150,12 @@ export class Studio {
     }
   }
 
-  private async applyScene(scene: Scene): Promise<void> {
+  private async applyScene(_scene: Scene): Promise<void> {
     // Apply scene to preview via MCP
     await fetch(`${this.mcpBaseUrl}/mcp`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ tool: "apply_patch", input: { patch: [], force: true } }),
+      body: JSON.stringify({ tool: "apply_patch", input: { patch: [] } }),
     });
   }
 

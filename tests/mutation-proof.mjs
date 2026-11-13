@@ -13,6 +13,15 @@ function runTests() {
   }
 }
 
+function runAdapterTests() {
+  try {
+    execSync("cd H:\\intent communication\\packages\\adapters-node && pnpm test", { stdio: "pipe", timeout: 60000 });
+    return { pass: true, output: "ALL TESTS PASS" };
+  } catch (e) {
+    return { pass: false, output: e.stdout?.toString() || e.stderr?.toString() || "FAILED" };
+  }
+}
+
 console.log("=== MUTATION PROOF ===\n");
 console.log("");
 
@@ -83,7 +92,7 @@ console.log("");
 
 // 3. Remove scope check (path traversal)
 console.log("3. Removing scope check (path traversal)...");
-const adapterIndex = resolve("H:\\intent communication\\packages\\adapters-node\\src\\index.ts");
+const adapterIndex = resolve("H:\\intent communication", "packages", "adapters-node", "src", "index.ts");
 const adapterOriginal = readFileSync(adapterIndex, "utf-8");
 modified = adapterOriginal.replace(
   `    if (!resolved.startsWith(resolvedBase)) {
@@ -92,7 +101,7 @@ modified = adapterOriginal.replace(
   `    // scope check removed`
 );
 writeFileSync(adapterIndex, modified);
-const result3 = runTests();
+const result3 = runAdapterTests();
 console.log(`   Scope check removed: ${result3.pass ? "TESTS STILL PASS (UNEXPECTED)" : "TEST FAILED (EXPECTED)"}`);
 console.log(`   ${result3.pass ? "FAIL" : "OK"}`);
 

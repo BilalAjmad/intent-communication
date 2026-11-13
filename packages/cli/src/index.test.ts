@@ -1,10 +1,11 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { initCommand, doctorCommand, exportCommand, createCLI } from "./index";
+import { initCommand, doctorCommand, createCLI } from "./index";
 import { promises as fs } from "node:fs";
 import { resolve } from "node:path";
+import { tmpdir } from "node:os";
 
 describe("CLI package", () => {
-  const testDir = require("os").tmpdir() + "/.test-cli";
+  const testDir = tmpdir() + "/.test-cli";
 
   beforeEach(async () => {
     await fs.mkdir(testDir, { recursive: true });

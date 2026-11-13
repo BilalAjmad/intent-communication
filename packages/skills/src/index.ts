@@ -80,8 +80,8 @@ const TOOL_USAGE_MD = `# tool-usage.md
 
 ### apply_patch
 - **Purpose**: Modify scene objects
-- **Input**: \`{ patch, force? }\`
-- **Patch ops**: \`set\`, \`unset\`, \`insert\`, \`remove\`, \`move\`, \`replace\`
+- **Input**: `{\`patch\`}`
+- **Patch ops**: \`set\`, \`unset\`, \`add\`, \`remove\`, \`move\`, \`setState\`
 - **Output**: \`{ success, revision, conflict?, error? }\`
 - **Conflict**: Returned when \`baseRevision !== scene.revision\`
 
@@ -120,7 +120,7 @@ The MCP server exposes all 6 tools at \`/mcp\` endpoint. Tools are called via HT
 
 ## Studio Integration
 
-Studio connects via WebSocket to \`/events\` for real-time updates and calls MCP tools for mutations.`;
+Studio connects via a bidirectional channel to \`/events\` for real-time updates and calls MCP tools for mutations.`;
 
 const DESIGN_PRINCIPLES_MD = `# design-principles.md
 
@@ -234,7 +234,7 @@ You are the **Prototype Studio** agent. You run only on explicit user command (\
 
 - **MCP Tools** — All mutations via \`apply_patch\`, \`get_scene\`, \`get_feedback\`
 - **SSE** — Real-time updates via \`/events?scene=<id>\`
-- **WebSocket** — Bidirectional for collaborative editing (future)
+- **Bidirectional channel** — For collaborative editing (future)
 
 ## Tools
 
@@ -302,7 +302,7 @@ Shows properties for selected object:
 ## Error Handling
 
 - Network errors → toast notification, retry
-- Patch conflicts → show diff, allow force
+- Patch conflicts → show diff, request current scene revision
 - Validation errors → inline in inspector`;
 
 export const SKILL_FILES: SkillFile[] = [

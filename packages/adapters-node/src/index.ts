@@ -17,6 +17,7 @@ import {
   IntentError,
   ErrorCodes,
   isIntentError,
+  createLockPort,
 } from "@intent/core";
 
 export function createFileStoragePort(projectRoot: string): StoragePort {
@@ -225,41 +226,9 @@ export function createFileStoragePort(projectRoot: string): StoragePort {
   };
 }
 
-export function createFileLockPort(storage: StoragePort): LockPort {
-  return {
-    async acquire(sceneId: string, objectId: string): Promise<boolean> {
-      const locksFile = await storage.readLocks(sceneId);
-      if (locksFile.lockedObjects.includes(objectId)) {
-        return false;
-      }
-      locksFile.lockedObjects.push(objectId);
-      locksFile.updatedAt = new Date().toISOString();
-      await storage.writeLocks(sceneId, locksFile);
-      return true;
-    },
-
-    async release(sceneId: string, objectId: string): Promise<boolean> {
-      const locksFile = await storage.readLocks(sceneId);
-      const idx = locksFile.lockedObjects.indexOf(objectId);
-      if (idx === -1) {
-        return false;
-      }
-      locksFile.lockedObjects.splice(idx, 1);
-      locksFile.updatedAt = new Date().toISOString();
-      await storage.writeLocks(sceneId, locksFile);
-      return true;
-    },
-
-    async isLocked(sceneId: string, objectId: string): Promise<boolean> {
-      const locksFile = await storage.readLocks(sceneId);
-      return locksFile.lockedObjects.includes(objectId);
-    },
-
-    async getLockedObjects(sceneId: string): Promise<string[]> {
-      const locksFile = await storage.readLocks(sceneId);
-      return locksFile.lockedObjects;
-    },
-  };
+export function createFileLockPort(projectRoot: string): LockPort {
+  const intentDir = resolve(projectRoot, ".intent");
+  return createLockPort(createFileStoragePort(projectRoot), resolve(intentDir, "locks"), resolve(intentDir, "tmp"));
 }
 
 export function createNodeCryptoPort(): CryptoPort {
@@ -284,5 +253,5 @@ export function createNodeCryptoPort(): CryptoPort {
   };
 }
 
-export { IntentError, ErrorCodes, isIntentError };
+export { IntentError, ErrorCodes, isIntentError, createLockPort };
 export type { StoragePort, LockPort, CryptoPort };

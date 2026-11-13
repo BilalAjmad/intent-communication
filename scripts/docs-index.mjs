@@ -1,4 +1,4 @@
-import { readFileSync, writeFileSync, readdirSync } from 'fs';
+import { readFileSync, writeFileSync, readdirSync, existsSync } from 'fs';
 import { resolve, join, relative } from 'path';
 import { fileURLToPath } from 'url';
 
@@ -6,13 +6,7 @@ const __dirname = resolve(fileURLToPath(import.meta.url), '..');
 const ROOT = resolve(__dirname, '..');
 const DOCS_DIR = resolve(ROOT, 'docs');
 
-interface DocEntry {
-  path: string;
-  title: string;
-  sections: { number: string; heading: string }[];
-}
-
-function extractHeadings(content: string): { number: string; heading: string }[] {
+function extractHeadings(content) {
   const regex = /^(#{1,3})\s+(.+)$/gm;
   const sections = [];
   let match;
@@ -27,10 +21,10 @@ function extractHeadings(content: string): { number: string; heading: string }[]
   return sections;
 }
 
-function getDocEntries(): DocEntry[] {
-  const entries: DocEntry[] = [];
+function getDocEntries() {
+  const entries = [];
   const files = readdirSync(DOCS_DIR).filter(f => f.endsWith('.md'));
-  
+
   for (const file of files) {
     const path = join(DOCS_DIR, file);
     const content = readFileSync(path, 'utf-8');
@@ -42,14 +36,13 @@ function getDocEntries(): DocEntry[] {
       sections
     });
   }
-  
-  // Sort: plan.md first, then alphabetical
+
   entries.sort((a, b) => {
     if (a.path === 'plan.md') return -1;
     if (b.path === 'plan.md') return 1;
     return a.path.localeCompare(b.path);
   });
-  
+
   return entries;
 }
 
@@ -57,7 +50,7 @@ function generateIndex() {
   const entries = getDocEntries();
   let md = '# Documentation Index\n\n';
   md += `Generated: ${new Date().toISOString()}\n\n`;
-  
+
   for (const entry of entries) {
     md += `## ${entry.title}\n\n`;
     md += `- Path: \`docs/${entry.path}\`\n`;
@@ -69,7 +62,7 @@ function generateIndex() {
     }
     md += '\n';
   }
-  
+
   return md;
 }
 
@@ -84,18 +77,36 @@ if (index !== existing) {
   console.log('docs/INDEX.md is up to date');
 }
 
+// Parse S-1-01..S-1-15 step headings from plan.md section 8.3 only
 const planPath = resolve(ROOT, 'docs', 'plan.md');
-const planContent = readFileSync(resolve(ROOT, 'docs', 'plan.md'), 'utf-8');
+const planContent = readFileSync(planPath, 'utf-8');
 
-// Check S-1-01..S-1-15 steps
-const stepRegex = /### S-1-(\d{2})\s+(.+)/g;
+// Find section 8.3 and extract S-1 step headings within it
+const section83Match = planContent.match(/### 8\.3 Steps([\s\S]*?)(?=### 8\.4|## 9|# )/);
+const section83Content = section83Match ? section83Match[1] : planContent;
+
+// Match S-1-XX step headings (bold format: **S-1-01 schema.** or S-1-01 schema.)
+const stepRegex = /\*\*S-1-(\d{2})\s+([^\n*]+?)\*\*|S-1-(\d{2})\s+([^\n*]+?)(?:\.|\n|$)/g;
 const steps = [];
+const seen = new Set();
 let match;
-while ((match = /### S-1-(\d{2})\s+(.+)/g.exec(readFileSync(resolve(ROOT, 'docs', 'plan.md'), 'utf-8'))) !== null) {
-  steps.push({ num: match[1], title: match[1].trim() });
+while ((match = stepRegex.exec(section83Content)) !== null) {
+  const num = match[1] || match[3];
+  const title = (match[2] || match[4] || '').trim().replace(/\.$/, '');
+  if (num && title && !seen.has(num)) {
+    seen.add(num);
+    steps.push({ num, title });
+  }
 }
 
-console.log(`Found ${steps.length} S-1 steps:`);
+steps.sort((a, b) => a.num.localeCompare(b.num));
+
+console.log(`Found ${steps.length} S-1 steps in plan.md section 8.3:`);
 for (const step of steps) {
-  console.log(`  S-1-${step.num}: ${step.title}`);
+  console.log('  S-1-' + step.num + ': ' + step.title);
+}
+
+if (steps.length !== 15) {
+  console.error(`ERROR: Expected 15 S-1 steps, found ${steps.length}`);
+  process.exit(1);
 }

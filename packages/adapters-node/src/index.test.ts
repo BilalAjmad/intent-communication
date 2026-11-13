@@ -5,15 +5,17 @@ import {
   createNodeCryptoPort,
 } from "./index";
 import { Scene, LocksFile, Config, Profile, InterviewState, Brief, Feedback } from "@intent/schema";
+import { promises as fs } from "node:fs";
 import os from "node:os";
 
 describe("Adapters-Node package", () => {
   let storage: ReturnType<typeof createFileStoragePort>;
   let lockPort: ReturnType<typeof createFileLockPort>;
 
-  beforeEach(() => {
+  beforeEach(async () => {
     const testDir = os.tmpdir() + "/.test-intent-adapters";
-    storage = createFileStoragePort(testDir);
+    await fs.rm(testDir, { recursive: true, force: true }).catch(() => {});
+    storage = createFileStoragePort(os.tmpdir() + "/.test-intent-adapters");
     lockPort = createFileLockPort(storage);
   });
 

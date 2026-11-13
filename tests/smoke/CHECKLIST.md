@@ -1,27 +1,23 @@
-# Smoke Test Checklist (test.md 8.2)
+# Tier 1 Smoke Checklist
 
-Run with: `pnpm test:smoke` or manually with commands below.
+Generated from `docs/test.md` section 8.2. 16 lines. Empty result column —
+fill in after running each command on a clean machine.
 
-| # | Test | Command | Expected | Result |
-|---|------|---------|----------|--------|
-| 1 | Fresh clone installs | `pnpm install` | Succeeds, no errors | [ ] |
-| 2 | All unit tests pass | `pnpm test` | 169+ tests pass | [ ] |
-| 3 | Typecheck passes | `pnpm -r typecheck` | No errors | [ ] |
-| 5 | Lint passes | `pnpm -r lint` | No errors | [ ] |
-| 6 | Build succeeds | `pnpm -r build` | All packages build | [ ] |
-| 7 | CLI init | `node packages/cli/dist/cli.js init --path .test` | Creates .intent/ | [ ] |
-| 8 | CLI doctor | `node packages/cli/dist/cli.js doctor --path .test` | "All checks passed" | [ ] |
-| 9 | CLI export | `node packages/cli/dist/cli.js export --path .test` | Creates export-default.html | [ ] |
-| 10 | Exported HTML opens | Open export-default.html in browser | Loads, no errors | [ ] |
-| 11 | Exported HTML zero network | Open in devtools Network tab | 0 network requests | [ ] |
-| 11 | Exported HTML navigation | Click links/buttons | Navigation works | [ ] |
-| 12 | CLI export visual-diff | `pnpm playwright test tests/visual-diff.spec.ts` | Screenshot matches baseline | [ ] |
-| 13 | Multi-process different | `node tests/multi-process/runner.mjs different` | 4 writes, revision=4 | [ ] |
-| 14 | Multi-process same | `node tests/multi-process/runner.mjs same` | 1 success, 3 conflicts | [ ] |
-| 15 | SIGKILL test | `node tests/sigkill-test.mjs` | Lock broken, write succeeds | [ ] |
-| 15 | Mutation proof | `node tests/mutation-proof.mjs` | Lock/conflict/scope checks fail | [ ] |
-| 16 | CI runs | `gh run list` | 3 OS green | [ ] |
-
-Run all: `pnpm verify` (runs full suite including CI matrix)
-
-**Do not fill in yourself - this is for manual verification by the human.**
+| # | Command | Agent | Expected | Result |
+|---|---------|-------|----------|--------|
+| 1 | `git clone <repo-url> intent` | human | repo cloned | |
+| 2 | `cd intent && pnpm install` | human | deps installed | |
+| 3 | `pnpm build` | human | all packages build | |
+| 4 | `node packages/cli/dist/cli.js init` | human | `.intent/` created | |
+| 5 | `node packages/cli/dist/cli.js doctor` | human | all checks passed | |
+| 6 | Open Claude Code in the project | human | agent loads | |
+| 7 | Say "Design a booking app for my salon" | human | interview starts | |
+| 8 | Answer the interview questions | human | summary approved | |
+| 9 | See the first scene | human | scene rendered | |
+| 10 | Say "open the studio" | human | studio URL shown | |
+| 11 | Select an object, send feedback | human | feedback sent | |
+| 12 | Say "check my feedback" | human | feedback applied | |
+| 13 | `intent-studio export html` | human | HTML file created | |
+| 14 | Open the HTML file by double-click | human | prototype opens | |
+| 15 | `node packages/cli/dist/cli.js doctor` | human | all checks passed | |
+| 16 | `pnpm verify` | human | all 12 steps pass | |

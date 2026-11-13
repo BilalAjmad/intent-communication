@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-export const CrockfordULIDSchema = z.string().regex(/^(o_|s_|c_|p_|a_|q_|v_|k_|b_)[0-9A-HJKMNP-TV-Z]{26}$/, { message: "Must be a valid prefixed Crockford ULID (prefix_<26 Crockford base32 chars>)" });
+export const CrockfordULIDSchema = z.string().regex(/^(o|s|c|p|a|q|v|k)_[0-9A-HJKMNP-TV-Z]{26}$/, { message: "Must be a valid prefixed Crockford ULID (prefix_<26 Crockford base32 chars>)" });
 
 export const ISODateTimeSchema = z.string().datetime({ offset: true }).refine(
   (val) => val.endsWith("Z"),
@@ -40,6 +40,7 @@ export const BaseObjectSchema = z.object({
   props: z.record(z.string(), SceneValueSchema).default({}),
   style: z.record(z.string(), SceneValueSchema).default({}),
   meta: z.record(z.string(), z.unknown()).default({}),
+  rev: z.number().int().nonnegative().optional(),
 });
 
 export const ScreenSchema = BaseObjectSchema.extend({
@@ -140,7 +141,7 @@ export type Scene = z.infer<typeof SceneSchema>;
 export type SceneObject = z.infer<typeof SceneObjectSchema>;
 export type Screen = z.infer<typeof ScreenSchema>;
 
-export const PatchOpSchema = z.enum(["set", "unset", "insert", "remove", "move", "replace"]);
+export const PatchOpSchema = z.enum(["set", "unset", "add", "remove", "move", "setState"]);
 
 export const PatchSchema = z.object({
   id: CrockfordULIDSchema,
@@ -311,7 +312,6 @@ export type GetSceneOutput = z.infer<typeof GetSceneOutputSchema>;
 
 export const ApplyPatchInputSchema = z.object({
   patch: PatchSchema,
-  force: z.boolean().default(false),
 });
 
 export type ApplyPatchInput = z.infer<typeof ApplyPatchInputSchema>;
@@ -326,6 +326,9 @@ export const ApplyPatchOutputSchema = z.object({
     baseRevision: RevisionSchema,
   }).nullable().default(null),
   error: z.string().nullable().default(null),
+  details: z.object({
+    changedObjectIds: z.array(CrockfordULIDSchema),
+  }).optional(),
 });
 
 export type ApplyPatchOutput = z.infer<typeof ApplyPatchOutputSchema>;
@@ -423,6 +426,8 @@ export const LockPort = {
   release: (_sceneId: string, _objectId: string) => Promise<boolean>,
   isLocked: (_sceneId: string, _objectId: string) => Promise<boolean>,
   getLockedObjects: (_sceneId: string) => Promise<string[]>,
+  acquireSceneLock: (_sceneId: string) => Promise<boolean>,
+  releaseSceneLock: (_sceneId: string) => Promise<boolean>,
 };
 
 export const CryptoPort = {

@@ -307,7 +307,7 @@ describe("Schema validation", () => {
   describe("BriefSchema", () => {
     it("validates approved brief", () => {
       const brief = {
-        id: "b_01ARZ3NDEKTSV4RRFFQ69G5FAV",
+        id: "o_01ARZ3NDEKTSV4RRFFQ69G5FAV",
         version: 1,
         createdAt: "2026-11-02T22:38:00.000Z",
         updatedAt: "2026-11-02T22:38:00.000Z",

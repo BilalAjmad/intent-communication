@@ -21,7 +21,7 @@ export interface LintResult {
   pass: boolean;
 }
 
-const TOKEN_COLORS = {
+const TOKEN_COLORS: Record<string, string> = {
   "token.color.primary": "#0066cc",
   "token.color.primaryHover": "#0052a3",
   "token.color.secondary": "#6c757d",
@@ -34,378 +34,293 @@ const TOKEN_COLORS = {
   "token.color.error": "#dc3545",
   "token.color.success": "#28a745",
   "token.color.warning": "#ffc107",
-} as const;
+};
 
-type TokenColorKey = keyof typeof TOKEN_COLORS;
-
-function getTokenColor(token: string): string {
-  const colors = TOKEN_COLORS as Record<string, string>;
-  return colors[token] ?? "";
+function hexToRgb(hex: string): [number, number, number] | null {
+  const m = /^#([0-9a-fA-F]{6})$/.exec(hex);
+  if (!m) return null;
+  const n = (i: number) => parseInt(m[1]!.slice(i * 2, i * 2 + 2), 16);
+  return [n(0), n(1), n(2)];
 }
 
-function checkTokenUsage(obj: unknown, path: string, violations: unknown[]): void {
-  const checkValue = (val: unknown, propPath: string): void => {
-    if (typeof val === "object" && val !== null && (val as Record<string, unknown>).$type === "token") {
-      const token = (val as Record<string, unknown>).$value as string;
-      if (token && !token.startsWith("token.color.") && !token.startsWith("token.spacing.") && !token.startsWith("token.typography.")) {
-        (violations as unknown[]).push({
-          ruleId: "L-TOKEN-NAMESPACE",
-          objectId: (val as Record<string, unknown>).id as string || "unknown",
-          message: `Unknown token namespace in ${path}: ${val}. Use token.color.*, token.spacing.*, or token.typography.*`,
+function luminance(rgb: [number, number, number]): number {
+  const [r, g, b] = rgb;
+  const c = (v: number) => {
+    const s = v / 255;
+    return s <= 0.03928 ? s / 12.92 : Math.pow((s + 0.055) / 1.055, 2.4);
+  };
+  return 0.2126 * c(r) + 0.7152 * c(g) + 0.0722 * c(b);
+}
+
+function contrastRatio(a: [number, number, number], b: [number, number, number]): number {
+  const la = luminance(a);
+  const lb = luminance(b);
+  const hi = Math.max(la, lb);
+  const lo = Math.min(la, lb);
+  return (hi + 0.05) / (lo + 0.05);
+}
+
+function isLargeText(obj: { props: Record<string, unknown> }): boolean {
+  const props = obj.props ?? {};
+  const fontSize = props["fontSize"] as number | undefined;
+  const fontWeight = props["fontWeight"];
+  if (typeof fontSize === "number" && fontSize >= 18) return true;
+  if (fontWeight === "bold" || fontWeight === 700 || (typeof fontWeight === "number" && fontWeight >= 700)) return true;
+  return false;
+}
+
+function resolveColor(val: unknown): [number, number, number] | null {
+  if (typeof val !== "string") return null;
+  if (val.startsWith("token.color.")) {
+    const hex = TOKEN_COLORS[val];
+    return hex ? hexToRgb(hex) : null;
+  }
+  return hexToRgb(val);
+}
+
+function checkSchema(scene: Scene, violations: LintViolation[]): void {
+  const objectIds = new Set(Object.keys(scene.objects));
+  for (const [id, obj] of Object.entries(scene.objects)) {
+    if (obj.type === "screen") {
+      if (obj.parentId !== null) {
+        violations.push({
+          ruleId: "L-SCHEMA",
+          objectId: id,
+          message: `Screen must have null parentId`,
           severity: "error",
-          path: propPath,
-          suggestion: "Use tokens from the design system: token.color.*, token.spacing.*, token.typography.*",
+          path: "parentId",
+          suggestion: "Set parentId to null for screens",
         });
       }
-    } else if (typeof val === "object" && val !== null && !Array.isArray(val)) {
-      for (const [k, v] of Object.entries(val as Record<string, unknown>)) {
-        checkValue(v, `${propPath}.${k}`);
-      }
-    } else if (Array.isArray(val)) {
-      val.forEach((v, i) => checkValue(v, `${propPath}[${i}]`));
-    }
-  };
-
-  for (const [key, val] of Object.entries((obj as Record<string, unknown>).props ?? {})) {
-    checkValue(val, `props.${key}`);
-  }
-  for (const [key, val] of Object.entries(obj.style as Record<string, unknown>)) {
-    checkValue(val, `style.${key}`);
-  }
-}
-
-function checkColorUsage(obj: unknown, path: string, violations: unknown[]): void {
-  const checkValue = (val: unknown, propPath: string): void => {
-    if (typeof val === "string" && /^#[0-9a-fA-F]{3,8}$/.test(val)) {
-      (violations as unknown[]).push({
-        ruleId: "L-HARDCODED-COLOR",
-        objectId: (val as any)?.id,
-        message: `Hardcoded color in ${propPath}: ${val}. Use token.color.* instead`,
-        severity: "error",
-        path: propPath,
-        suggestion: `Replace with token.color.primary, token.color.background, etc.`,
-      });
-    } else if (typeof val === "object" && val !== null && !Array.isArray(val)) {
-      for (const [key, v] of Object.entries(val as Record<string, unknown>)) {
-        checkValue(v, `${propPath}.${key}`);
-      }
-    } else if (Array.isArray(val)) {
-      val.forEach((v, i) => checkValue(v, `${propPath}[${i}]`));
-    }
-  };
-
-  for (const [key, val] of Object.entries((obj as any).props ?? {})) {
-    checkValue(val, `props.${key}`);
-  }
-  for (const [key, val] of Object.entries(obj.style as Record<string, unknown>)) {
-    checkValue(val, `style.${key}`);
-  }
-}
-
-function checkSpacingUsage(obj: unknown, path: string, violations: unknown[]): void {
-  const checkValue = (val: unknown, propPath: string): void => {
-    if (typeof val === "number" && propPath.match(/\.(gap|padding|margin|width|height|size)$/)) {
-      if (!isTokenValue(val)) {
+    } else {
+      const parentId = obj.parentId;
+      if (parentId && !objectIds.has(parentId)) {
         violations.push({
-          ruleId: "L-SPACING-TOKEN",
-          objectId: (val as any)?.id ?? obj.id,
-          message: `Raw spacing value in ${propPath}: ${val}. Use token.spacing.*`,
-          severity: "warning",
-          path: propPath,
-          suggestion: `Use token.spacing.sm, token.spacing.md, token.spacing.lg, etc.`,
+          ruleId: "L-SCHEMA",
+          objectId: id,
+          message: `Object references non-existent parent: ${parentId}`,
+          severity: "error",
+          path: "parentId",
+          suggestion: "Fix parentId reference or create parent object",
         });
       }
-    } else if (typeof val === "object" && val !== null && !Array.isArray(val)) {
-      for (const [key, v] of Object.entries(val as Record<string, unknown>)) {
-        checkValue(v, `${propPath}.${key}`);
-      }
-    } else if (Array.isArray(val)) {
-      (val as unknown[]).forEach((v, i) => checkValue(v, `${propPath}[${i}]`));
     }
-  };
-
-  for (const [key, val] of Object.entries(obj.props ?? {})) {
-    checkValue(val, `props.${key}`);
-  }
-  for (const [key, val] of Object.entries(obj.style as Record<string, unknown>)) {
-    checkValue(val, `style.${key}`);
-  }
-}
-
-function checkTypographyUsage(obj: unknown, path: string, violations: unknown[]): void {
-  const checkValue = (val: unknown, propPath: string): void => {
-    if (propPath.match(/\.(fontSize|fontFamily|fontWeight|lineHeight|letterSpacing)$/)) {
-      if (!isTokenValue(val) && typeof val !== "number") {
+    for (const childId of obj.children) {
+      if (!objectIds.has(childId)) {
         violations.push({
-          ruleId: "L-TYPOGRAPHY-TOKEN",
-          objectId: (val as any)?.id ?? obj.id,
-          message: `Raw typography value in ${propPath}: ${val}. Use token.typography.*`,
-          severity: "warning",
-          path: propPath,
-          suggestion: `Use token.typography.fontSize.md, token.typography.fontFamily.sans, etc.`,
+          ruleId: "L-SCHEMA",
+          objectId: id,
+          message: `Child references non-existent object: ${childId}`,
+          severity: "error",
+          path: "children",
+          suggestion: "Fix children reference or create child object",
+        });
+      }
+    }
+  }
+}
+
+const GRID_KEYS = new Set(["margin", "padding", "gap", "width", "height", "size", "top", "left", "right", "bottom"]);
+
+function checkGrid(scene: Scene, violations: LintViolation[]): void {
+  const walkerObj = (id: string, val: unknown, path: string): void => {
+    if (typeof val === "number") {
+      const key = path.split(".").pop() ?? "";
+      if (GRID_KEYS.has(key) && val % 4 !== 0) {
+        violations.push({
+          ruleId: "L-GRID",
+          objectId: id,
+          message: `Value ${val} at ${path} is not aligned to 4px grid`,
+          severity: "error",
+          path,
+          suggestion: "Use a value divisible by 4",
         });
       }
     } else if (typeof val === "object" && val !== null && !Array.isArray(val)) {
-      for (const [key, v] of Object.entries(val as Record<string, unknown>)) {
-        checkValue(v, `${propPath}.${key}`);
+      const rec = val as Record<string, unknown>;
+      for (const [k, v] of Object.entries(rec)) {
+        walkerObj(id, v, `${path}.${k}`);
       }
     } else if (Array.isArray(val)) {
-      (val as unknown[]).forEach((v, i) => checkValue(v, `${propPath}[${i}]`));
+      val.forEach((v, i) => walkerObj(id, v, `${path}[${i}]`));
     }
   };
 
-  for (const [key, val] of Object.entries(obj.props ?? {})) {
-    checkValue(val, `props.${key}`);
-  }
-  for (const [key, val] of Object.entries(obj.style as Record<string, unknown>)) {
-    checkValue(val, `style.${key}`);
-  }
-}
-
-function checkContrast(obj: unknown, path: string, violations: unknown[]): void {
-  if ((obj as any).type === "text") {
-    const color = (obj as any).props.color as any;
-    const background = (obj as any).style.background as any;
-    if (color && background) {
-      if (!isColorToken(color) || !isColorToken(background)) {
-        (violations as unknown[]).push({
-          ruleId: "L-CONTRAST-TOKENS",
-          objectId: (obj as any).id,
-          message: `Text color and background must both use color tokens for contrast verification`,
-          severity: "warning",
-          path: "props.color / style.background",
-          suggestion: "Use token.color.text.primary on token.color.background.primary",
-        });
-      }
-    }
+  for (const [id, obj] of Object.entries(scene.objects)) {
+    const style = obj.style ?? {};
+    const props = obj.props ?? {};
+    walkerObj(id, style, "style");
+    walkerObj(id, props, "props");
   }
 }
 
-function checkInteractiveStates(obj: unknown, path: string, violations: unknown[]): void {
-  if ((obj as any).type === "button" || (obj as any).type === "input") {
-    const hasHover = "hover" in (obj as any).style || ":hover" in (obj as any).style;
-    const hasFocus = "focus" in (obj as any).style || ":focus" in (obj as any).style;
-    const hasDisabled = (obj as any).props.disabled === true || "disabled" in (obj as any).style || ":disabled" in (obj as any).style;
-
-    if (!("hover" in (obj as any).style || ":hover" in (obj as any).style)) {
-      (violations as unknown[]).push({
-        ruleId: "L-HOVER-STATE",
-        objectId: (obj as any).id,
-        message: `Interactive element missing hover state`,
-        severity: "warning",
-        path: "style",
-        suggestion: "Add hover style: style[':hover'] = { background: token.color.primaryHover }",
-      });
-    if (!("focus" in (obj as any).style || ":focus" in (obj as any).style)) {
-      (violations as unknown[]).push({
-        ruleId: "L-FOCUS-STATE",
-        objectId: (obj as any).id,
-        message: `Interactive element missing focus state`,
-        severity: "error",
-        path: "style",
-        suggestion: "Add focus style: style[':focus-visible'] = { outline: '2px solid token.color.focus' }",
-      });
-    }
-    if (!((obj as any).props.disabled === true || "disabled" in (obj as any).style || ":disabled" in (obj as any).style) && ((obj as any).type === "button" || (obj as any).type === "input")) {
-      (violations as unknown[]).push({
-        ruleId: "L-DISABLED-STATE",
-        objectId: (obj as any).id,
-        message: `Interactive element missing disabled state`,
-        severity: "warning",
-        path: "style",
-        suggestion: "Add disabled style: style[':disabled'] = { opacity: 0.5, cursor: 'not-allowed' }",
-      });
-    }
-  }
-}
-
-function checkTouchTarget(obj: unknown, path: string, violations: unknown[]): void {
-  if ((obj as any).type === "button" || (obj as any).type === "input") {
-    const width = (obj as any).style.width ?? (obj as any).style.minWidth;
-    const height = (obj as any).style.height ?? (obj as any).style.minHeight;
-
-    if (typeof (obj as any).style.width === "number" && (obj as any).style.width < 44) {
-      (violations as unknown[]).push({
-        ruleId: "L-TOUCH-WIDTH",
-        objectId: (obj as Record<string, unknown>).id as string,
+function checkTouch(scene: Scene, violations: LintViolation[]): void {
+  for (const [id, obj] of Object.entries(scene.objects)) {
+    if (obj.type !== "button" && obj.type !== "input") continue;
+    const style = obj.style ?? {};
+    const width: number | undefined =
+      typeof style["width"] === "number"
+        ? (style["width"] as number)
+        : typeof style["minWidth"] === "number"
+        ? (style["minWidth"] as number)
+        : undefined;
+    const height: number | undefined =
+      typeof style["height"] === "number"
+        ? (style["height"] as number)
+        : typeof style["minHeight"] === "number"
+        ? (style["minHeight"] as number)
+        : undefined;
+    if (typeof width === "number" && width < 44) {
+      violations.push({
+        ruleId: "L-TOUCH",
+        objectId: id,
         message: `Touch target width ${width}px < 44px minimum`,
         severity: "error",
         path: "style.width",
-        suggestion: "Set min-width: token.spacing.touchTarget (44px)",
+        suggestion: "Set min-width to 44px",
       });
     }
-    if (typeof (obj as any).style.height === "number" && (obj as any).style.height < 44) {
-      (violations as unknown[]).push({
-        ruleId: "L-TOUCH-HEIGHT",
-        objectId: (obj as Record<string, unknown>).id as string,
+    if (typeof height === "number" && height < 44) {
+      violations.push({
+        ruleId: "L-TOUCH",
+        objectId: id,
         message: `Touch target height ${height}px < 44px minimum`,
         severity: "error",
         path: "style.height",
-        suggestion: "Set min-height: token.spacing.touchTarget (44px)",
+        suggestion: "Set min-height to 44px",
       });
     }
   }
 }
 
-function checkAltText(obj: unknown, path: string, violations: unknown[]): void {
-  const objRecord = obj as Record<string, unknown>;
-  if ((obj as any).type === "image") {
-    const alt = (obj as any).props.alt as any;
-    if (!alt || (typeof alt === "string" && alt.trim() === "")) {
-      (violations as unknown[]).push({
-        ruleId: "L-ALT-TEXT",
-        objectId: (objRecord as Record<string, unknown>).id as string,
-        message: `Image missing alt text`,
-        severity: "error",
-        path: "props.alt",
-        suggestion: "Add descriptive alt text for accessibility",
-      });
-    }
-  }
-}
-
-function checkContainerChildren(obj: unknown, path: string, violations: unknown[]): void {
-  const objRecord = obj as Record<string, unknown>;
-  if ((obj as any).type === "container") {
-    if ((obj as any).children.length === 0) {
-      (violations as unknown[]).push({
-        ruleId: "L-EMPTY-CONTAINER",
-        objectId: (objRecord as Record<string, unknown>).id as string,
-        message: `Empty container - consider removing or adding children`,
-        severity: "info",
-        path: "children",
-        suggestion: "Add child objects or remove empty container",
-      });
-    }
-    const layout = (obj as any).props.layout as any;
-    if (layout === "flex" && !(objRecord as Record<string, unknown>).props?.direction) {
-      (violations as unknown[]).push({
-        ruleId: "L-FLEX-DIRECTION",
-        objectId: (objRecord as Record<string, unknown>).id as string,
-        message: `Flex container missing direction`,
-        severity: "warning",
-        path: "props.direction",
-        suggestion: "Set direction: 'row' or 'column'",
-      });
-}
-}
-
-function checkScreenTitle(obj: unknown, path: string, violations: unknown[]): void {
-  const objRecord = obj as Record<string, unknown>;
-  if ((obj as any).type === "screen") {
-    const title = (obj as any).props.title as any;
-    if (!title || (typeof title === "string" && title.trim() === "")) {
-      (violations as unknown[]).push({
-        ruleId: "L-SCREEN-TITLE",
-        objectId: (objRecord as Record<string, unknown>).id as string,
-        message: `Screen missing title`,
-        severity: "warning",
-        path: "props.title",
-        suggestion: "Set a descriptive screen title",
-      });
-    }
-  }
-}
-
-function checkDuplicateIds(objects: Record<string, unknown>, violations: unknown[]): void {
-  const seen = new Set<string>();
-  for (const [id, obj] of Object.entries(objects)) {
-    if (seen.has(id)) {
-      (violations as unknown[]).push({
-        ruleId: "L-DUPLICATE-ID",
+function checkContrast(scene: Scene, violations: LintViolation[]): void {
+  for (const [id, obj] of Object.entries(scene.objects)) {
+    if (obj.type !== "text") continue;
+    const colorVal = (obj.props ?? {})["color"];
+    const bgVal = (obj.style ?? {})["background"];
+    if (!colorVal || !bgVal) continue;
+    const color = resolveColor(colorVal);
+    const bg = resolveColor(bgVal);
+    if (!color || !bg) {
+      violations.push({
+        ruleId: "L-CONTRAST",
         objectId: id,
-        message: `Duplicate object ID: ${id}`,
-        severity: "error",
-        path: "id",
-        suggestion: "Ensure all object IDs are unique",
-      });
-    }
-    seen.add(id);
-  }
-}
-
-function checkOrphanedObjects(objects: Record<string, unknown>, violations: unknown[]): void {
-  const referenced = new Set<string>();
-  for (const obj of Object.values(objects)) {
-    for (const childId of (obj as any).children) {
-      referenced.add(childId);
-    }
-  }
-  for (const [id, obj] of Object.entries(objects)) {
-    const objRecord = obj as Record<string, unknown>;
-    if (objRecord.parentId && !(objRecord.parentId in objects)) {
-      (violations as unknown[]).push({
-        ruleId: "L-INVALID-PARENT",
-        objectId: id,
-        message: `Object references non-existent parent: ${objRecord.parentId}`,
-        severity: "error",
-        path: "parentId",
-        suggestion: "Fix parentId reference or create parent object",
-      });
-    }
-    if ((obj as any).type !== "screen" && objRecord.parentId && !referenced.has(id)) {
-      (violations as unknown[]).push({
-        ruleId: "L-ORPHANED-OBJECT",
-        objectId: id,
-        message: `Object not referenced as child by its parent`,
+        message: `Text color and background must both use color tokens for contrast verification`,
         severity: "warning",
-        path: "parentId",
-        suggestion: "Add object ID to parent's children array",
+        path: "props.color / style.background",
+        suggestion: "Use token.color.text.primary on token.color.background",
+      });
+      continue;
+    }
+    const ratio = contrastRatio(color, bg);
+    const large = isLargeText(obj);
+    const threshold = large ? 3 : 4.5;
+    if (ratio < threshold) {
+      violations.push({
+        ruleId: "L-CONTRAST",
+        objectId: id,
+        message: `Contrast ratio ${ratio.toFixed(2)}:1 is below ${threshold}:1 for ${large ? "large" : "normal"} text`,
+        severity: "error",
+        path: "props.color / style.background",
+        suggestion: "Increase contrast between text and background",
       });
     }
   }
 }
 
-const M1_RULES = [
-  { id: "L-SCHEMA", name: "Schema Validation", severity: "error" as const, check: (scene: any) => { const v: any[] = []; checkSchema(scene, v); return v; } },
-  { id: "L-TOKEN-NAMESPACE", name: "Token Namespace", severity: "error" as const, check: (scene: any) => { const v: any[] = []; for (const obj of Object.values(scene.objects)) checkTokenUsage(obj, "", v); return v; } },
-  { id: "L-HARDCODED-COLOR", name: "No Hardcoded Colors", severity: "error" as const, check: (scene: any) => { const v: any[] = []; for (const obj of Object.values(scene.objects)) checkColorUsage(obj, "", v); return v; } },
-  { id: "L-SPACING-TOKEN", name: "Spacing Tokens", severity: "warning" as const, check: (scene: any) => { const v: any[] = []; for (const obj of Object.values(scene.objects)) checkSpacingUsage(obj, "", v); return v; } },
-  { id: "L-TYPOGRAPHY-TOKEN", name: "Typography Tokens", severity: "warning" as const, check: (scene: any) => { const v: any[] = []; for (const obj of Object.values(scene.objects)) checkTypographyUsage(obj, "", v); return v; } },
-  { id: "L-CONTRAST-TOKENS", name: "Contrast Tokens", severity: "warning" as const, check: (scene: any) => { const v: any[] = []; for (const obj of Object.values(scene.objects)) checkContrast(obj, "", v); return v; } },
-  { id: "L-HOVER-STATE", name: "Hover State", severity: "warning" as const, check: (scene: any) => { const v: any[] = []; for (const obj of Object.values(scene.objects)) checkInteractiveStates(obj, "", v); return v; } },
-  { id: "L-FOCUS-STATE", name: "Focus State", severity: "error" as const, check: (scene: any) => { const v: any[] = []; for (const obj of Object.values(scene.objects)) checkInteractiveStates(obj, "", v); return v; } },
-  { id: "L-DISABLED-STATE", name: "Disabled State", severity: "warning" as const, check: (scene: any) => { const v: any[] = []; for (const obj of Object.values(scene.objects)) checkInteractiveStates(obj, "", v); return v; } },
-  { id: "L-TOUCH-WIDTH", name: "Touch Target Width", severity: "error" as const, check: (scene: any) => { const v: any[] = []; for (const obj of Object.values(scene.objects)) checkTouchTarget(obj, "", v); return v; } },
-  { id: "L-TOUCH-HEIGHT", name: "Touch Target Height", severity: "error" as const, check: (scene: any) => { const v: any[] = []; for (const obj of Object.values(scene.objects)) checkTouchTarget(obj, "", v); return v; } },
-  { id: "L-ALT-TEXT", name: "Image Alt Text", severity: "error" as const, check: (scene: any) => { const v: any[] = []; for (const obj of Object.values(scene.objects)) checkAltText(obj, "", v); return v; } },
-  { id: "L-EMPTY-CONTAINER", name: "Empty Container", severity: "info" as const, check: (scene: any) => { const v: any[] = []; for (const obj of Object.values(scene.objects)) checkContainerChildren(obj, "", v); return v; } },
-  { id: "L-FLEX-DIRECTION", name: "Flex Direction", severity: "warning" as const, check: (scene: any) => { const v: any[] = []; for (const obj of Object.values(scene.objects)) checkContainerChildren(obj, "", v); return v; } },
-  { id: "L-SCREEN-TITLE", name: "Screen Title", severity: "warning" as const, check: (scene: any) => { const v: any[] = []; for (const obj of Object.values(scene.objects)) checkScreenTitle(obj, "", v); return v; } },
-  { id: "L-DUPLICATE-ID", name: "Duplicate IDs", severity: "error" as const, check: (scene: any) => { const v: any[] = []; checkDuplicateIds(scene.objects, v); return v; } },
-  { id: "L-INVALID-PARENT", name: "Invalid Parent Ref", severity: "error" as const, check: (scene: any) => { const v: any[] = []; checkOrphanedObjects(scene.objects, v); return v; } },
-  { id: "L-ORPHANED-OBJECT", name: "Orphaned Object", severity: "warning" as const, check: (scene: any) => { const v: any[] = []; checkOrphanedObjects(scene.objects, v); return v; } },
+function checkLock(scene: Scene, locks: string[], violations: LintViolation[]): void {
+  const lockSet = new Set(locks ?? []);
+  for (const id of lockSet) {
+    if (id in scene.objects) {
+      violations.push({
+        ruleId: "L-LOCK",
+        objectId: id,
+        message: `Object is locked: ${id}`,
+        severity: "error",
+        path: "lock",
+        suggestion: "Unlock object before editing",
+      });
+    }
+  }
+}
+
+const M1_RULES: LintRule[] = [
+  {
+    id: "L-SCHEMA",
+    name: "Schema Validation",
+    severity: "error",
+    check: (scene) => {
+      const v: LintViolation[] = [];
+      checkSchema(scene, v);
+      return v;
+    },
+  },
+  {
+    id: "L-GRID",
+    name: "4px Grid Alignment",
+    severity: "error",
+    check: (scene) => {
+      const v: LintViolation[] = [];
+      checkGrid(scene, v);
+      return v;
+    },
+  },
+  {
+    id: "L-CONTRAST",
+    name: "WCAG AA Contrast",
+    severity: "warning",
+    check: (scene) => {
+      const v: LintViolation[] = [];
+      checkContrast(scene, v);
+      return v;
+    },
+  },
+  {
+    id: "L-TOUCH",
+    name: "Touch Target 44px",
+    severity: "error",
+    check: (scene) => {
+      const v: LintViolation[] = [];
+      checkTouch(scene, v);
+      return v;
+    },
+  },
+  {
+    id: "L-LOCK",
+    name: "Lock Validation",
+    severity: "error",
+    check: (scene, locks) => {
+      const v: LintViolation[] = [];
+      checkLock(scene, locks ?? [], v);
+      return v;
+    },
+  },
 ];
 
-export function lintScene(scene: unknown): { violations: unknown[]; pass: boolean } {
-  const validated = validateScene(scene as unknown);
-  const violations: unknown[] = [];
-
+function lintScene(scene: unknown, locks: string[] = []): LintResult {
+  const validated = validateScene(scene);
+  const violations: LintViolation[] = [];
   for (const rule of M1_RULES) {
-    (violations as unknown[]).push(...rule.check(validated));
+    violations.push(...rule.check(validated, locks));
   }
-
   return {
     violations,
-    pass: (violations as any[]).filter((v) => (v as any).severity === "error").length === 0,
+    pass: violations.filter((v) => v.severity === "error").length === 0,
   };
 }
 
-export function lintSceneWithRules(scene: unknown, ruleIds: string[]): { violations: unknown[]; pass: boolean } {
+function lintSceneWithRules(scene: unknown, ruleIds: string[], locks: string[] = []): LintResult {
   const validated = validateScene(scene);
-  const violations: unknown[] = [];
-
+  const violations: LintViolation[] = [];
   for (const rule of M1_RULES) {
     if (ruleIds.includes(rule.id)) {
-      (violations as unknown[]).push(...rule.check(validated));
+      violations.push(...rule.check(validated, locks));
     }
   }
-
   return {
     violations,
-    pass: (violations as any[]).filter((v) => (v as any).severity === "error").length === 0,
+    pass: violations.filter((v) => v.severity === "error").length === 0,
   };
 }
 
-export { M1_RULES };
-export type { LintRule, LintViolation, LintResult };
+export { M1_RULES, lintScene, lintSceneWithRules };

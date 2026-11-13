@@ -1,7 +1,6 @@
 import { Command } from "commander";
 import { promises as fs } from "node:fs";
-import { resolve, dirname } from "node:path";
-import { fileURLToPath } from "node:url";
+import { resolve } from "node:path";
 import chalk from "chalk";
 import ora from "ora";
 import {
@@ -9,28 +8,13 @@ import {
   createFileLockPort,
   createNodeCryptoPort,
 } from "@intent/adapters-node";
-import { exportToHtml, exportSceneToFile } from "@intent/engine";
-import { generateAllSkillFiles } from "@intent/skills";
-import { Scene, Config } from "@intent/schema";
-import { validateScene } from "@intent/schema";
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
+import { exportSceneToFile } from "@intent/engine";
 
 interface CLIContext {
   projectRoot: string;
   storage: ReturnType<typeof createFileStoragePort>;
   lockPort: ReturnType<typeof createFileLockPort>;
   crypto: ReturnType<typeof createNodeCryptoPort>;
-}
-
-function createContext(projectRoot: string): CLIContext {
-  return {
-    projectRoot,
-    storage: createFileStoragePort(projectRoot),
-    lockPort: createFileLockPort(createFileStoragePort(projectRoot)),
-    crypto: createNodeCryptoPort(),
-  };
 }
 
 async function initCommand(projectRoot: string): Promise<void> {

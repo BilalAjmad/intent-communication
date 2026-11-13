@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import { Studio, createStudio } from "./index";
+import { createStudio } from "./index";
 
 describe("Studio package", () => {
   const config = {

@@ -265,7 +265,7 @@ describe("Engine package", () => {
       });
       const html = exportToHtml(scene);
       // The script tag should be escaped in the body content
-      expect(html).toContain("<script>alert(&#039;xss&#039;)</script>");
+      expect(html).toContain("&lt;script&gt;alert(&#039;xss&#039;)&lt;/script&gt;");
       // The head script for scene data is expected
       expect(html).toContain("window.__INTENT_SCENE__");
     });

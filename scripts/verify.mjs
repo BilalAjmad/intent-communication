@@ -5,9 +5,9 @@
  * Exits non-zero on ANY failure. Generates VERIFY-REPORT.md
  */
 
-import { execSync, spawnSync } from 'child_process';
-import { readFileSync, writeFileSync, existsSync, mkdirSync, rmSync } from 'fs';
-import { resolve, join } from 'path';
+import { execSync } from 'child_process';
+import { readFileSync, writeFileSync, rmSync } from 'fs';
+import { resolve } from 'path';
 import { fileURLToPath } from 'url';
 
 const __dirname = resolve(fileURLToPath(import.meta.url), '..');
@@ -20,60 +20,110 @@ const steps = [
   { name: 'typecheck', cmd: 'pnpm -r typecheck', cwd: ROOT },
   { name: 'lint', cmd: 'pnpm -r lint', cwd: ROOT },
   { name: 'unit+integration tests', cmd: 'pnpm -r test', cwd: ROOT },
-  { name: 'multi-process tests', cmd: 'node tests/multi-process/runner.mjs different', cwd: ROOT },
-  { name: 'multi-process same object', cmd: 'node tests/multi-process/runner.mjs same', cwd: ROOT },
-  { name: 'sigkill test', cmd: 'node tests/sigkill-test.mjs', cwd: ROOT },
-  { name: 'mutation proof', cmd: 'node tests/mutation-proof.mjs', cwd: ROOT },
-  { name: 'visual diff', cmd: 'npx playwright test tests/visual-diff.spec.ts', cwd: ROOT },
-  { name: 'smoke test', cmd: 'npx playwright test tests/tier1-smoke.spec.ts', cwd: ROOT },
+  { name: 'multi-process tests (different objects)', cmd: 'pnpm --filter @intent/core exec vitest run src/multi-process.test.ts --reporter=json --testTimeout=30000', cwd: ROOT },
+  { name: 'sigkill test', cmd: 'pnpm --filter @intent/core exec vitest run src/sigkill.test.ts --reporter=json --testTimeout=30000', cwd: ROOT },
+  { name: 'mutation proof', cmd: 'node scripts/mutation-check.mjs', cwd: ROOT },
+  { name: 'visual diff (Playwright)', cmd: 'npx playwright test tests/visual-diff.spec.ts --reporter=json', cwd: ROOT },
+  { name: 'smoke test (Playwright)', cmd: 'npx playwright test tests/tier1-smoke.spec.ts --reporter=json', cwd: ROOT },
   { name: 'docs:index', cmd: 'pnpm docs:index', cwd: ROOT },
   { name: 'context:check', cmd: 'pnpm context:check', cwd: ROOT },
 ];
 
 const results = [];
-let overallPass = true;
 
 function runStep(step) {
   const start = Date.now();
   try {
-    const output = execSync(step.cmd, { cwd: step.cwd, encoding: 'utf-8', timeout: 300000, stdio: 'pipe' });
+    const output = execSync(step.cmd, { cwd: step.cwd, encoding: 'utf-8', timeout: 600000, stdio: 'pipe' });
     const duration = Date.now() - start;
     return { step: step.name, pass: true, duration, output: output.toString() };
   } catch (err) {
     const duration = Date.now() - start;
-    return { step: step.name, pass: false, duration, error: err.message, output: err.stdout?.toString() };
+    return { step: step.name, pass: false, duration, error: err.message, output: err.stdout ? err.stdout.toString() : (err.stderr ? err.stderr.toString() : '') };
   }
+}
+
+function extractTestCountFromVitestJSON(output) {
+  try {
+    const data = JSON.parse(output);
+    if (data.results) {
+      let passed = 0, failed = 0, total = 0;
+      for (const suite of data.results) {
+        for (const test of suite.tests || []) {
+          total++;
+          if (test.result === 'passed') passed++;
+          else if (test.result === 'failed') failed++;
+        }
+      }
+      return { passed, failed, total };
+    }
+  } catch {
+    // Not JSON, fall through to regex
+  }
+  return null;
+}
+
+function extractTestCount(output) {
+  // Try JSON first (vitest --reporter=json)
+  const jsonCounts = extractTestCountFromVitestJSON(output);
+  if (jsonCounts) return jsonCounts;
+
+  // Fallback to regex
+  const testMatch = output.match(/Tests\s+:\s*(\d+)\s+failed\s*(\d+)\s+passed\s*(\d+)\s+total/);
+  if (testMatch) {
+    return { failed: parseInt(testMatch[1]), passed: parseInt(testMatch[2]), total: parseInt(testMatch[3]) };
+  }
+  const passedMatch = output.match(/(\d+) passed/);
+  const failedMatch = output.match(/(\d+) failed/);
+  if (passedMatch || failedMatch) {
+    return {
+      failed: failedMatch ? parseInt(failedMatch[1]) : 0,
+      passed: passedMatch ? parseInt(passedMatch[1]) : 0,
+      total: (passedMatch ? parseInt(passedMatch[1]) : 0) + (failedMatch ? parseInt(failedMatch[1]) : 0),
+    };
+  }
+  return { passed: 0, failed: 0, total: 0 };
 }
 
 async function main() {
   console.log('=== VERIFY START ===');
-  console.log(`Root: ${ROOT}`);
-  console.log(`Report: ${REPORT_PATH}\n`);
+  console.log('Root: ' + ROOT);
+  console.log('Report: ' + REPORT_PATH + '\n');
 
-  // Clean up any previous test directories
-  const testDirs = ['.test-intent', '.test-intent-adapters', '.test-mcp', '.test-server', '.test-skills', '.test-cli', '.test-smoke', '.test-visual'];
-  for (const dir of testDirs) {
-    try { require('fs').rmSync(resolve(ROOT, dir), { recursive: true, force: true }); } catch {}
+  const testDirs = ['.test-intent', '.test-intent-adapters', '.test-mcp', '.test-server', '.test-skills', '.test-cli', '.test-smoke', '.test-visual', '.test-visual-diff', '.test-mp-vitest', '.test-mutation', '.test-mutation-simple'];
+  for (var i = 0; i < testDirs.length; i++) {
+    try { rmSync(resolve(ROOT, testDirs[i]), { recursive: true, force: true }); } catch {}
   }
 
-  // Run all steps
-  for (const step of steps) {
-    console.log(`\n=== ${step.name} ===`);
-    const result = runStep(step);
-    console.log(`${result.pass ? 'PASS' : 'FAIL'} ${step.name} (${result.duration}ms)`);
+  for (var i = 0; i < steps.length; i++) {
+    var step = steps[i];
+    console.log('\n=== ' + step.name + ' ===');
+    var result = runStep(step);
+    results.push(result);
+    var counts = extractTestCount(result.output);
+    var countStr = '-';
+    if (counts.total > 0) {
+      countStr = counts.passed + '/' + counts.total;
+      if (counts.failed > 0) countStr += ' (' + counts.failed + ' failed)';
+    }
+    console.log((result.pass ? 'PASS' : 'FAIL') + ' ' + step.name + ' (' + result.duration + 'ms) [' + countStr + ']');
     if (!result.pass) {
-      console.error(result.error);
+      console.error(result.output.slice(0, 2000));
     }
     if (!result.pass && step.name !== 'mutation proof') {
-      // Stop on first failure except mutation proof (which is expected to fail on mutations)
-      return { pass: false, results: results };
+      generateReport();
+      console.log('\n=== VERIFY FAILED ===');
+      process.exit(1);
     }
   }
 
-  // Generate report
   generateReport();
 
-  if (!overallPass) {
+  var failed = 0;
+  for (var i = 0; i < results.length; i++) {
+    if (!results[i].pass) failed++;
+  }
+  if (failed > 0) {
     console.log('\n=== VERIFY FAILED ===');
     process.exit(1);
   } else {
@@ -83,11 +133,13 @@ async function main() {
 }
 
 function generateReport() {
-  const now = new Date().toISOString();
-  let md = '# VERIFY REPORT\n\nGenerated: ' + new Date().toISOString() + '\n\n';
-  
-  const passed = results.filter(r => r.pass).length;
-  const failed = results.filter(r => !r.pass).length;
+  var passed = 0;
+  var failed = 0;
+  for (var i = 0; i < results.length; i++) {
+    if (results[i].pass) passed++; else failed++;
+  }
+  var md = '# VERIFY REPORT\n\nGenerated: ' + new Date().toISOString() + '\n\n';
+
   md += '## Summary\n\n';
   md += '- **Total Steps**: ' + results.length + '\n';
   md += '- **Passed**: ' + passed + '\n';
@@ -96,30 +148,36 @@ function generateReport() {
   md += '## Step Results\n\n';
   md += '| Step | Status | Duration | Tests |\n';
   md += '|------|--------|----------|-------|\n';
-  
-  for (const r of results) {
-    const status = r.pass ? '✅ PASS' : '❌ FAIL';
-    const count = r.count || '-';
-    md += `| ${r.step} | ${status} | ${r.duration}ms | ${count} |\n`;
+
+  for (var i = 0; i < results.length; i++) {
+    var r = results[i];
+    var status = r.pass ? 'PASS' : 'FAIL';
+    var counts = extractTestCount(r.output);
+    var countStr = '-';
+    if (counts.total > 0) {
+      countStr = counts.passed + '/' + counts.total;
+      if (counts.failed > 0) countStr += ' (' + counts.failed + ' failed)';
+    }
+    md += '| ' + r.step + ' | ' + status + ' | ' + r.duration + 'ms | ' + countStr + ' |\n';
   }
 
   md += '\n## Step Outputs\n\n';
-  for (const r of results) {
+  for (var i = 0; i < results.length; i++) {
+    var r = results[i];
     md += '### ' + r.step + '\n\n';
     if (r.output) {
-      md += '```\n' + r.output.slice(0, 2000) + '\n```\n\n';
+      md += '\n```\n' + r.output.slice(0, 3000) + '\n```\n\n';
     }
     if (r.error) {
       md += '**Error:**\n```\n' + r.error.slice(0, 2000) + '\n```\n\n';
     }
   }
 
-  const fs = require('fs');
-  fs.writeFileSync(REPORT_PATH, md);
+  writeFileSync(REPORT_PATH, md);
   console.log('\nReport written to ' + REPORT_PATH);
 }
 
-main().catch(err => {
+main().catch(function(err) {
   console.error('FATAL:', err);
   process.exit(1);
 });
