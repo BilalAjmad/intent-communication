@@ -317,14 +317,34 @@ describe("Engine package", () => {
         objects: {
           [screenId]: createScreen(screenId, "", [containerId]),
           [containerId]: createContainer(containerId, screenId, [imageId]),
-          [imageId]: createImage(imageId, containerId, "https://example.com/img.png"),
+          [imageId]: createImage(imageId, containerId, "data:image/png;base64,iVBORw0KGgo="),
         },
       });
 
       const html = exportToHtml(scene);
       expect(html).toContain("intent-image");
       expect(html).toContain("intent-fit-cover");
-      expect(html).toContain("https://example.com/img.png");
+      expect(html).toContain('src="data:image/png;base64,iVBORw0KGgo="');
+    });
+
+    it("does not put an external URL in an image src (trd rule 8)", () => {
+      const screenId = "s_01ARZ3NDEKTSV4RRFFQ69G5FAV";
+      const containerId = "o_01ARZ3NDEKTSV4RRFFQ69G5FAV";
+      const imageId = "o_02ARZ3NDEKTSV4RRFFQ69G5FAV";
+
+      const scene = createBaseScene({
+        screens: { [screenId]: createScreen(screenId, "", [containerId]) },
+        objects: {
+          [screenId]: createScreen(screenId, "", [containerId]),
+          [containerId]: createContainer(containerId, screenId, [imageId]),
+          [imageId]: createImage(imageId, containerId, "https://example.com/img.png"),
+        },
+      });
+
+      const html = exportToHtml(scene);
+      const imgTag = /<img\b[^>]*>/.exec(html)?.[0] ?? "";
+      expect(imgTag).not.toContain("https://");
+      expect(imgTag).toContain('src=""');
     });
 
     it("renders input with correct attributes", () => {

@@ -5,6 +5,13 @@ import {
   SCENE_SCHEMA_VERSION,
 } from "@intent/schema";
 import type { SceneValue } from "./index.js";
+import {
+  escapeJsonForScript,
+  sanitizeCssValue,
+  sanitizeUrl,
+  safeClassToken,
+  buildCsp,
+} from "./sanitize.js";
 
 export interface HtmlExportOptions {
   includeStyles?: boolean;
@@ -56,7 +63,7 @@ function buildStyleString(style: Record<string, SceneValue>): string {
   const declarations: string[] = [];
   for (const [key, val] of Object.entries(style)) {
     const cssKey = key.replace(/([A-Z])/g, "-$1").toLowerCase();
-    const value = resolveValue(val);
+    const value = sanitizeCssValue(resolveValue(val));
     if (value) {
       declarations.push(`${cssKey}: ${value};`);
     }
@@ -64,32 +71,36 @@ function buildStyleString(style: Record<string, SceneValue>): string {
   return declarations.join(" ");
 }
 
+/** Input types allowed in the exported markup. */
+const ALLOWED_INPUT_TYPES = new Set(["text", "email", "password", "number", "tel", "url"]);
+
 function renderObject(obj: SceneObject, allObjects: Record<string, SceneObject>, depth: number = 0): string {
   const indent = "  ".repeat(depth);
   const styleStr = buildStyleString(obj.style);
   const styleAttr = styleStr ? ` style="${escapeHtml(styleStr)}"` : "";
   const children = obj.children.map((id) => {
     const child = allObjects[id];
-    if (!child) return `<!-- missing child ${id} -->`;
+    if (!child) return `<!-- missing child ${escapeHtml(id)} -->`;
     return renderObject(child, allObjects, depth + 1);
   }).join("\n");
 
   switch (obj.type) {
     case "screen":
-      return `${indent}<div class="intent-screen" data-screen-id="${obj.id}"${styleAttr}>\n${children}\n${indent}</div>`;
+      return `${indent}<div class="intent-screen" data-screen-id="${escapeHtml(obj.id)}"${styleAttr}>\n${children}\n${indent}</div>`;
 
     case "container":
-      return `${indent}<div class="intent-container" data-object-id="${obj.id}"${styleAttr}>\n${children}\n${indent}</div>`;
+      return `${indent}<div class="intent-container" data-object-id="${escapeHtml(obj.id)}"${styleAttr}>\n${children}\n${indent}</div>`;
 
     case "text": {
       const content = escapeHtml((obj.props.content as string) ?? "");
-      return `${indent}<span class="intent-text" data-object-id="${obj.id}"${styleAttr}>${content}</span>`;
+      return `${indent}<span class="intent-text" data-object-id="${escapeHtml(obj.id)}"${styleAttr}>${content}</span>`;
     }
 
     case "button": {
       const label = escapeHtml((obj.props.label as string) ?? "Button");
       const disabled = obj.props.disabled ? " disabled" : "";
-      return `${indent}<button class="intent-button intent-button-${obj.props.variant}" data-object-id="${obj.id}"${styleAttr}${disabled}>${label}</button>`;
+      const variant = safeClassToken(obj.props.variant, "primary");
+      return `${indent}<button class="intent-button intent-button-${variant}" data-object-id="${escapeHtml(obj.id)}"${styleAttr}${disabled}>${label}</button>`;
     }
 
     case "input": {
@@ -97,18 +108,20 @@ function renderObject(obj: SceneObject, allObjects: Record<string, SceneObject>,
       const placeholder = escapeHtml((obj.props.placeholder as string) ?? "");
       const required = obj.props.required ? " required" : "";
       const disabled = obj.props.disabled ? " disabled" : "";
-      return `${indent}<input class="intent-input" type="${obj.props.type}" value="${value}" placeholder="${placeholder}" data-object-id="${obj.id}"${styleAttr}${required}${disabled} />`;
+      const rawType = typeof obj.props.type === "string" ? obj.props.type : "text";
+      const inputType = ALLOWED_INPUT_TYPES.has(rawType) ? rawType : "text";
+      return `${indent}<input class="intent-input" type="${inputType}" value="${value}" placeholder="${placeholder}" data-object-id="${escapeHtml(obj.id)}"${styleAttr}${required}${disabled} />`;
     }
 
     case "image": {
-      const src = escapeHtml((obj.props.src as string) ?? "");
+      const src = escapeHtml(sanitizeUrl(obj.props.src));
       const alt = escapeHtml((obj.props.alt as string) ?? "");
-      const fit = obj.props.fit;
-      return `${indent}<img class="intent-image intent-fit-${fit}" src="${src}" alt="${alt}" data-object-id="${obj.id}"${styleAttr} />`;
+      const fit = safeClassToken(obj.props.fit, "cover");
+      return `${indent}<img class="intent-image intent-fit-${fit}" src="${src}" alt="${alt}" data-object-id="${escapeHtml(obj.id)}"${styleAttr} />`;
     }
 
     default:
-      return `${indent}<div class="intent-object" data-object-id="${obj.id}"${styleAttr}>\n${children}\n${indent}</div>`;
+      return `${indent}<div class="intent-object" data-object-id="${escapeHtml(obj.id)}"${styleAttr}>\n${children}\n${indent}</div>`;
   }
 }
 
@@ -233,18 +246,20 @@ export function exportToHtml(scene: Scene, options: HtmlExportOptions = {}): str
   const cssVars = opts.includeStyles ? generateCssVariables() : "";
   const baseStyles = opts.includeStyles ? generateBaseStyles() : "";
   const cspAttr = opts.cspNonce ? ` nonce="${escapeHtml(opts.cspNonce)}"` : "";
+  const csp = buildCsp(opts.cspNonce);
 
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Content-Security-Policy" content="${escapeHtml(csp)}">
   <title>${escapeHtml(validated.metadata.name ?? "Intent Export")}</title>
   ${cssVars ? `<style${cspAttr}>${cssVars}</style>` : ""}
   ${baseStyles ? `<style${cspAttr}>${baseStyles}</style>` : ""}
   ${opts.includeScripts ? `<script${cspAttr}>
     (function() {
-      window.__INTENT_SCENE__ = ${JSON.stringify(validated)};
+      window.__INTENT_SCENE__ = ${escapeJsonForScript(JSON.stringify(validated))};
       window.__INTENT_VERSION__ = ${SCENE_SCHEMA_VERSION};
     })();
   </script>` : ""}

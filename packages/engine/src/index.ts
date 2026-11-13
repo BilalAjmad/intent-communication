@@ -285,4 +285,13 @@ export {
 
 export type { HtmlExportOptions } from "./html.js";
 
+export {
+  escapeHtml,
+  escapeJsonForScript,
+  sanitizeCssValue,
+  sanitizeUrl,
+  safeClassToken,
+  buildCsp,
+} from "./sanitize.js";
+
 export { SCHEMA_VERSION, SCENE_SCHEMA_VERSION } from "@intent/schema";

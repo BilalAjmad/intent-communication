@@ -85,15 +85,21 @@ describe("Conformance: Interview bank (intent.md 6.3-6.5)", () => {
 });
 
 describe("Conformance: SEC-01..SEC-07 are implemented in the server package", () => {
-  // The real SEC tests live in packages/server/src/index.test.ts and are
-  // executed by that package's test run. This checks that they exist and
-  // are named as trd 22 requires, so the coverage cannot silently vanish.
+  // The real SEC tests live in packages/server/src/security.test.ts and are
+  // executed by that package's test run. This checks that each one exists and
+  // is named as trd 22 requires, so the coverage cannot silently vanish.
   it("the server package declares a test for each of SEC-01 to SEC-07", () => {
-    const serverTest = resolve(__dirname, "../../server/src/index.test.ts");
-    const source = readFileSync(serverTest, "utf-8");
+    const sources = [resolve(__dirname, "../../server/src/index.test.ts"), resolve(__dirname, "../../server/src/security.test.ts")].map((p) => {
+      try {
+        return readFileSync(p, "utf-8");
+      } catch {
+        return "";
+      }
+    });
+    const combined = sources.join("\n");
     for (let n = 1; n <= 7; n++) {
       const id = `SEC-0${n}`;
-      expect(source, `server package has no ${id} test`).toContain(id);
+      expect(combined, `server package has no ${id} test`).toContain(id);
     }
   });
 });
