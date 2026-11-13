@@ -26,5 +26,6 @@ export type { Seed, ControlSeed } from "./interview/bank.js";
 export { applyPatch } from "./patch.js";
 
 export { writePipeline } from "./pipeline.js";
+export { writeAtomic } from "./atomic.js";
 
 export { SCHEMA_VERSION, SCENE_SCHEMA_VERSION } from "@intent/schema";

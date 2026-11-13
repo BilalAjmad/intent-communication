@@ -37,7 +37,7 @@ const MUTATIONS = [
   {
     name: 'Scope check (E_NOT_FOUND, trd 6.2)',
     file: 'patch.ts',
-    oldString: 'const pathParts = validated.path.split(".").filter((p: string): p is string => Boolean(p));',
+    oldString: 'const pathParts = assertSafePatchPath(validated.path, validated.op);',
     newString: 'const pathParts: string[] = []; // MUTATED: scope check removed',
     expectedFailingTest: 'M3: Scope check',
   },
@@ -61,19 +61,19 @@ function extractFailedTestsFromJSON(output) {
   try {
     const data = JSON.parse(output);
     const failed = [];
-    if (data.results) {
-      for (const suite of data.results) {
-        for (const test of suite.tests || []) {
-          if (test.result === 'failed') {
-            const testName = test.name?.slice(-1)?.length ? test.name : test.title ?? '';
-            const fullTestName = suite.file ? `${suite.file} > ${test.name}` : test.name;
-            if (!failed.includes(fullTestName)) {
-              failed.push(fullTestName);
+    if (data.testResults) {
+      for (const suite of data.testResults) {
+        for (const test of suite.assertionResults || []) {
+          if (test.status === 'failed') {
+            const fullName = test.fullName || test.title || '';
+            if (!failed.includes(fullName)) {
+              failed.push(fullName);
             }
           }
         }
       }
     }
+    // Also try reading the output file if output is empty
     return failed;
   } catch {
     return [];
@@ -98,7 +98,7 @@ function runMutation(mutation) {
     });
 
     // 3. Run core tests (mutation.test.ts specifically) with JSON output
-    const tmpReport = resolve(ROOT, '.test-mutation-report.json');
+    const tmpReport = resolve('C:/Users/AFZAAL~1/AppData/Local/Temp', '.test-mutation-report.json');
     let output = '';
     let exitCode = 0;
     try {
@@ -112,7 +112,17 @@ function runMutation(mutation) {
     }
 
     // 4. Check for expected failing test in vitest JSON
-    const failedTests = extractFailedTestsFromJSON(output);
+    // Read from the output file (more reliable than stdout)
+    let jsonOutput = output;
+    try {
+      const fileContent = readFileSync(tmpReport, 'utf-8');
+      if (fileContent && fileContent.trim().startsWith('{')) {
+        jsonOutput = fileContent;
+      }
+    } catch {
+      // Fall back to stdout
+    }
+    const failedTests = extractFailedTestsFromJSON(jsonOutput);
     const expectedFailed = failedTests.find((t) => t.includes(mutation.expectedFailingTest));
 
     const detected = !!expectedFailed;

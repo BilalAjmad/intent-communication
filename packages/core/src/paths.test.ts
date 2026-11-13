@@ -97,9 +97,9 @@ describe("StoragePort identifier safety", () => {
     await expect(lockPort.acquire("scene-1", "../../escape")).rejects.toThrow();
   });
 
-  it("writes lock files under the storage root, not the process cwd", async () => {
+  it("writes lock entries under the storage root, not the process cwd", async () => {
     await lockPort.acquire("scene-1", "o_01ARZ3NDEKTSV4RRFFQ69G5FAV");
-    const lockFile = resolve(testDir, ".intent", "locks", "scene-1", "o_01ARZ3NDEKTSV4RRFFQ69G5FAV.lock");
+    const lockFile = resolve(testDir, ".intent", "locks", "scene-1.locks.json");
     await expect(fs.access(lockFile)).resolves.toBeUndefined();
   });
 });

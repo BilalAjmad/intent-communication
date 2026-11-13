@@ -24,7 +24,7 @@ All 12 verify steps pass:
 | build | PASS |
 | typecheck | PASS |
 | lint | PASS |
-| unit+integration tests | PASS (174 tests) |
+| unit+integration tests | PASS (263 tests) |
 | multi-process tests | PASS |
 | sigkill test | PASS |
 | mutation proof | PASS |

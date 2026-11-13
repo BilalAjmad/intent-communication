@@ -18,7 +18,7 @@ function log(msg) {
 }
 
 const storage = createStoragePort(testDir);
-const lockPort = createLockPort(storage, resolve(testDir, ".intent", "locks"));
+const lockPort = createLockPort(storage);
 
 async function main() {
   try {

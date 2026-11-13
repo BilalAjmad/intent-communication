@@ -46,7 +46,16 @@ function runStep(step) {
 function extractTestCountFromVitestJSON(output) {
   try {
     const data = JSON.parse(output);
-    if (data.results) {
+    // vitest v2 JSON reporter: { numPassedTests, numFailedTests, numTotalTests, testResults[] ... }
+    if (typeof data.numTotalTests === 'number') {
+      return {
+        passed: data.numPassedTests ?? 0,
+        failed: data.numFailedTests ?? 0,
+        total: data.numTotalTests,
+      };
+    }
+    // Older schema (vitest <=0.34): { results: [{ tests: [{ result }] }] }
+    if (Array.isArray(data.results)) {
       let passed = 0, failed = 0, total = 0;
       for (const suite of data.results) {
         for (const test of suite.tests || []) {
@@ -64,23 +73,20 @@ function extractTestCountFromVitestJSON(output) {
 }
 
 function extractTestCount(output) {
+  // Strip ANSI escape sequences first (they can sit between tokens).
+  output = output.replace(/\u001b\[[0-9;]*m/g, '');
+
   // Try JSON first (vitest --reporter=json)
   const jsonCounts = extractTestCountFromVitestJSON(output);
   if (jsonCounts) return jsonCounts;
 
-  // Fallback to regex
-  const testMatch = output.match(/Tests\s+:\s*(\d+)\s+failed\s*(\d+)\s+passed\s*(\d+)\s+total/);
-  if (testMatch) {
-    return { failed: parseInt(testMatch[1]), passed: parseInt(testMatch[2]), total: parseInt(testMatch[3]) };
-  }
-  const passedMatch = output.match(/(\d+) passed/);
-  const failedMatch = output.match(/(\d+) failed/);
-  if (passedMatch || failedMatch) {
-    return {
-      failed: failedMatch ? parseInt(failedMatch[1]) : 0,
-      passed: passedMatch ? parseInt(passedMatch[1]) : 0,
-      total: (passedMatch ? parseInt(passedMatch[1]) : 0) + (failedMatch ? parseInt(failedMatch[1]) : 0),
-    };
+  // Fallback to regex: sum "Tests  N passed (N)" lines across all packages.
+  const passedMatches = [...output.matchAll(/Tests\s+(\d+)\s+passed/g)];
+  const failedMatches = [...output.matchAll(/Tests\s+(\d+)\s+failed/g)];
+  if (passedMatches.length || failedMatches.length) {
+    const passed = passedMatches.reduce((s, m) => s + parseInt(m[1], 10), 0);
+    const failed = failedMatches.reduce((s, m) => s + parseInt(m[1], 10), 0);
+    return { passed, failed, total: passed + failed };
   }
   return { passed: 0, failed: 0, total: 0 };
 }

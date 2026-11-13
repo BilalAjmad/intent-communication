@@ -9,7 +9,7 @@ const baseRevision = parseInt(process.argv[6], 10);
 const killAfterMs = process.argv[7] ? parseInt(process.argv[7], 10) : undefined;
 
 const storage = createStoragePort(testDir);
-const lockPort = createLockPort(storage, resolve(testDir, ".intent", "locks"));
+const lockPort = createLockPort(storage);
 
 async function main() {
   try {

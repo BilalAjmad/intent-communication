@@ -1,6 +1,6 @@
 # Documentation Index
 
-Generated: 2026-11-13T01:59:41.864Z
+Generated: 2026-11-13T17:31:16.521Z
 
 ## Plan
 
@@ -429,6 +429,16 @@ Generated: 2026-11-13T01:59:41.864Z
   - 21 21. Open Questions (to resolve in later documents)
   - 22 22. Flags for Later Documents
   - 23 23. Change Log
+
+## Security Audit 2026 11 13
+
+- Path: `docs/security-audit-2026-11-13.md`
+- Sections:
+  - 1 1. Automated scans
+  - 2 2. Confirmed and fixed — exported prototype HTML is the product's deliverable and it executed attacker text
+  - 3 3. Confirmed and fixed — the Studio server's authentication was a stub
+  - 4 4. Recorded, understood, deliberately not "fixed" by this audit
+  - 5 5. Summary
 
 ## Test
 

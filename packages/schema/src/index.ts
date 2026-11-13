@@ -1,10 +1,7 @@
 import { z } from "zod";
 export const CrockfordULIDSchema = z.string().regex(/^(o|s|c|p|a|q|v|k)_[0-9A-HJKMNP-TV-Z]{26}$/, { message: "Must be a valid prefixed Crockford ULID (prefix_<26 Crockford base32 chars>)" });
 
-export const ISODateTimeSchema = z.string().datetime({ offset: true }).refine(
-  (val) => val.endsWith("Z"),
-  { message: "Must be UTC (end with Z)" }
-);
+export const ISODateTimeSchema = z.string().datetime({ offset: true }).refine((val) => val.endsWith("Z"), { message: "Must be UTC (end with Z)" });
 
 export const RevisionSchema = z.number().int().nonnegative();
 
@@ -12,12 +9,7 @@ export const ObjectIdSchema = CrockfordULIDSchema;
 
 export const ScreenIdSchema = CrockfordULIDSchema;
 
-export const PrimitiveValueSchema = z.union([
-  z.string(),
-  z.number(),
-  z.boolean(),
-  z.null(),
-]);
+export const PrimitiveValueSchema = z.union([z.string(), z.number(), z.boolean(), z.null()]);
 
 export const TokenValueSchema = z.object({
   $type: z.literal("token"),
@@ -167,21 +159,14 @@ export const LockSchema = z.object({
 
 export type Lock = z.infer<typeof LockSchema>;
 
+// Additive: owner metadata for object locks so a crashed writer can be reclaimed.
+const LockOwnerSchema = z.object({ pid: z.number().int().positive(), ownerToken: z.string(), createdAt: z.number().int().nonnegative() });
+
 export const LocksFileSchema = z.object({
   version: z.literal(1),
   lockedObjects: z.array(ObjectIdSchema).default([]),
   updatedAt: ISODateTimeSchema,
-  // Additive: owner metadata for object locks so a crashed writer can be reclaimed.
-  owners: z
-    .record(
-      z.string(),
-      z.object({
-        pid: z.number().int().positive(),
-        ownerToken: z.string(),
-        createdAt: z.number().int().nonnegative(),
-      })
-    )
-    .optional(),
+  owners: z.record(z.string(), LockOwnerSchema).optional(),
 });
 
 export type LocksFile = z.infer<typeof LocksFileSchema>;
