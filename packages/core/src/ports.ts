@@ -8,10 +8,8 @@ import {
   Feedback,
   validateScene,
 } from "@intent/schema";
-import { IntentError, ErrorCodes } from "./error.js";
 import { assertSafeId } from "./paths.js";
-import { promises as fs } from "node:fs";
-import { resolve, dirname } from "node:path";
+import { writeAtomic } from "./atomic.js";
 
 // Debug logging for lock acquisition (writes to .lock-debug.log in cwd)
 const debugLockLogEnabled = process.env["DEBUG_LOCK"] === "1";
@@ -125,13 +123,7 @@ export function createStoragePort(testDir: string): StoragePort {
       const scenePath = resolve(scenesDir, `${sceneId}.json`);
       await checkPathSafety(scenePath, scenesDir);
       const validated = validateScene(scene);
-      const tmpPath = `${scenePath}.tmp.${Date.now()}.${Math.random().toString(36).slice(2)}`;
-      await fs.writeFile(tmpPath, JSON.stringify(validated, null, 0), "utf-8");
-      try {
-        await fs.rename(tmpPath, scenePath);
-      } catch {
-        await fs.writeFile(scenePath, JSON.stringify(validated, null, 0), "utf-8");
-      }
+      await writeAtomic(scenePath, JSON.stringify(validated, null, 0));
     },
 
     async readLocks(sceneId: string): Promise<LocksFile> {
@@ -144,12 +136,14 @@ export function createStoragePort(testDir: string): StoragePort {
           version: data.version ?? 1,
           lockedObjects: data.lockedObjects ?? [],
           updatedAt: data.updatedAt ?? new Date().toISOString(),
+          owners: data.owners ?? {},
         };
       } catch {
         return {
           version: 1,
           lockedObjects: [],
           updatedAt: new Date().toISOString(),
+          owners: {},
         };
       }
     },
@@ -157,13 +151,7 @@ export function createStoragePort(testDir: string): StoragePort {
     async writeLocks(sceneId: string, locksFile: LocksFile): Promise<void> {
       await ensureDirs();
       const locksPath = resolve(locksDir, `${sceneId}.locks.json`);
-      const tmpPath = `${locksPath}.tmp.${Date.now()}.${Math.random().toString(36).slice(2)}`;
-      await fs.writeFile(tmpPath, JSON.stringify(locksFile, null, 0), "utf-8");
-      try {
-        await fs.rename(tmpPath, locksPath);
-      } catch {
-        await fs.writeFile(locksPath, JSON.stringify(locksFile, null, 0), "utf-8");
-      }
+      await writeAtomic(locksPath, JSON.stringify(locksFile, null, 0));
     },
 
     async readConfig(): Promise<Config> {
@@ -187,13 +175,7 @@ export function createStoragePort(testDir: string): StoragePort {
 
     async writeConfig(config: Config): Promise<void> {
       await ensureDirs();
-      const tmpPath = `${configPath}.tmp.${Date.now()}.${Math.random().toString(36).slice(2)}`;
-      await fs.writeFile(tmpPath, JSON.stringify(config, null, 0), "utf-8");
-      try {
-        await fs.rename(tmpPath, configPath);
-      } catch {
-        await fs.writeFile(configPath, JSON.stringify(config, null, 0), "utf-8");
-      }
+      await writeAtomic(configPath, JSON.stringify(config, null, 0));
     },
 
     async readProfile(): Promise<Profile | null> {
@@ -208,13 +190,7 @@ export function createStoragePort(testDir: string): StoragePort {
 
     async writeProfile(profile: Profile): Promise<void> {
       await ensureDirs();
-      const tmpPath = `${profilePath}.tmp.${Date.now()}.${Math.random().toString(36).slice(2)}`;
-      await fs.writeFile(tmpPath, JSON.stringify(profile, null, 0), "utf-8");
-      try {
-        await fs.rename(tmpPath, profilePath);
-      } catch {
-        await fs.writeFile(profilePath, JSON.stringify(profile, null, 0), "utf-8");
-      }
+      await writeAtomic(profilePath, JSON.stringify(profile, null, 0));
     },
 
     async readInterviewState(): Promise<InterviewState | null> {
@@ -229,13 +205,7 @@ export function createStoragePort(testDir: string): StoragePort {
 
     async writeInterviewState(state: InterviewState): Promise<void> {
       await ensureDirs();
-      const tmpPath = `${interviewPath}.tmp.${Date.now()}.${Math.random().toString(36).slice(2)}`;
-      await fs.writeFile(tmpPath, JSON.stringify(state, null, 0), "utf-8");
-      try {
-        await fs.rename(tmpPath, interviewPath);
-      } catch {
-        await fs.writeFile(interviewPath, JSON.stringify(state, null, 0), "utf-8");
-      }
+      await writeAtomic(interviewPath, JSON.stringify(state, null, 0));
     },
 
     async readBrief(briefId: string): Promise<Brief | null> {
@@ -252,13 +222,7 @@ export function createStoragePort(testDir: string): StoragePort {
     async writeBrief(brief: Brief): Promise<void> {
       await ensureDirs();
       const briefPath = resolve(briefsDir, `${brief.id}.json`);
-      const tmpPath = `${briefPath}.tmp.${Date.now()}.${Math.random().toString(36).slice(2)}`;
-      await fs.writeFile(tmpPath, JSON.stringify(brief, null, 0), "utf-8");
-      try {
-        await fs.rename(tmpPath, briefPath);
-      } catch {
-        await fs.writeFile(briefPath, JSON.stringify(brief, null, 0), "utf-8");
-      }
+      await writeAtomic(briefPath, JSON.stringify(brief, null, 0));
     },
 
     async readFeedback(sceneId: string): Promise<Feedback[]> {
@@ -275,13 +239,7 @@ export function createStoragePort(testDir: string): StoragePort {
     async writeFeedback(sceneId: string, feedback: Feedback[]): Promise<void> {
       await ensureDirs();
       const feedbackPath = resolve(feedbackDir, `${sceneId}.json`);
-      const tmpPath = `${feedbackPath}.tmp.${Date.now()}.${Math.random().toString(36).slice(2)}`;
-      await fs.writeFile(tmpPath, JSON.stringify(feedback, null, 0), "utf-8");
-      try {
-        await fs.rename(tmpPath, feedbackPath);
-      } catch {
-        await fs.writeFile(feedbackPath, JSON.stringify(feedback, null, 0), "utf-8");
-      }
+      await writeAtomic(feedbackPath, JSON.stringify(feedback, null, 0));
     },
 
     async listScenes(): Promise<string[]> {
@@ -298,108 +256,115 @@ export function createStoragePort(testDir: string): StoragePort {
   };
 }
 
-export function createLockPort(storage: StoragePort, locksDir?: string, tmpDir?: string): LockPort {
+import { promises as fs } from "node:fs";
+import { resolve, dirname } from "node:path";
+import { IntentError, ErrorCodes } from "./error.js";
+
+export function createLockPort(storage: StoragePort, tmpDir?: string): LockPort {
   const fsp = fs;
-  // Lock directories are derived from the storage root by default so that a
-  // lock can never be written to a different tree than the data it protects.
-  const effectiveLocksDir = locksDir ?? resolve(storage.rootDir, ".intent", "locks");
   const sceneLockDir = tmpDir ?? resolve(storage.rootDir, ".intent", "tmp");
+
+  // In-memory map of sceneId -> ownerToken for scene locks acquired by this process.
+  const sceneOwnerTokens = new Map<string, string>();
 
   function isStale(timestamp: number): boolean {
     return Date.now() - timestamp > 10000;
   }
 
-  /**
-   * Liveness check for a lock owner.
-   *
-   * Uses `process.kill(pid, 0)` on every platform. On Windows this is an
-   * existence check that libuv implements without spawning a process; the
-   * previous PowerShell `Get-Process` implementation cost 300-1000ms per
-   * call, and `acquireSceneLock` calls it on each of its 12 attempts, so a
-   * contended scene lock took 6+ seconds to fail while holding the lock.
-   * That was the root cause of the intermittent E_LOCKED in the
-   * multi-process test.
-   */
   function isProcessAlive(pid: number): boolean {
     if (!Number.isInteger(pid) || pid <= 0) return false;
     try {
       process.kill(pid, 0);
       return true;
     } catch (err) {
-      // EPERM means the process exists but belongs to another user.
       return (err as NodeJS.ErrnoException).code === "EPERM";
     }
   }
 
-  async function ensureObjectLockDir(sceneId: string) {
-    const dir = resolve(effectiveLocksDir, sceneId);
-    try {
-      await fsp.mkdir(dir, { recursive: true });
-    } catch {
-      // directory creation failure is not fatal; retry below will surface the real error
-    }
-  }
+  // In-memory map of `sceneId/objectId` -> ownerToken for object locks acquired by this process.
+  const objectOwnerTokens = new Map<string, string>();
 
   return {
+    // Per-object locks are entries in locks.json (the LocksFile registry).
+    // All reads/writes go through storage, which provides the atomic-write guarantee (trd 9.1).
+    // The scene lock (below) protects the critical section. Entries whose owner is dead
+    // or stale are reclaimed on the next acquire so a crashed writer cannot lock an object forever.
+
     async acquire(sceneId: string, objectId: string): Promise<boolean> {
       assertSafeId(sceneId, "sceneId");
       assertSafeId(objectId, "objectId");
-      await ensureObjectLockDir(sceneId);
-      const lockPath = resolve(effectiveLocksDir, sceneId, `${objectId}.lock`);
-      for (let attempt = 0; attempt < 50; attempt++) {
-        try {
-          // Atomic creation: if file exists, EEXIST is thrown -> lock is held
-          const ownerToken = crypto.randomUUID();
-          await fsp.writeFile(lockPath, `${ownerToken}\n`, { flag: "wx" });
-          debugLog(`acquire acquired ${sceneId}/${objectId} ownerToken=${ownerToken}`);
-          return true;
-        } catch (err) {
-          const nodeErr = err as NodeJS.ErrnoException;
-          if (nodeErr.code === "EEXIST") {
-            // Lock is held by another process — brief backoff before retry
-            await new Promise((r) => setTimeout(r, 5));
-            continue;
-          }
-          debugLog(`acquire write error ${sceneId}/${objectId} ${nodeErr.code}`);
+      const locksFile = await storage.readLocks(sceneId);
+      const owners = locksFile.owners ?? {};
+      const key = `${sceneId}/${objectId}`;
+      if (locksFile.lockedObjects.includes(objectId)) {
+        const current = owners[objectId];
+        if (current && (isStale(current.createdAt) || !isProcessAlive(current.pid))) {
+          // Stale entry from a dead or expired owner: reclaim it.
+          locksFile.lockedObjects = locksFile.lockedObjects.filter((id: string) => id !== objectId);
+          delete owners[objectId];
+          locksFile.owners = owners;
+          await storage.writeLocks(sceneId, locksFile);
+          debugLog(`acquire reclaimed stale lock ${sceneId}/${objectId}`);
+        } else {
+          debugLog(`acquire already locked ${sceneId}/${objectId}`);
           return false;
         }
       }
-      return false;
+      const ownerToken = crypto.randomUUID();
+      locksFile.lockedObjects = [...locksFile.lockedObjects, objectId];
+      owners[objectId] = { pid: process.pid, ownerToken, createdAt: Date.now() };
+      locksFile.owners = owners;
+      locksFile.updatedAt = new Date().toISOString();
+      await storage.writeLocks(sceneId, locksFile);
+      objectOwnerTokens.set(key, ownerToken);
+      debugLog(`acquire acquired ${sceneId}/${objectId} ownerToken=${ownerToken}`);
+      return true;
     },
 
     async release(sceneId: string, objectId: string): Promise<boolean> {
-      const lockPath = resolve(effectiveLocksDir, sceneId, `${objectId}.lock`);
-      try {
-        await fsp.unlink(lockPath);
-        debugLog(`acquire released ${sceneId}/${objectId}`);
-        return true;
-      } catch {
+      assertSafeId(sceneId, "sceneId");
+      assertSafeId(objectId, "objectId");
+      const locksFile = await storage.readLocks(sceneId);
+      if (!locksFile.lockedObjects.includes(objectId)) {
+        debugLog(`release not found ${sceneId}/${objectId}`);
         return false;
       }
+      const key = `${sceneId}/${objectId}`;
+      const myToken = objectOwnerTokens.get(key);
+      const owners = locksFile.owners ?? {};
+      const owner = owners[objectId];
+      if (!myToken || !owner || owner.ownerToken !== myToken) {
+        // Not the owner (or token lost): do not remove someone else's lock.
+        debugLog(`release not owner ${sceneId}/${objectId}`);
+        return false;
+      }
+      locksFile.lockedObjects = locksFile.lockedObjects.filter((id: string) => id !== objectId);
+      delete owners[objectId];
+      locksFile.owners = owners;
+      locksFile.updatedAt = new Date().toISOString();
+      await storage.writeLocks(sceneId, locksFile);
+      objectOwnerTokens.delete(key);
+      debugLog(`release released ${sceneId}/${objectId}`);
+      return true;
     },
 
     async isLocked(sceneId: string, objectId: string): Promise<boolean> {
-      const lockPath = resolve(effectiveLocksDir, sceneId, `${objectId}.lock`);
-      try {
-        await fsp.access(lockPath);
-        return true;
-      } catch {
-        return false;
-      }
+      assertSafeId(sceneId, "sceneId");
+      assertSafeId(objectId, "objectId");
+      const locksFile = await storage.readLocks(sceneId);
+      return locksFile.lockedObjects.includes(objectId);
     },
 
     async getLockedObjects(sceneId: string): Promise<string[]> {
-      const lockDir = resolve(effectiveLocksDir, sceneId);
-      let entries: string[];
-      try {
-        entries = await fsp.readdir(lockDir);
-      } catch {
-        return [];
-      }
-      // Extract objectIds from filenames (strip .lock extension)
-      return entries
-        .filter((e: string) => e.endsWith(".lock"))
-        .map((e: string) => e.slice(0, -5));
+      assertSafeId(sceneId, "sceneId");
+      const locksFile = await storage.readLocks(sceneId);
+      const owners = locksFile.owners ?? {};
+      // Filter out entries whose owner is dead or stale (legacy entries with no owner info are kept, conservatively).
+      return locksFile.lockedObjects.filter((id: string) => {
+        const o = owners[id];
+        if (!o) return true;
+        return !isStale(o.createdAt) && isProcessAlive(o.pid);
+      });
     },
 
     async acquireSceneLock(sceneId: string): Promise<boolean> {
@@ -417,10 +382,12 @@ export function createLockPort(storage: StoragePort, locksDir?: string, tmpDir?:
       } catch {
         // directory creation failure is not fatal; retry below will surface the real error
       }
+      let delay = 10;
       for (let attempt = 0; attempt < 12; attempt++) {
         try {
           const content = JSON.stringify({ pid: process.pid, host: process.version, createdAt: Date.now(), ownerToken });
           await fsp.writeFile(lockPath, content, { flag: "wx" });
+          sceneOwnerTokens.set(sceneId, ownerToken);
           debugLog(`acquireSceneLock acquired ${sceneId} ownerToken=${ownerToken}`);
           return true;
         } catch (err) {
@@ -434,6 +401,23 @@ export function createLockPort(storage: StoragePort, locksDir?: string, tmpDir?:
             const data = JSON.parse(content) as { pid?: number; createdAt?: number; ownerToken?: string };
             const stale = data.createdAt !== undefined && isStale(data.createdAt);
             if (stale) {
+              // Re-read to verify ownerToken hasn't changed before unlinking (trd 9.2)
+              try {
+                const freshContent = await fsp.readFile(lockPath, "utf-8");
+                const freshData = JSON.parse(freshContent) as { ownerToken?: string };
+                if (freshData.ownerToken !== data.ownerToken) {
+                  // Lock replaced by another process; do not unlink
+                  const jitter = delay * (0.8 + Math.random() * 0.4);
+                  await new Promise((r) => setTimeout(r, Math.min(jitter, 250)));
+                  delay = Math.min(delay * 1.6, 250);
+                  continue;
+                }
+              } catch {
+                const jitter = delay * (0.8 + Math.random() * 0.4);
+                await new Promise((r) => setTimeout(r, Math.min(jitter, 250)));
+                delay = Math.min(delay * 1.6, 250);
+                continue;
+              }
               await fsp.unlink(lockPath);
               continue;
             }
@@ -448,8 +432,10 @@ export function createLockPort(storage: StoragePort, locksDir?: string, tmpDir?:
               await fsp.unlink(lockPath);
               continue;
             }
-            // lock held by a live owner -> brief backoff before retrying within this function
-            await new Promise((r) => setTimeout(r, 50));
+            // lock held by a live owner -> backoff with jitter (trd 9.2)
+            const jitter = delay * (0.8 + Math.random() * 0.4);
+            await new Promise((r) => setTimeout(r, Math.min(jitter, 250)));
+            delay = Math.min(delay * 1.6, 250);
             continue;
           } catch {
             continue;
@@ -465,11 +451,21 @@ export function createLockPort(storage: StoragePort, locksDir?: string, tmpDir?:
         return false;
       }
       const lockPath = resolve(sceneLockDir, `${sceneId}.lock`);
+      const myToken = sceneOwnerTokens.get(sceneId);
       try {
+        // Only remove if ownerToken matches (trd 9.2)
+        const content = await fsp.readFile(lockPath, "utf-8");
+        const data = JSON.parse(content) as { ownerToken?: string };
+        if (myToken && data.ownerToken && data.ownerToken !== myToken) {
+          debugLog(`releaseSceneLock ownerToken mismatch ${sceneId}`);
+          return false;
+        }
         await fsp.unlink(lockPath);
+        sceneOwnerTokens.delete(sceneId);
         debugLog(`releaseSceneLock released ${sceneId}`);
         return true;
       } catch {
+        sceneOwnerTokens.delete(sceneId);
         return false;
       }
     },

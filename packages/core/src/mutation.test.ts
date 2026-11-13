@@ -67,7 +67,7 @@ describe("Mutation check (section F) - behavioral", () => {
       // ignore
     }
     storage = createStoragePort(testDir);
-    lockPort = createLockPort(storage, resolve(testDir, ".intent", "locks"));
+    lockPort = createLockPort(storage);
   });
 
   afterEach(async () => {

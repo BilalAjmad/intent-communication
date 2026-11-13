@@ -1,5 +1,4 @@
 import { z } from "zod";
-
 export const CrockfordULIDSchema = z.string().regex(/^(o|s|c|p|a|q|v|k)_[0-9A-HJKMNP-TV-Z]{26}$/, { message: "Must be a valid prefixed Crockford ULID (prefix_<26 Crockford base32 chars>)" });
 
 export const ISODateTimeSchema = z.string().datetime({ offset: true }).refine(
@@ -172,6 +171,17 @@ export const LocksFileSchema = z.object({
   version: z.literal(1),
   lockedObjects: z.array(ObjectIdSchema).default([]),
   updatedAt: ISODateTimeSchema,
+  // Additive: owner metadata for object locks so a crashed writer can be reclaimed.
+  owners: z
+    .record(
+      z.string(),
+      z.object({
+        pid: z.number().int().positive(),
+        ownerToken: z.string(),
+        createdAt: z.number().int().nonnegative(),
+      })
+    )
+    .optional(),
 });
 
 export type LocksFile = z.infer<typeof LocksFileSchema>;

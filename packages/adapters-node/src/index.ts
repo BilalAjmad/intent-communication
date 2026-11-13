@@ -19,6 +19,7 @@ import {
   isIntentError,
   createLockPort,
   assertSafeId,
+  writeAtomic,
 } from "@intent/core";
 
 export function createFileStoragePort(projectRoot: string): StoragePort {
@@ -77,9 +78,7 @@ export function createFileStoragePort(projectRoot: string): StoragePort {
       const scenePath = resolve(scenesDir, `${sceneId}.json`);
       await checkPathSafety(scenePath, scenesDir);
       const validated = validateScene(scene);
-      const tmpPath = `${scenePath}.tmp.${Date.now()}.${Math.random().toString(36).slice(2)}`;
-      await fs.writeFile(tmpPath, JSON.stringify(validated, null, 0), "utf-8");
-      await fs.rename(tmpPath, scenePath);
+      await writeAtomic(scenePath, JSON.stringify(validated, null, 0));
     },
 
     async readLocks(sceneId: string): Promise<LocksFile> {
@@ -93,12 +92,14 @@ export function createFileStoragePort(projectRoot: string): StoragePort {
           version: data.version ?? 1,
           lockedObjects: data.lockedObjects ?? [],
           updatedAt: data.updatedAt ?? new Date().toISOString(),
+          owners: data.owners ?? {},
         };
       } catch {
         return {
           version: 1,
           lockedObjects: [],
           updatedAt: new Date().toISOString(),
+          owners: {},
         };
       }
     },
@@ -107,9 +108,7 @@ export function createFileStoragePort(projectRoot: string): StoragePort {
       await ensureDirs();
       const locksPath = resolve(locksDir, `${sceneId}.locks.json`);
       await checkPathSafety(locksPath, locksDir);
-      const tmpPath = `${locksPath}.tmp.${Date.now()}.${Math.random().toString(36).slice(2)}`;
-      await fs.writeFile(tmpPath, JSON.stringify(locksFile, null, 0), "utf-8");
-      await fs.rename(tmpPath, locksPath);
+      await writeAtomic(locksPath, JSON.stringify(locksFile, null, 0));
     },
 
     async readConfig(): Promise<Config> {
@@ -134,9 +133,7 @@ export function createFileStoragePort(projectRoot: string): StoragePort {
     async writeConfig(config: Config): Promise<void> {
       await ensureDirs();
       await checkPathSafety(configPath, intentDir);
-      const tmpPath = `${configPath}.tmp.${Date.now()}.${Math.random().toString(36).slice(2)}`;
-      await fs.writeFile(tmpPath, JSON.stringify(config, null, 0), "utf-8");
-      await fs.rename(tmpPath, configPath);
+      await writeAtomic(configPath, JSON.stringify(config, null, 0));
     },
 
     async readProfile(): Promise<Profile | null> {
@@ -152,9 +149,7 @@ export function createFileStoragePort(projectRoot: string): StoragePort {
     async writeProfile(profile: Profile): Promise<void> {
       await ensureDirs();
       await checkPathSafety(profilePath, intentDir);
-      const tmpPath = `${profilePath}.tmp.${Date.now()}.${Math.random().toString(36).slice(2)}`;
-      await fs.writeFile(tmpPath, JSON.stringify(profile, null, 0), "utf-8");
-      await fs.rename(tmpPath, profilePath);
+      await writeAtomic(profilePath, JSON.stringify(profile, null, 0));
     },
 
     async readInterviewState(): Promise<InterviewState | null> {
@@ -170,9 +165,7 @@ export function createFileStoragePort(projectRoot: string): StoragePort {
     async writeInterviewState(state: InterviewState): Promise<void> {
       await ensureDirs();
       await checkPathSafety(interviewPath, intentDir);
-      const tmpPath = `${interviewPath}.tmp.${Date.now()}.${Math.random().toString(36).slice(2)}`;
-      await fs.writeFile(tmpPath, JSON.stringify(state, null, 0), "utf-8");
-      await fs.rename(tmpPath, interviewPath);
+      await writeAtomic(interviewPath, JSON.stringify(state, null, 0));
     },
 
     async readBrief(briefId: string): Promise<Brief | null> {
@@ -191,9 +184,7 @@ export function createFileStoragePort(projectRoot: string): StoragePort {
       await ensureDirs();
       const briefPath = resolve(briefsDir, `${brief.id}.json`);
       await checkPathSafety(briefPath, briefsDir);
-      const tmpPath = `${briefPath}.tmp.${Date.now()}.${Math.random().toString(36).slice(2)}`;
-      await fs.writeFile(tmpPath, JSON.stringify(brief, null, 0), "utf-8");
-      await fs.rename(tmpPath, briefPath);
+      await writeAtomic(briefPath, JSON.stringify(brief, null, 0));
     },
 
     async readFeedback(sceneId: string): Promise<Feedback[]> {
@@ -212,9 +203,7 @@ export function createFileStoragePort(projectRoot: string): StoragePort {
       await ensureDirs();
       const feedbackPath = resolve(feedbackDir, `${sceneId}.json`);
       await checkPathSafety(feedbackPath, feedbackDir);
-      const tmpPath = `${feedbackPath}.tmp.${Date.now()}.${Math.random().toString(36).slice(2)}`;
-      await fs.writeFile(tmpPath, JSON.stringify(feedback, null, 0), "utf-8");
-      await fs.rename(tmpPath, feedbackPath);
+      await writeAtomic(feedbackPath, JSON.stringify(feedback, null, 0));
     },
 
     async listScenes(): Promise<string[]> {
@@ -233,7 +222,7 @@ export function createFileStoragePort(projectRoot: string): StoragePort {
 
 export function createFileLockPort(projectRoot: string): LockPort {
   const intentDir = resolve(projectRoot, ".intent");
-  return createLockPort(createFileStoragePort(projectRoot), resolve(intentDir, "locks"), resolve(intentDir, "tmp"));
+  return createLockPort(createFileStoragePort(projectRoot), resolve(intentDir, "tmp"));
 }
 
 export function createNodeCryptoPort(): CryptoPort {
