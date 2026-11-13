@@ -1,12 +1,5 @@
 import {
-  Scene,
-  LocksFile,
-  Config,
-  Profile,
-  InterviewState,
-  Brief,
-  Feedback,
-  validateScene,
+  Scene, LocksFile, Config, Profile, InterviewState, Brief, Feedback, validateScene,
 } from "@intent/schema";
 import { assertSafeId } from "./paths.js";
 import { writeAtomic } from "./atomic.js";
@@ -110,6 +103,9 @@ export function createStoragePort(testDir: string): StoragePort {
       const scenePath = resolve(scenesDir, `${sceneId}.json`);
       await checkPathSafety(scenePath, scenesDir);
       try {
+        // trd 20: scene file hard limit is 5 MB; refuse oversized files up front.
+        const stats = await fs.stat(scenePath);
+        if (stats.size > 5 * 1024 * 1024) throw new IntentError(ErrorCodes.E_BAD_REQUEST, "Scene file exceeds the 5 MB hard limit");
         const content = await fs.readFile(scenePath, "utf-8");
         return validateScene(JSON.parse(content));
       } catch {

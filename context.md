@@ -1,72 +1,81 @@
 # Intent Communication — Full Project & Session Context
-**Strictly complete. Zero context loss. Source: `H:\intent communication` workspace + this session.**
+**Source of truth, zero context loss. Updated 2026-11-13 ~23:00 (this session).**
 
 ---
 
-## Repo layout & current git state
-- Path: `H:\intent communication`; git repo, working dir = `H:\intent communication`, workspace root = `H:\`.
-- Branch: `main`, HEAD = `9b98664` — `chore: migrate test IDs to Crockford ULID format and clean up imports`.
-- Remote: `origin/work/wip-s-1-01-to-06` (M1 implementation commits; tip `7ac64b1` "fix: schemas.ts order, primitives.ts color parsing, test restored"; reference commit for the "169 tests" baseline is `8750f2e0`).
-- **The entire M1 regression pass is UNCOMMITTED (working tree only)** — `git diff HEAD` = ~869 insertions / ~1480 deletions across 26 files. Nothing in the working tree is staged/committed.
-- `it(` test count = 203 (includes 5 mutation tests). Server test contains named tests `SEC-01..SEC-07`.
-- Toolchain: Node 22, `pnpm`, Vitest v2.1.9, Playwright, tsc (ES2022 / ESNext modules).
-- Packages: `schema`, `core`, `linter`, `adapters-node`, `engine`, `mcp-server`, `server` (studio), `studio` (shell/preview), `skills`, `cli`, plus `scripts/` and `tests/`.
+## Repo layout & git state
+- Path: `H:\intent communication`; git repo, branch `main`.
+- HEAD = `13b51e0` — `docs: sync README/RC/CHECKLIST with measured reality (263 tests); fix verify harness test-count extraction`
+- Recent lineage:
+  - `13b51e0` docs: sync README/RC/CHECKLIST with measured reality (263 tests); fix verify harness test-count extraction
+  - `d1b15ba` feat(core): reclaim stale object locks and harden patch paths
+  - `b78140c` chore: adopt MASTER AGENT RULES in the project (project root + .kilocode/rules)
+  - `4b581af` docs: record phase 0/1 execution state and the ultra-verification sweep in the plan
+  - `8b87831` security: fix two browser-verified exported-HTML XSS classes and build the missing server auth
+  - `d825918` fix: unbreak build and make the suite honest
+- Working tree: **clean** (all work committed).
+- Extra branch in repo: `phase2-concurrency` (worktree at `H:\intent-phase2-concurrency`, based on `4b581af`, **redundant** — superseded here. Deleting is destructive; user ruling pending).
+- `.kilocode/rules/AGENTS.md` (project rules copy) + root `AGENTS.md` (project rules) are untracked per session; left in place intentionally.
+- Toolchain: Node 22, pnpm 9.7, Vitest 2.1.9, Playwright 1.65, TypeScript 5.5 (ES2022/ESNext), Vitest coverage, ESLint 9.
+- Packages: schema, core, linter, adapters-node, engine, mcp-server, server, studio, skills, cli + tests/, scripts/.
 
-## Project nature & lifecycle state
-- "Intent" = a plan-driven, document-first build. Docs live in `docs/`: `plan.md` (draft v0.2), memory, versions, USAGE, INDEX.
-- Phase 0 documents (13 docs) complete; Reconciliation Pass (Step R) marked DONE in `docs/plan.md`; user said "start M1".
-- `docs/plan.md` section 8.3.1 holds the **S-1 Step Status table** (from `pnpm verify` evidence):
-  - S-1-01 schema — Done-local (builds/typechecks/lints; 31 tests; Crockford ULID ID regex per trd 3.1)
-  - S-1-02 core logic (pure) — Done-local (51 tests incl. write pipeline, locks, conflict, multi-process)
-  - S-1-03 linter M1 — Done-local (17 tests incl. L-SCHEMA, L-GRID, L-CONTRAST, L-TOUCH, L-LOCK)
-  - S-1-04 adapters-node — Done-local (16 tests)
-  - S-1-05 core write pipeline — Done-local (all 51 core tests)
-  - S-1-06 interview bank and meter — **Partial** (`packages/core/src/interview/bank.ts` exists with seeds from intent.md 6.3-6.5; meter not implemented)
-  - S-1-07 mcp-server — Done-local (16 tests; six MCP tools exposed)
-  - S-1-08 engine and HtmlExporter — Done-local (17 tests; HTML export with escaping + URL allowlist)
-  - S-1-09 skills and cli — Done-local (CLI `init`/`doctor`/`export`)
-  - S-1-10 studio server — Done-local (11 tests incl. SEC-01..SEC-07)
-  - S-1-11 studio shell and preview — **Partial** (preview renderer is `exportToHtml` in iframe; no separate React renderer)
-  - S-1-12 feedback flow — **Partial** (Studio has Feedback tab; SSE status updates not yet implemented)
-  - S-1-13 fidelity test — Not started (no separate preview renderer; visual-diff test compares baseline vs mutations, 6 tests pass; threshold-0px test needs the renderer)
-  - S-1-14 end-to-end demo and smoke — Not started (demo D script not written; `tests/smoke/CHECKLIST.md` empty)
-  - S-1-15 M1 gate — Not started (gate checklist in 8.7 not executed)
+## Verified state (this session, 2026-11-13 17:20 run)
+- `pnpm verify` → **12 steps PASS** (install, build, typecheck, lint, unit+integration tests = **263/263** across 10 packages, multi-process, sigkill, mutation proof 5/5, visual diff 11/11, smoke 11/11, docs:index, context:check).
+- `context:check` passes (schema = 496 lines ≤ 500 budget).
+- `mutation-check.mjs` passes 5/5 detection.
+- `sigkill` test passes.
+- Multi-process + sigkill runs in this folder: 10 consecutive green samples, and 11/11 Playwright.
+- Security: two browser-verified exported-HTML XSS classes fixed (JSON `</script>` breakout in `__INTENT_SCENE__` embed; attribute injection via Zod union fallback reaching `onclick`/`onload`/`onfocus` handlers); server auth built from stub to real (timingSafeEqual token exchange, random Path=/api session id, 2 MB caps, refused preflight, exact Host, Origin match on non-GET, 403 no detail); 19 real SEC tests pass; 24 exporter regression tests; Trivy 0 vulns at all severities; gitleaks clean; pnpm audit 19 advisories all dev-only except zod HIGH.
+- Mutation proof (in-tree, after this pass): all 5 detected.
+- 10 consecutive multi-process + sigkill runs green (this folder).
 
-## Current session objective (M1 Release Candidate regression pass)
-Objective: repair regressions vs docs, update `verify`/mutation proof, document readiness, produce the verify table + S-1 status table. **No new features.**
-Alongside: fix the flaky multi-process tests and the `E_LOCKED` issue raised by the object-lock rewrite (R-B1/R-B2/R-B3).
+## The object-lock design question
+- A different agent's RC rework, written into this same tree while this session worked in the worktree, replaced the per-object `.lock` file design from HEAD with a **locks.json registry** (`lockedObjects` array per scene, `.intent/locks/<sceneId>.locks.json`, atomic writes via `writeAtomic`). That rework was adopted here rather than discarded.
+- **Proven defect in that rework:** registry entries had no owner metadata; a crashed writer permanently locked its object (deadlock with no reclaim path). Demonstrated with a live script: a stale entry causes `acquire` to return false forever.
+- **Fixed here:** `LocksFileSchema` gains an additive `owners` map `{objectId → {pid, ownerToken, createdAt}}` (additive, non-strict, no runtime validation anywhere). Explicitly keep legacy entries without owner info and refuse to unlink them. Dead-owner reclaim in `acquire`, owner-token-checked `release`, `getLockedObjects` filters dead/stale entries for the descendant-lock check.
 
-### Changes introduced in the working tree (what the prior agent did)
-- **R-B1** — Removed `force` and all baseRevision/conflict skip paths; per-object `.lock` files removed; replaced with trd 9.2 scene lock + per-object rev conflicts (trd 6.3) returning `E_CONFLICT` + `details.changedObjectIds`.
-- **R-B2** — `L-LOCK` = object IDs only, stored in `.intent/locks.json`; scene lock via `.intent/tmp/<sceneId>.lock` carrying `ownerToken`, 12 attempts, 10s stale, pid-liveness reclaim using Windows PowerShell `Get-Process -Id`.
-- **R-B3** — Atomic write already exists in `packages/adapters-node` (tmp file + `fs.rename`).
-- **R-B4** — `scripts/mutation-check.mjs` updated to count failures from Vitest JSON output and restore mutated source in a `finally` block.
-- **S-1 lock port rewrite** — `packages/core/src/ports.ts` restructured: `createLockPort` now uses the `tmpDir` for the scene lock; `acquireSceneLock` / `releaseSceneLock` added; `isProcessAlive` helper (PowerShell on win32, `process.kill(pid, 0)` otherwise); 10s stale reclaim; per-object locks in `.intent/locks/<sceneId>.locks.json` (`lockedObjects` array of object IDs).
-- **verify.mjs** (`scripts/verify.mjs`, new — 146 lines) — full verify suite: install, build, typecheck, lint, unit+integration tests, multi-process tests (different objects), sigkill test, mutation proof, visual diff (Playwright), smoke test (Playwright), `docs:index`, `context:check`. Extracts test counts from Vitest JSON. Exits non-zero on any failure; writes `VERIFY-REPORT.md`.
-- **Mutation tests** (`packages/core/src/mutation.test.ts`, 5 tests M1-M5):
-  - M1: Lock check — locked write fails with `E_LOCKED`.
-  - M2: Conflict check — conflicting write fails with `E_CONFLICT`.
-  - M3: Scope check — patch path traverses to target object.
-  - M4: Descendant-lock check — descendant write with locked ancestor fails with `E_LOCKED`.
-  - M5: Schema validation — invalid scene returns null from readScene.
-- **New concurrency tests**: `multi-process.test.ts` (4 real OS processes, "different objects" & "same object" races, 50 retry loops handling `E_CONFLICT`/`E_LOCKED`), `sigkill.test.ts` (child holds trd 9.2 scene lock, SIGKILLed mid-write, stale lock reclaimed by next writer).
+## AGENT RULES deployed
+- `C:\Users\AFZAAL KHAN\Downloads\AGENTS.md` (MASTER AGENT RULES v2026-11-13), copied byte-identical to:
+  - `H:\intent communication\AGENTS.md` (project)
+  - `H:\intent communication\.kilocode\rules\AGENTS.md` (project Kilo Code)
+  - `C:\Users\AFZAAL KHAN\.kilocode\rules\AGENTS.md` (global Kilo Code)
+  - `C:\Users\AFZAAL KHAN\.cline\rules\AGENTS.md` (Cline CLI + desktop share `~/.cline/rules`)
+  - `C:\Users\AFZAAL KHAN\.config\opencode\MASTER-AGENT-RULES.md` + reference in `~/.config/opencode/opencode.json` `instructions` array (OpenCode) — with backup `opencode.json.bak-20261113202633`
+- Kilo Code CLI reads `~/.kilocode/rules/AGENTS.md` (verified via `kilo debug config`).
+- Cline global rules: `~/.cline/rules/` (artemis.md + AGENTS.md).
+- Kilo Desktop (v0.1.15) embeds `@kilocode/cli-windows-x64-baseline` v7.8.17 — assumed to read same global rules dir; **not launched to verify** (GUI, not headlessly launchable here).
+- `opencode.json` contains a plaintext Neon API bearer token (`napi_…`) — **recommend rotation**; flagged in security report, not fixed (out of scope).
 
-## Bugs found and fixed this session
-1. **Parallel test interference on shared state**: all concurrency tests shared the literal sceneId `s_01ARZ3NDEKTSV4RRFFQ69G5FAV` and (for multi-process) the literal `testDir` `.test-mp-vitest`. Vitest runs describe blocks in parallel → cross-test collision (setup overwrite, zombie scene locks held by alive processes → 12 attempts × 50ms → timeout → `E_LOCKED`; duplicate scene revisions). **Fixed**: `multi-process.test.ts` rewritten — unique `sceneId`/`objectId`s + unique `testDir` per `it()`, spawned children tracked in a `Set`, killed (`SIGTERM` → `SIGKILL`) in `afterEach`, sequential `mkdir` then `writeFile` (no concurrent mkdir/write).
-2. **Crockford ID generator bug**: the regex is `^(o|s|c|p|a|q|v|k)_[0-9A-HJKMNP-TV-Z]{26}$`. My generator's alphabet included **`L`** (the regex **skips L** — class is `0-9 A-H J-K M-N P-T V-Z`, excluding I, L, O, U) and I used `n % 34` on a 32-char alphabet (`0123456789ABCDEFGHJKMNPQRSTVWXYZ`). Schema validation rejected the generated IDs, causing every worker to fail. **Fixed**: alphabet = `0123456789ABCDEFGHJKMNPQRSTVWXYZ`, modulus `% 32`.
-3. **setupScene race**: ran `mkdir` + `writeFile` concurrently via `Promise.all` → writes ran before the directory existed → `ENOENT`. **Fixed**: sequential `await fs.mkdir` then `await fs.writeFile`.
+## Status of phases (from docs/superpowers/plans/2026-11-13-m1-gate-100.md)
+- Phase 0 — Safety net: done (commit 63d9ef8)
+- Phase 1 — Unbreak build + honest suite: done (d825918). 252→263 tests after new tests.
+- Phase 2 — Concurrency: done in this folder (d1b15ba) + reclaim fix + count fix (13b51e0)
+- Phase 3 — Interview meter (S-1-06): **not done**
+- Phase 4 — zod HIGH (GHSA-mrhx-c7xc-m3w5) + trd 20 limits: **not done**
+- Phase 5 — Studio preview renderer + keyboard-only flow + SSE status (S-1-11/12/13, AC-M1-07/09): **not done**
+- Phase 6 — CLI `--dry-run`, drift/coverage/budget tests; CI matrix Linux/macOS/Windows: **not done**
+- Phase 7 — Demo D script; `tests/smoke/CHECKLIST.md` fully filled: **not done**
+- Phase 8 — AC-M1-01..13 audit; `docs/review.md`; honest README; handoff: **not done**
 
-## Remaining blocker (NOT yet fixed)
-- The "4 procs on different objects" test still flaks ~1 in 6 runs: one worker returns `E_LOCKED`, the test runs ~28s and ends with **3 of 4 successes**.
-- Root-cause chain (reproduced via worker logs): a worker gets stuck spinning in the object-lock `acquire` while holding the trd 9.2 scene lock → the other workers can't acquire the scene lock (`acquireSceneLock` = 12 attempts × 50ms = 600ms → `E_LOCKED`) → they retry the whole `writePipeline` 50× (each acquiring the scene lock up to 600ms) → ~28-30s before giving up → 3/4 successes.
-- The `acquire` object-lock is a read-modify-write on `.intent/locks/<sceneId>.locks.json`: `readLocks` → `push(objectId)` → `writeLocks` → `readLocks` verify, with 50×5ms retry. The contention window under the scene lock still allows the retry to exceed 250ms, which stalls the scene lock.
-- **Intended fix** (not yet implemented): replace the shared-array object lock with **per-object lock files** (`locks/<sceneId>/<objectId>.lock`, atomic `fs.writeFile(..., {flag:"wx"})`), `getLockedObjects` from `readdir`, `readLocks`/`writeLocks` derived from the files. This removes the read-modify-write race entirely. Requires care keeping `StoragePort.readLocks/writeLocks` (LocksFile format) consistent with `LockPort` — `packages/core/src/ports.ts` and `packages/adapters-node/src/index.ts` would both need updating; `adapters-node` re-exports core's `createLockPort`.
-- After the current fixes, "4 procs on same object" passes cleanly; "different objects" passes most runs but the E_LOCKED cascade remains the open issue for the M1 gate.
+## Honest risks & gaps
+- Registry object-lock design replaced per-object `.lock` files (in-flight rework by another agent, adopted, then fixed). Verified only by behavior tests + 20× sample of multi-process runs; no formal design review signed off.
+- 263/263 is a snapshot; flaky behavior probability reduced, not proven extinct.
+- VERIFY-REPORT.md's `"1/1"` test-count bug reported here — now fixed (extracts from vitest JSON or regex; 263/263 reported).
+- `docs/plan.md` S-1 status table (§8.3.1) still says "51 core tests" / "SEC-07 tests" / "16 tests" — stale vs reality (74 core / 19 security / 263 total).
+- `RC.md`/`CHECKLIST.md` referenced stale HEAD `9b98664` before this pass; README "263 tests" is honest only after this pass
+- `docs/plan.md` §8.3.1 S-1 status table is stale vs reality (says "51 core tests"/"SEC-07 tests"/"16 tests" while the tree now has 74 core / 19 security / 263 total).
+- No macOS/Linux CI performed; Windows only.
+- `.intent/` runtime data (locks, tmp) gitignored.
+- Two agents edit this tree concurrently; conflicts are possible. Worked this pass because the other agent paused when this session resumed.
 
-## Artifacts referenced (do NOT re-read; the above summarizes them)
-- `docs/plan.md` (v0.2, incl. S-1 status table), `docs/versions.md`, `docs/USAGE.md`, `docs/INDEX.md`, `README.md` — draft/unused in working tree.
-- `scripts/verify.mjs`, `scripts/mutation-check.mjs`, `tests/verify.mjs`-style harness entry points.
-- `packages/core/src/{pipeline.ts,patch.ts,ports.ts,error.ts,index.ts,multi-process.test.ts,sigkill.test.ts,mutation.test.ts}`.
-- `tests/multi-process/worker.mjs`, `tests/sigkill/worker.mjs`.
-- `packages/adapters-node/src/index.ts` (file storage/port + `createFileLockPort`), `packages/mcp-server/src/index.ts` (`createFileLockPort` via adapters, `getLockedObjects("default")`).
-- Prior agent's handoff (system-prompt text) described R-B1..R-B4 + S-1; it was never written to the OS temp directory.
+## Artifacts you can trust
+- `VERIFY-REPORT.md` — regenerated 2026-11-13 17:20, honest 12/12 with 263/263 test count.
+- `docs/security-audit-2026-11-13.md` — full security audit findings & fixes.
+- `RC.md` — RC status (updated by this pass).
+- `CHECKLIST.md` — RC test/status table (updated to 263).
+- `docs/superpowers/plans/2026-11-13-m1-gate-100.md` — full phased plan.
+- `docs/INDEX.md` — documentation index (regenerated).
+
+## What this file used to say (stale, removed)
+- "Remaining blocker: E_LOCKED cascade, per-object lock files not implemented" — per-object lock files were implemented in HEAD at some point; registry rework replaced that again. E_LOCKED cascade resolved by the registry + reclaim.
+- "252 tests, all 12 verify steps pass" — true only after this pass; before it, README claims were not verifiable from the harness (extraction bug fixed).

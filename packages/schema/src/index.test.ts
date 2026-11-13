@@ -368,4 +368,63 @@ describe("Schema validation", () => {
       expect(result.op).toBe("set");
     });
   });
+
+  describe("Resource limits (trd 20)", () => {
+    it("rejects a children array longer than 200", () => {
+      const screen = {
+        id: "s_01ARZ3NDEKTSV4RRFFQ69G5FAV",
+        type: "screen",
+        parentId: null,
+        children: Array.from({ length: 201 }, () => "o_01ARZ3NDEKTSV4RRFFQ69G5FAV"),
+        props: { title: "Home", width: 1280, height: 720 },
+        style: {},
+        meta: {},
+      };
+      expect(ScreenSchema.safeParse(screen).success).toBe(false);
+    });
+
+    it("rejects a text content longer than 2000 chars", () => {
+      const text = {
+        id: "o_01ARZ3NDEKTSV4RRFFQ69G5FAV",
+        type: "text",
+        parentId: "s_01ARZ3NDEKTSV4RRFFQ69G5FAV",
+        children: [],
+        props: { content: "x".repeat(2001) },
+        style: {},
+        meta: {},
+      };
+      expect(TextSchema.safeParse(text).success).toBe(false);
+    });
+
+    it("rejects a patch path longer than 512 chars", () => {
+      const patch = {
+        id: "p_01ARZ3NDEKTSV4RRFFQ69G5FAV",
+        sceneId: "s_01ARZ3NDEKTSV4RRFFQ69G5FAV",
+        baseRevision: 0,
+        objectId: "o_01ARZ3NDEKTSV4RRFFQ69G5FAV",
+        op: "set",
+        path: "props." + "a".repeat(512),
+        value: "x",
+        createdAt: "2026-11-02T22:38:00.000Z",
+      };
+      expect(PatchSchema.safeParse(patch).success).toBe(false);
+    });
+
+    it("rejects a feedback message longer than 2000 chars", () => {
+      const feedback = {
+        id: "a_01ARZ3NDEKTSV4RRFFQ69G5FAV",
+        sceneId: "s_01ARZ3NDEKTSV4RRFFQ69G5FAV",
+        objectId: "o_01ARZ3NDEKTSV4RRFFQ69G5FAV",
+        kind: "visual",
+        message: "x".repeat(2001),
+        severity: "high",
+        status: "sent",
+        createdAt: "2026-11-02T22:38:00.000Z",
+        acknowledgedAt: null,
+        appliedAt: null,
+        patchId: null,
+      };
+      expect(FeedbackSchema.safeParse(feedback).success).toBe(false);
+    });
+  });
 });

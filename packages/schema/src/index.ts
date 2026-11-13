@@ -20,14 +20,14 @@ export const SceneValueSchema = z.union([
   PrimitiveValueSchema,
   TokenValueSchema,
   z.record(z.string(), z.unknown()),
-  z.array(z.unknown()),
+  z.array(z.unknown()).max(500),
 ]);
 
 export const BaseObjectSchema = z.object({
   id: ObjectIdSchema,
   type: z.string().min(1),
   parentId: ObjectIdSchema.nullable(),
-  children: z.array(ObjectIdSchema).default([]),
+  children: z.array(ObjectIdSchema).max(200).default([]),
   props: z.record(z.string(), SceneValueSchema).default({}),
   style: z.record(z.string(), SceneValueSchema).default({}),
   meta: z.record(z.string(), z.unknown()).default({}),
@@ -38,7 +38,7 @@ export const ScreenSchema = BaseObjectSchema.extend({
   type: z.literal("screen"),
   parentId: z.null(),
   props: z.object({
-    title: z.string().default("Untitled"),
+    title: z.string().max(200).default("Untitled"),
     width: z.number().int().positive().default(1280),
     height: z.number().int().positive().default(720),
     background: SceneValueSchema.optional(),
@@ -60,7 +60,7 @@ export const ContainerSchema = BaseObjectSchema.extend({
 export const TextSchema = BaseObjectSchema.extend({
   type: z.literal("text"),
   props: z.object({
-    content: z.string().default(""),
+    content: z.string().max(2000).default(""),
     fontSize: z.number().default(16),
     fontWeight: z.union([z.number(), z.enum(["normal", "bold", "medium", "light"])]).default("normal"),
     color: SceneValueSchema.optional(),
@@ -73,7 +73,7 @@ export const ImageSchema = BaseObjectSchema.extend({
   type: z.literal("image"),
   props: z.object({
     src: z.string().url(),
-    alt: z.string().default(""),
+    alt: z.string().max(500).default(""),
     fit: z.enum(["cover", "contain", "fill", "scale-down", "none"]).default("cover"),
     width: z.number().int().positive().optional(),
     height: z.number().int().positive().optional(),
@@ -83,23 +83,23 @@ export const ImageSchema = BaseObjectSchema.extend({
 export const ButtonSchema = BaseObjectSchema.extend({
   type: z.literal("button"),
   props: z.object({
-    label: z.string().default("Button"),
+    label: z.string().max(200).default("Button"),
     variant: z.enum(["primary", "secondary", "outline", "ghost", "destructive"]).default("primary"),
     disabled: z.boolean().default(false),
     size: z.enum(["sm", "md", "lg"]).default("md"),
-    onClick: z.string().optional(),
+    onClick: z.string().max(1000).optional(),
   }).passthrough(),
 });
 
 export const InputSchema = BaseObjectSchema.extend({
   type: z.literal("input"),
   props: z.object({
-    placeholder: z.string().default(""),
-    value: z.string().default(""),
+    placeholder: z.string().max(500).default(""),
+    value: z.string().max(2000).default(""),
     type: z.enum(["text", "email", "password", "number", "tel", "url"]).default("text"),
     disabled: z.boolean().default(false),
     required: z.boolean().default(false),
-    onChange: z.string().optional(),
+    onChange: z.string().max(1000).optional(),
   }).passthrough(),
 });
 
@@ -120,11 +120,11 @@ export const SceneSchema = z.object({
   updatedAt: ISODateTimeSchema,
   screens: z.record(ScreenIdSchema, ScreenSchema),
   objects: z.record(ObjectIdSchema, SceneObjectSchema),
-  screenOrder: z.array(ScreenIdSchema).default([]),
+  screenOrder: z.array(ScreenIdSchema).max(1000).default([]),
   metadata: z.object({
     name: z.string().default("Untitled Project"),
     description: z.string().optional(),
-    tags: z.array(z.string()).default([]),
+    tags: z.array(z.string()).max(50).default([]),
   }).default({}),
 });
 
@@ -140,7 +140,7 @@ export const PatchSchema = z.object({
   baseRevision: RevisionSchema,
   objectId: ObjectIdSchema,
   op: PatchOpSchema,
-  path: z.string().min(1),
+  path: z.string().min(1).max(512),
   value: SceneValueSchema.optional(),
   index: z.number().int().nonnegative().optional(),
   fromIndex: z.number().int().nonnegative().optional(),
@@ -164,7 +164,7 @@ const LockOwnerSchema = z.object({ pid: z.number().int().positive(), ownerToken:
 
 export const LocksFileSchema = z.object({
   version: z.literal(1),
-  lockedObjects: z.array(ObjectIdSchema).default([]),
+  lockedObjects: z.array(ObjectIdSchema).max(2000).default([]),
   updatedAt: ISODateTimeSchema,
   owners: z.record(z.string(), LockOwnerSchema).optional(),
 });
@@ -198,14 +198,14 @@ export const ProfileSchema = z.object({
   }).default({}),
   patterns: z.array(z.object({
     id: CrockfordULIDSchema,
-    name: z.string(),
-    description: z.string(),
-    objectTypes: z.array(z.string()),
+    name: z.string().max(200),
+    description: z.string().max(2000),
+    objectTypes: z.array(z.string()).max(200),
     props: z.record(z.string(), SceneValueSchema),
     style: z.record(z.string(), SceneValueSchema),
     createdAt: ISODateTimeSchema,
     useCount: z.number().int().nonnegative().default(0),
-  })).default([]),
+  })).max(200).default([]),
 });
 
 export type Profile = z.infer<typeof ProfileSchema>;
@@ -216,8 +216,8 @@ export const InterviewStateSchema = z.object({
   currentTopic: z.string().optional(),
   currentQuestionIndex: z.number().int().nonnegative().default(0),
   meter: z.number().min(0).max(100).default(0),
-  requiredTopics: z.array(z.string()).default([]),
-  answeredTopics: z.array(z.string()).default([]),
+  requiredTopics: z.array(z.string()).max(50).default([]),
+  answeredTopics: z.array(z.string()).max(50).default([]),
   delegated: z.boolean().default(false),
   delegatedAt: ISODateTimeSchema.nullable().default(null),
   briefId: CrockfordULIDSchema.nullable().default(null),
@@ -233,18 +233,18 @@ export const BriefSchema = z.object({
   updatedAt: ISODateTimeSchema,
   title: z.string().default("Project Brief"),
   summary: z.string().default(""),
-  goals: z.array(z.string()).default([]),
-  constraints: z.array(z.string()).default([]),
+  goals: z.array(z.string()).max(50).default([]),
+  constraints: z.array(z.string()).max(50).default([]),
   targetAudience: z.string().optional(),
-  successMetrics: z.array(z.string()).default([]),
+  successMetrics: z.array(z.string()).max(50).default([]),
   designDirection: z.object({
     tone: z.string().optional(),
-    palette: z.array(z.string()).default([]),
+    palette: z.array(z.string()).max(50).default([]),
     typography: z.string().optional(),
-    inspiration: z.array(z.string()).default([]),
+    inspiration: z.array(z.string()).max(50).default([]),
   }).default({}),
-  technicalRequirements: z.array(z.string()).default([]),
-  outOfScope: z.array(z.string()).default([]),
+  technicalRequirements: z.array(z.string()).max(100).default([]),
+  outOfScope: z.array(z.string()).max(50).default([]),
   approvalStatus: z.enum(["draft", "pending_review", "approved", "rejected"]).default("draft"),
   approvedAt: ISODateTimeSchema.nullable().default(null),
   approvedBy: z.string().nullable().default(null),
@@ -257,7 +257,7 @@ export const FeedbackSchema = z.object({
   sceneId: CrockfordULIDSchema,
   objectId: ObjectIdSchema,
   kind: z.enum(["visual", "behavior", "content", "layout", "accessibility", "other"]),
-  message: z.string().min(1),
+  message: z.string().min(1).max(2000),
   severity: z.enum(["low", "medium", "high", "critical"]).default("medium"),
   status: z.enum(["sent", "acknowledged", "applied", "rejected", "deferred"]).default("sent"),
   createdAt: ISODateTimeSchema,
@@ -275,10 +275,10 @@ export const SceneSummarySchema = z.object({
   objectCount: z.number().int().nonnegative(),
   screens: z.array(z.object({
     id: ScreenIdSchema,
-    title: z.string(),
+    title: z.string().max(200),
     objectCount: z.number().int().nonnegative(),
-  })),
-  lockedObjects: z.array(ObjectIdSchema),
+  })).max(1000),
+  lockedObjects: z.array(ObjectIdSchema).max(2000),
   pendingPatches: z.number().int().nonnegative(),
   updatedAt: ISODateTimeSchema,
 });
@@ -298,7 +298,7 @@ export const GetSceneOutputSchema = z.object({
   scene: SceneSchema.optional(),
   summary: SceneSummarySchema.optional(),
   objects: z.record(ObjectIdSchema, SceneObjectSchema).optional(),
-  locks: z.array(LockSchema).default([]),
+  locks: z.array(LockSchema).max(2000).default([]),
   truncated: z.boolean().default(false),
   revision: RevisionSchema,
 });
@@ -322,7 +322,7 @@ export const ApplyPatchOutputSchema = z.object({
   }).nullable().default(null),
   error: z.string().nullable().default(null),
   details: z.object({
-    changedObjectIds: z.array(CrockfordULIDSchema),
+    changedObjectIds: z.array(CrockfordULIDSchema).max(2000),
   }).optional(),
 });
 
@@ -338,7 +338,7 @@ export const GetFeedbackInputSchema = z.object({
 export type GetFeedbackInput = z.infer<typeof GetFeedbackInputSchema>;
 
 export const GetFeedbackOutputSchema = z.object({
-  feedback: z.array(FeedbackSchema),
+  feedback: z.array(FeedbackSchema).max(2000),
 });
 
 export type GetFeedbackOutput = z.infer<typeof GetFeedbackOutputSchema>;
@@ -346,17 +346,17 @@ export type GetFeedbackOutput = z.infer<typeof GetFeedbackOutputSchema>;
 export const AskUserInputSchema = z.object({
   questionId: z.string().min(1),
   kind: z.enum(["start", "choice", "text", "scale", "confirm", "skip"]),
-  prompt: z.string().min(1),
+  prompt: z.string().min(1).max(2000),
   options: z.array(z.object({
-    value: z.string(),
-    label: z.string(),
-    description: z.string().optional(),
-  })).optional(),
+    value: z.string().max(100),
+    label: z.string().max(200),
+    description: z.string().max(500).optional(),
+  })).max(10).optional(),
   min: z.number().optional(),
   max: z.number().optional(),
   step: z.number().optional(),
   previousAnswer: z.unknown().optional(),
-  requiredTopics: z.array(z.string()).optional(),
+  requiredTopics: z.array(z.string()).max(50).optional(),
 });
 
 export type AskUserInput = z.infer<typeof AskUserInputSchema>;
@@ -387,7 +387,7 @@ export const OpenStudioOutputSchema = z.object({
 export type OpenStudioOutput = z.infer<typeof OpenStudioOutputSchema>;
 
 export const ReadConfigInputSchema = z.object({
-  keys: z.array(z.string()).optional(),
+  keys: z.array(z.string()).max(2000).optional(),
 });
 
 export type ReadConfigInput = z.infer<typeof ReadConfigInputSchema>;
