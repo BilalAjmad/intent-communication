@@ -15,8 +15,8 @@ describe("Adapters-Node package", () => {
   beforeEach(async () => {
     const testDir = os.tmpdir() + "/.test-intent-adapters";
     await fs.rm(testDir, { recursive: true, force: true }).catch(() => {});
-    storage = createFileStoragePort(os.tmpdir() + "/.test-intent-adapters");
-    lockPort = createFileLockPort(storage);
+    storage = createFileStoragePort(testDir);
+    lockPort = createFileLockPort(testDir);
   });
 
   describe("FileStoragePort", () => {
@@ -218,6 +218,18 @@ describe("Adapters-Node package", () => {
         metadata: { name: "Test", tags: [] },
       };
       await expect(storage.writeScene("../etc/passwd", scene)).rejects.toThrow();
+    });
+
+    it("rejects an over-long scene ID instead of failing at the filesystem", async () => {
+      await expect(storage.readScene("s_" + "a".repeat(500))).rejects.toThrow();
+    });
+
+    it("rejects a scene ID containing a path separator", async () => {
+      await expect(storage.readScene("a/b")).rejects.toThrow();
+    });
+
+    it("rejects an over-long object ID on lock acquire", async () => {
+      await expect(lockPort.acquire("scene-1", "o_" + "a".repeat(500))).rejects.toThrow();
     });
   });
 });

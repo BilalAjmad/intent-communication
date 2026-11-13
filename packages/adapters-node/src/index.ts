@@ -18,6 +18,7 @@ import {
   ErrorCodes,
   isIntentError,
   createLockPort,
+  assertSafeId,
 } from "@intent/core";
 
 export function createFileStoragePort(projectRoot: string): StoragePort {
@@ -55,8 +56,11 @@ export function createFileStoragePort(projectRoot: string): StoragePort {
   }
 
   return {
+    rootDir: resolve(projectRoot),
+
     async readScene(sceneId: string): Promise<Scene | null> {
       await ensureDirs();
+      assertSafeId(sceneId, "sceneId");
       const scenePath = resolve(scenesDir, `${sceneId}.json`);
       await checkPathSafety(scenePath, scenesDir);
       try {
@@ -69,6 +73,7 @@ export function createFileStoragePort(projectRoot: string): StoragePort {
 
     async writeScene(sceneId: string, scene: Scene): Promise<void> {
       await ensureDirs();
+      assertSafeId(sceneId, "sceneId");
       const scenePath = resolve(scenesDir, `${sceneId}.json`);
       await checkPathSafety(scenePath, scenesDir);
       const validated = validateScene(scene);

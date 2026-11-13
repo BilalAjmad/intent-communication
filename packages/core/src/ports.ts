@@ -9,6 +9,7 @@ import {
   validateScene,
 } from "@intent/schema";
 import { IntentError, ErrorCodes } from "./error.js";
+import { assertSafeId } from "./paths.js";
 import { promises as fs } from "node:fs";
 import { resolve, dirname } from "node:path";
 
@@ -18,10 +19,18 @@ function debugLog(msg: string) {
   if (!debugLockLogEnabled) return;
   try {
     fs.appendFile(".lock-debug.log", `[${Date.now()}] ${process.pid} ${msg}\n`, { flag: "a" });
-  } catch {}
+  } catch {
+    // Debug logging must never break a write.
+  }
 }
 
 export interface StoragePort {
+  /**
+   * Absolute root directory this port reads and writes under.
+   * `createLockPort` derives the lock directories from it, so storage and
+   * locks can never point at different roots (see Review Focus #3).
+   */
+  readonly rootDir: string;
   readScene(sceneId: string): Promise<Scene | null>;
   writeScene(sceneId: string, scene: Scene): Promise<void>;
   readLocks(sceneId: string): Promise<LocksFile>;
@@ -72,13 +81,39 @@ export function createStoragePort(testDir: string): StoragePort {
     await fs.mkdir(dirname(interviewPath), { recursive: true });
   }
 
+  /**
+   * Rejects any path that escapes `basePath`, and any symlink target.
+   * Mirrors the adapters-node implementation so the two storage ports cannot
+   * drift apart in their safety behaviour (Review Focus #3).
+   */
+  async function checkPathSafety(targetPath: string, basePath: string): Promise<void> {
+    const resolved = resolve(targetPath);
+    const resolvedBase = resolve(basePath);
+    if (!resolved.startsWith(resolvedBase)) {
+      throw new IntentError(ErrorCodes.E_PATH_TRAVERSAL, "Path traversal attempt detected");
+    }
+    try {
+      const stats = await fs.lstat(resolved);
+      if (stats.isSymbolicLink()) {
+        throw new IntentError(ErrorCodes.E_SYMLINK, "Symlinks not allowed");
+      }
+    } catch (err) {
+      // Ignore "path does not exist"; re-throw the symlink rejection.
+      if (err instanceof IntentError) throw err;
+    }
+  }
+
   return {
+    rootDir: resolve(testDir),
+
     async readScene(sceneId: string): Promise<Scene | null> {
       await ensureDirs();
+      assertSafeId(sceneId, "sceneId");
       const scenePath = resolve(scenesDir, `${sceneId}.json`);
+      await checkPathSafety(scenePath, scenesDir);
       try {
         const content = await fs.readFile(scenePath, "utf-8");
-        return JSON.parse(content);
+        return validateScene(JSON.parse(content));
       } catch {
         return null;
       }
@@ -86,7 +121,9 @@ export function createStoragePort(testDir: string): StoragePort {
 
     async writeScene(sceneId: string, scene: Scene): Promise<void> {
       await ensureDirs();
+      assertSafeId(sceneId, "sceneId");
       const scenePath = resolve(scenesDir, `${sceneId}.json`);
+      await checkPathSafety(scenePath, scenesDir);
       const validated = validateScene(scene);
       const tmpPath = `${scenePath}.tmp.${Date.now()}.${Math.random().toString(36).slice(2)}`;
       await fs.writeFile(tmpPath, JSON.stringify(validated, null, 0), "utf-8");
@@ -263,36 +300,36 @@ export function createStoragePort(testDir: string): StoragePort {
 
 export function createLockPort(storage: StoragePort, locksDir?: string, tmpDir?: string): LockPort {
   const fsp = fs;
-  const sceneLockDir = tmpDir ?? (locksDir ? resolve(locksDir, "..", "tmp") : ".intent/tmp");
+  // Lock directories are derived from the storage root by default so that a
+  // lock can never be written to a different tree than the data it protects.
+  const effectiveLocksDir = locksDir ?? resolve(storage.rootDir, ".intent", "locks");
+  const sceneLockDir = tmpDir ?? resolve(storage.rootDir, ".intent", "tmp");
 
   function isStale(timestamp: number): boolean {
     return Date.now() - timestamp > 10000;
   }
 
-  async function isProcessAlive(pid: number): Promise<boolean> {
-    if (process.platform === "win32") {
-      try {
-        const { execFileSync } = await import("node:child_process");
-        const output = execFileSync("powershell", [
-          "-NoProfile",
-          "-NonInteractive",
-          "-Command",
-          `Get-Process -Id ${pid} -ErrorAction SilentlyContinue | ForEach-Object { $_.Id }`,
-        ], { timeout: 2000, windowsHide: true });
-        return output.toString().trim().length > 0;
-      } catch {
-        return false;
-      }
-    }
+  /**
+   * Liveness check for a lock owner.
+   *
+   * Uses `process.kill(pid, 0)` on every platform. On Windows this is an
+   * existence check that libuv implements without spawning a process; the
+   * previous PowerShell `Get-Process` implementation cost 300-1000ms per
+   * call, and `acquireSceneLock` calls it on each of its 12 attempts, so a
+   * contended scene lock took 6+ seconds to fail while holding the lock.
+   * That was the root cause of the intermittent E_LOCKED in the
+   * multi-process test.
+   */
+  function isProcessAlive(pid: number): boolean {
+    if (!Number.isInteger(pid) || pid <= 0) return false;
     try {
       process.kill(pid, 0);
       return true;
-    } catch {
-      return false;
+    } catch (err) {
+      // EPERM means the process exists but belongs to another user.
+      return (err as NodeJS.ErrnoException).code === "EPERM";
     }
   }
-
-  const effectiveLocksDir = locksDir ?? ".intent/locks";
 
   async function ensureObjectLockDir(sceneId: string) {
     const dir = resolve(effectiveLocksDir, sceneId);
@@ -305,6 +342,8 @@ export function createLockPort(storage: StoragePort, locksDir?: string, tmpDir?:
 
   return {
     async acquire(sceneId: string, objectId: string): Promise<boolean> {
+      assertSafeId(sceneId, "sceneId");
+      assertSafeId(objectId, "objectId");
       await ensureObjectLockDir(sceneId);
       const lockPath = resolve(effectiveLocksDir, sceneId, `${objectId}.lock`);
       for (let attempt = 0; attempt < 50; attempt++) {
@@ -365,6 +404,7 @@ export function createLockPort(storage: StoragePort, locksDir?: string, tmpDir?:
 
     async acquireSceneLock(sceneId: string): Promise<boolean> {
       // trd 9.2 cross-process scene lock: single write lock per scene
+      assertSafeId(sceneId, "sceneId");
       debugLog(`acquireSceneLock start ${sceneId}`);
       if (!sceneLockDir) {
         debugLog(`acquireSceneLock no tmp dir ${sceneId}`);
@@ -392,7 +432,7 @@ export function createLockPort(storage: StoragePort, locksDir?: string, tmpDir?:
           try {
             const content = await fsp.readFile(lockPath, "utf-8");
             const data = JSON.parse(content) as { pid?: number; createdAt?: number; ownerToken?: string };
-            const stale = data.createdAt !== undefined && Date.now() - data.createdAt > 10000;
+            const stale = data.createdAt !== undefined && isStale(data.createdAt);
             if (stale) {
               await fsp.unlink(lockPath);
               continue;
@@ -402,7 +442,7 @@ export function createLockPort(storage: StoragePort, locksDir?: string, tmpDir?:
               await fsp.unlink(lockPath);
               continue;
             }
-            const alive = await isProcessAlive(data.pid);
+            const alive = isProcessAlive(data.pid);
             if (!alive) {
               // owner process is dead -> reclaim the lock
               await fsp.unlink(lockPath);

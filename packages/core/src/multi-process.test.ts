@@ -63,38 +63,6 @@ async function readScene(testDir: string, sceneId: string) {
   return JSON.parse(content);
 }
 
-function runWorker(
-  testDir: string,
-  sceneId: string,
-  objectId: string,
-  value: string,
-  baseRevision: number,
-  expectedContent?: string,
-  workerIndex?: string
-) {
-  const child = spawn("node", [
-    workerPath,
-    testDir,
-    sceneId,
-    objectId,
-    value,
-    String(baseRevision),
-    expectedContent || "",
-    workerIndex || "0",
-  ]);
-  let stdout = "";
-  child.stdout.on("data", (d) => (stdout += d.toString()));
-  return new Promise<{ success: boolean; revision: number; error?: string }>((resolve) => {
-    child.on("close", () => {
-      try {
-        resolve(JSON.parse(stdout));
-      } catch {
-        resolve({ success: false, error: stdout || "parse error" });
-      }
-    });
-  });
-}
-
 describe("Multi-process concurrency (real OS processes)", () => {
   let children: Set<NodeJS.ChildProcess> = new Set();
   let testDir: string = "";

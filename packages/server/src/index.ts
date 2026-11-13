@@ -38,7 +38,7 @@ export class IntentServer {
   constructor(config: ServerConfig) {
     this.config = config;
     this.storage = createFileStoragePort(config.projectRoot);
-    this.lockPort = createFileLockPort(this.storage);
+    this.lockPort = createFileLockPort(config.projectRoot);
     this.crypto = createNodeCryptoPort();
     this.httpServer = createHttpServer(this.handleRequest.bind(this));
   }

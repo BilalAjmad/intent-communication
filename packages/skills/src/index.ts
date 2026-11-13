@@ -80,7 +80,7 @@ const TOOL_USAGE_MD = `# tool-usage.md
 
 ### apply_patch
 - **Purpose**: Modify scene objects
-- **Input**: `{\`patch\`}`
+- **Input**: \`{ patch }\`
 - **Patch ops**: \`set\`, \`unset\`, \`add\`, \`remove\`, \`move\`, \`setState\`
 - **Output**: \`{ success, revision, conflict?, error? }\`
 - **Conflict**: Returned when \`baseRevision !== scene.revision\`
