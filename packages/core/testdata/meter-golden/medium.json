@@ -1,0 +1,92 @@
+[
+  {
+    "slot": "goal.purpose",
+    "question": "F1",
+    "value": 1,
+    "expectedPercent": 5
+  },
+  {
+    "slot": "users.primary",
+    "question": "U1",
+    "value": 1,
+    "expectedPercent": 8
+  },
+  {
+    "slot": "screens.list",
+    "question": "S2",
+    "value": 1,
+    "expectedPercent": 15
+  },
+  {
+    "slot": "screens.nav",
+    "question": "F5",
+    "value": 1,
+    "expectedPercent": 22
+  },
+  {
+    "slot": "flow.after",
+    "question": "F2",
+    "value": 1,
+    "expectedPercent": 27
+  },
+  {
+    "slot": "flow.links",
+    "question": "F3",
+    "value": 1,
+    "expectedPercent": 32
+  },
+  {
+    "slot": "flow.main",
+    "question": "F6",
+    "value": 1,
+    "expectedPercent": 37
+  },
+  {
+    "slot": "style.mood",
+    "question": "ST1",
+    "value": 1,
+    "expectedPercent": 40
+  },
+  {
+    "slot": "style.palette",
+    "question": "ST2",
+    "value": 1,
+    "expectedPercent": 42
+  },
+  {
+    "slot": "style.theme",
+    "question": "ST3",
+    "value": 1,
+    "expectedPercent": 45
+  },
+  {
+    "slot": "style.density",
+    "question": "ST4",
+    "value": 1,
+    "expectedPercent": 48
+  },
+  {
+    "slot": "style.corner",
+    "question": "ST5",
+    "value": 1,
+    "expectedPercent": 50
+  },
+  {
+    "slot": "style.brand",
+    "question": "ST6",
+    "value": 1,
+    "expectedPercent": 53
+  },
+  {
+    "slot": "content.data",
+    "question": "C2",
+    "value": 1,
+    "expectedPercent": 56
+  },
+  {
+    "slot": "content.tone",
+    "question": "C1",
+    "value": 1,
+    "expectedPercent": 60
+  }
+]

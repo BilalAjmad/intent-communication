@@ -1,0 +1,62 @@
+[
+  {
+    "slot": "goal.purpose",
+    "question": "F1",
+    "value": 1,
+    "expectedPercent": 11
+  },
+  {
+    "slot": "users.primary",
+    "question": "U1",
+    "value": 1,
+    "expectedPercent": 22
+  },
+  {
+    "slot": "screens.list",
+    "question": "S2",
+    "value": 1,
+    "expectedPercent": 33
+  },
+  {
+    "slot": "screens.nav",
+    "question": "F5",
+    "value": 1,
+    "expectedPercent": 44
+  },
+  {
+    "slot": "flow.main",
+    "question": "F6",
+    "value": 1,
+    "expectedPercent": 61
+  },
+  {
+    "slot": "style.mood",
+    "question": "ST1",
+    "value": 1,
+    "expectedPercent": 66
+  },
+  {
+    "slot": "style.palette",
+    "question": "ST2",
+    "value": 1,
+    "expectedPercent": 72
+  },
+  {
+    "slot": "style.theme",
+    "question": "ST3",
+    "value": 1,
+    "expectedPercent": 77
+  },
+  {
+    "slot": "content.data",
+    "question": "C2",
+    "value": 1,
+    "expectedPercent": 83
+  },
+  {
+    "slot": "content.tone",
+    "question": "C1",
+    "value": 1,
+    "expectedPercent": 88
+  }
+]
