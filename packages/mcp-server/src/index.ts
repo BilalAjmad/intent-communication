@@ -4,6 +4,7 @@ import {
   CryptoPort,
   IntentError,
   ErrorCodes,
+  writePipeline,
 } from "@intent/core";
 import {
   Scene,
@@ -146,7 +147,6 @@ export const applyPatchTool: MCPTool = {
       };
     }
 
-    const { writePipeline } = await import("@intent/core");
     const result = await writePipeline(context.storage, context.lockPort, patch.sceneId, [vp]);
     return result;
   },
