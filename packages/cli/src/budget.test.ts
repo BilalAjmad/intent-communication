@@ -42,7 +42,15 @@ describe("CLI budget", () => {
       for (const file of entries) {
         const content = await fs.readFile(resolve(rulesDir, file), "utf-8");
         // No NUL byte or C0 control characters except TAB/LF/CR
-        expect(/[\x00-\x08\x0B\x0C\x0E-\x1F]/.test(content), `file ${file} contains control characters`).toBe(false);
+        let hasControl = false;
+        for (let i = 0; i < content.length; i++) {
+          const code = content.charCodeAt(i);
+          if (code !== 9 && code !== 10 && code !== 13 && code < 32) {
+            hasControl = true;
+            break;
+          }
+        }
+        expect(hasControl, `file ${file} contains control characters`).toBe(false);
         expect(content.length).toBeGreaterThan(0);
       }
     } finally {
