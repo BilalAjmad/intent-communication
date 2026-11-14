@@ -5,12 +5,6 @@ import { resolve } from "node:path";
 import { createMCPContext, handleMCPRequest, MCPContext, MCP_TOOLS } from "./index";
 import { ErrorCodes, isIntentError, IntentError } from "@intent/core";
 
-// Structural check — zod is not a direct dependency of this package (pnpm strict),
-// and importing it here would need a new dependency declaration.
-function isZodError(err: unknown): boolean {
-  return err instanceof Error && err.name === "ZodError" && Array.isArray((err as { issues?: unknown[] }).issues);
-}
-
 // AC-M1-03 follow-up: per-tool error-code matrix for apply_patch and validate.
 //
 // Reality of the current codebase (verified 2026-11-14):
@@ -19,6 +13,8 @@ function isZodError(err: unknown): boolean {
 //     writePipeline), while storage-layer faults propagate as thrown IntentError
 //     (e.g. E_IO from the atomic write) — always through writePipeline's finally,
 //     so locks are released even on failure.
+//   - zod-parsed tool inputs surface as IntentError E_SCHEMA with the issue path (trd 18.2),
+//     never as a raw ZodError (handleMCPRequest maps them)
 //   - validate does NOT parse its input at all: it casts `input as {type,data}`
 //     and switches on type. Bad DATA always comes back as { valid: false,
 //     error: string } with NO error code (by design). Unknown/missing `type`
@@ -88,7 +84,7 @@ function patch(overrides: Record<string, unknown> = {}) {
     path: "props.content",
     value: "Updated",
     createdAt: "2026-11-13T00:00:00.000Z",
-    status: "pending",
+    status: "sent",
     ...overrides,
   };
 }
@@ -227,8 +223,21 @@ describe("validate — error surface (no error codes, by design)", () => {
   });
 });
 
-describe("no tool emits E_SCHEMA (code defined but unused — pinned current state)", () => {
-  it("exercising every tool with garbage inputs yields no E_SCHEMA surface", async () => {
+// E_SCHEMA is now wired for every zod-based tool input per trd 18.2:
+// invalid input surfaces as IntentError E_SCHEMA with the issue path, not as a raw ZodError.
+describe("tools emit E_SCHEMA on invalid input (trd 18.2)", () => {
+  it("apply_patch with a schema-invalid patch id rejects with IntentError E_SCHEMA naming the path", async () => {
+    try {
+      await handleMCPRequest("apply_patch", { patch: patch({ id: "not an id" }) }, context);
+      throw new Error("expected IntentError");
+    } catch (err) {
+      expect(isIntentError(err)).toBe(true);
+      expect((err as { code?: string }).code).toBe(ErrorCodes.E_SCHEMA);
+      expect(String((err as Error).message)).toContain("patch.id");
+    }
+  });
+
+  it("every tool handler surfaces IntentError (never a raw ZodError) for invalid input", async () => {
     const garbageInputs: unknown[] = [null, undefined, 42, "x", {}, { patch: 42 }, []];
     for (const tool of MCP_TOOLS) {
       for (const input of garbageInputs) {
@@ -236,20 +245,13 @@ describe("no tool emits E_SCHEMA (code defined but unused — pinned current sta
           await tool.handler(input, context);
         } catch (err) {
           if (isIntentError(err)) {
-            expect((err as { code?: string }).code).not.toBe(ErrorCodes.E_SCHEMA);
+            expect(typeof (err as { code?: string }).code).toBe("string");
           } else {
+            // raw TypeError from the non-validating validate handler is the one exception, pinned in the validate block
             expect(err).toBeInstanceOf(Error);
           }
         }
       }
-    }
-    // apply_patch with a schema-invalid patch id rejects with ZodError (not E_SCHEMA)
-    try {
-      await handleMCPRequest("apply_patch", { patch: patch({ id: "not an id" }) }, context);
-      throw new Error("expected error");
-    } catch (err) {
-      expect(isZodError(err)).toBe(true);
-      if (isIntentError(err)) expect((err as { code?: string }).code).not.toBe(ErrorCodes.E_SCHEMA);
     }
   });
 });

@@ -109,7 +109,7 @@ describe("MCP Server", () => {
         path: "props.content",
         value: "Test",
         createdAt: "2026-11-02T22:38:00.000Z",
-        status: "pending",
+        status: "sent",
       };
       const result = await handleMCPRequest("validate", { type: "patch", data: patch }, context);
       expect(result.valid).toBe(true);
@@ -176,7 +176,7 @@ describe("MCP Server", () => {
         path: "props.content",
         value: "Test",
         createdAt: "2026-11-02T22:38:00.000Z",
-        status: "pending",
+        status: "sent",
       };
       await expect(handleMCPRequest("apply_patch", { patch }, context)).rejects.toThrow("Scene not found");
     });

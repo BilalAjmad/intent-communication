@@ -8,6 +8,7 @@ import {
 } from "@intent/core";
 import {
   Scene,
+  Feedback,
   validateScene,
   validatePatch,
   validateConfig,
@@ -35,6 +36,8 @@ export interface MCPContext {
   storage: StoragePort;
   lockPort: LockPort;
   crypto: CryptoPort;
+  /** Optional event hook (e.g. the HTTP layer broadcasts patch.changed to SSE clients). */
+  notify?: (event: string, payload: unknown) => void;
 }
 
 export function createMCPContext(projectRoot: string): MCPContext {
@@ -148,6 +151,28 @@ export const applyPatchTool: MCPTool = {
     }
 
     const result = await writePipeline(context.storage, context.lockPort, patch.sceneId, [vp]);
+    // trd 6.4 status transitions: a successful apply marks the oldest matching
+    // sent feedback as applied; an E_CONFLICT marks it conflict. The agent does not
+    // pass a feedback id, so the target is the patched object, sent first.
+    if (result && typeof result === "object" && "success" in result) {
+      const r = result as { success: boolean; error?: string };
+      if (r.success || r.error === ErrorCodes.E_CONFLICT) {
+        const newStatus = r.success ? ("applied" as const) : ("conflict" as const);
+        const feedback = await context.storage.readFeedback(patch.sceneId);
+        const idx = feedback.findIndex((f) => f.status === "sent" && f.objectId === vp.objectId);
+        if (idx !== -1) {
+          const item = feedback[idx] as Feedback;
+          feedback[idx] = {
+            ...item,
+            status: newStatus,
+            appliedAt: r.success ? new Date().toISOString() : item.appliedAt,
+            patchId: r.success ? vp.id : item.patchId,
+          };
+          await context.storage.writeFeedback(patch.sceneId, feedback);
+          context.notify?.("patch.changed", { id: item.id, status: newStatus, sceneId: patch.sceneId });
+        }
+      }
+    }
     return result;
   },
 };
@@ -158,19 +183,20 @@ export const getFeedbackTool: MCPTool = {
   inputSchema: GetFeedbackInputSchema,
   async handler(input: unknown, context: MCPContext) {
     const validated = GetFeedbackInputSchema.parse(input);
-    const feedback = await context.storage.readFeedback(validated.sceneId);
-    let filtered = feedback;
+    const allFeedback = await context.storage.readFeedback(validated.sceneId);
+    // Drafts are on disk but invisible to agents until the user sends them (trd 6.1/6.4).
+    let feedback = allFeedback.filter((f) => f.status !== "draft");
     if (validated.objectIds) {
-      filtered = feedback.filter((f) => validated.objectIds!.includes(f.objectId));
+      feedback = feedback.filter((f) => validated.objectIds!.includes(f.objectId));
     }
     const since = validated.since;
     if (since) {
-      filtered = filtered.filter((f) => f.createdAt >= since);
+      feedback = feedback.filter((f) => f.createdAt >= since);
     }
     if (!validated.includeImageData) {
-      filtered = filtered.map((f) => ({ ...f, screenshot: undefined }));
+      feedback = feedback.map((f) => ({ ...f, screenshot: undefined }));
     }
-    return { feedback: filtered };
+    return { feedback };
   },
 };
 
@@ -267,6 +293,22 @@ export function getMCPTool(name: string): MCPTool | undefined {
   return MCP_TOOLS.find((t) => t.name === name);
 }
 
+// Structural ZodError detection (zod is not a direct dependency of this package).
+// trd 18.2: invalid input surfaces as E_SCHEMA with the issue path.
+interface ZodIssueLike {
+  path?: (string | number)[];
+  message?: string;
+}
+function zodToIntentError(err: unknown): IntentError | null {
+  if (err instanceof Error && err.name === "ZodError" && Array.isArray((err as { issues?: unknown }).issues)) {
+    const issues = (err as unknown as { issues: ZodIssueLike[] }).issues;
+    const first = issues[0];
+    const where = first?.path?.length ? ` at ${first.path.join(".")}` : "";
+    return new IntentError(ErrorCodes.E_SCHEMA, `Invalid input${where}: ${first?.message ?? "schema validation failed"}`);
+  }
+  return null;
+}
+
 export async function handleMCPRequest(
   toolName: string,
   input: unknown,
@@ -276,7 +318,13 @@ export async function handleMCPRequest(
   if (!tool) {
     throw new IntentError(ErrorCodes.E_NOT_FOUND, `Tool ${toolName} not found`);
   }
-  return tool.handler(input, context);
+  try {
+    return await tool.handler(input, context);
+  } catch (err) {
+    const ze = zodToIntentError(err);
+    if (ze) throw ze;
+    throw err;
+  }
 }
 
 export { IntentError, ErrorCodes };

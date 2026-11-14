@@ -108,7 +108,7 @@ describe("AC-M1-03: six-tool contract matrix", () => {
           path: "props.content",
           value: "Updated",
           createdAt: "2026-11-13T00:00:00.000Z",
-          status: "pending",
+          status: "sent",
         },
       },
       context
@@ -134,7 +134,7 @@ describe("AC-M1-03: six-tool contract matrix", () => {
             path: "props.content",
             value: "x",
             createdAt: "2026-11-13T00:00:00.000Z",
-            status: "pending",
+            status: "sent",
           },
         },
         emptyCtx
@@ -160,7 +160,7 @@ describe("AC-M1-03: six-tool contract matrix", () => {
           path: "props.content",
           value: "stale",
           createdAt: "2026-11-13T00:00:00.000Z",
-          status: "pending",
+          status: "sent",
         },
       },
       context
