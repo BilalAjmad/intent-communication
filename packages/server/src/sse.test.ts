@@ -7,7 +7,7 @@ import { resolve } from "node:path";
 // End-to-end SSE flow (S-1-12, AC-M1-09).
 //
 // Opens a real /events stream with the session cookie, reads the initial
-// revision event, applies a valid patch via /mcp, and verifies the SSE stream
+// revision event, applies a valid patch via /api/mcp, and verifies the SSE stream
 // receives the new revision event.
 
 describe("SSE end-to-end (S-1-12)", () => {
@@ -69,7 +69,7 @@ describe("SSE end-to-end (S-1-12)", () => {
 
     // Open the SSE stream
     const controller = new AbortController();
-    const sseResponse = await fetch(url(`/events?scene=${sceneId}`), {
+    const sseResponse = await fetch(url(`/api/events?scene=${sceneId}`), {
       headers: { Cookie: sessionCookie },
       signal: controller.signal,
     });
@@ -108,10 +108,10 @@ describe("SSE end-to-end (S-1-12)", () => {
       path: "props.content",
       value: "Hello SSE",
       createdAt: "2026-11-13T00:00:00.000Z",
-      status: "pending",
+      status: "sent",
     };
 
-    const patchResponse = await fetch(url("/mcp"), {
+    const patchResponse = await fetch(url("/api/mcp"), {
       method: "POST",
       headers: { "Content-Type": "application/json", ...origin(), Cookie: sessionCookie },
       body: JSON.stringify({ tool: "apply_patch", input: { patch } }),

@@ -56,7 +56,7 @@ async function main() {
             path: "props.content",
             value,
             createdAt: new Date().toISOString(),
-            status: "pending",
+            status: "sent",
           },
         ], false, expectedContentMap);
         log(`attempt ${attempt} result success=${result.success} revision=${result.revision} error=${result.error}`);

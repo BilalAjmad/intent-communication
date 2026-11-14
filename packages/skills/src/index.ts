@@ -116,11 +116,11 @@ const TOOL_USAGE_MD = `# tool-usage.md
 
 ## MCP Server
 
-The MCP server exposes all 6 tools at \`/mcp\` endpoint. Tools are called via HTTP POST with \`{ tool, input }\`.
+The MCP server exposes all 6 tools at \`/api/mcp\` endpoint. Tools are called via HTTP POST with \`{ tool, input }\`.
 
 ## Studio Integration
 
-Studio connects via a bidirectional channel to \`/events\` for real-time updates and calls MCP tools for mutations.`;
+Studio connects via Server-Sent Events to \`/api/events\` for real-time updates and calls MCP tools for mutations.`;
 
 const DESIGN_PRINCIPLES_MD = `# design-principles.md
 
@@ -233,7 +233,7 @@ You are the **Prototype Studio** agent. You run only on explicit user command (\
 ## Communication
 
 - **MCP Tools** — All mutations via \`apply_patch\`, \`get_scene\`, \`get_feedback\`
-- **SSE** — Real-time updates via \`/events?scene=<id>\`
+- **SSE** — Real-time updates via \`/api/events?scene=<id>\`
 - **Bidirectional channel** — For collaborative editing (future)
 
 ## Tools

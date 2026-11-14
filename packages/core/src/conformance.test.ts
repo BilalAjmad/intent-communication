@@ -140,7 +140,7 @@ describe("Conformance: validateScene and validatePatch", () => {
       path: "props.content",
       value: "hello",
       createdAt: "2026-11-11T00:00:00.000Z",
-      status: "pending",
+      status: "sent",
     };
     expect(() => validatePatch(patch)).not.toThrow();
   });
@@ -155,7 +155,7 @@ describe("Conformance: validateScene and validatePatch", () => {
       path: "props.content",
       value: "hello",
       createdAt: "2026-11-11T00:00:00.000Z",
-      status: "pending",
+      status: "sent",
     };
     expect(() => validatePatch(patch)).toThrow();
   });

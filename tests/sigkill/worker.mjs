@@ -31,7 +31,7 @@ async function main() {
         path: "props.content",
         value,
         createdAt: new Date().toISOString(),
-        status: "pending",
+        status: "sent",
       };
       const expectedContentMap = { [objectId]: "initial" };
       const result = await writePipeline(storage, lockPort, sceneId, [patch], expectedContentMap);

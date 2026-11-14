@@ -25,8 +25,7 @@ export default defineConfig({
   server: {
     port: 3457,
     proxy: {
-      "/events": "http://localhost:3456",
-      "/mcp": "http://localhost:3456",
+      "/api": "http://localhost:3456",
       "/health": "http://localhost:3456",
     },
   },

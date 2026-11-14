@@ -98,7 +98,7 @@ describe("Security tests (SEC-01..SEC-07)", () => {
   });
 
   it("SEC-04b: rejects non-GET requests without any Origin", async () => {
-    const response = await fetch(url("/mcp"), {
+    const response = await fetch(url("/api/mcp"), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ tool: "get_scene", input: {} }),
@@ -187,8 +187,8 @@ describe("Security tests (SEC-01..SEC-07)", () => {
 
   // /mcp and /events require a session; an unauthenticated local process
   // must not read scene contents or send patches.
-  it("SEC-08: /mcp without a session cookie gives 403", async () => {
-    const response = await fetch(url("/mcp"), {
+  it("SEC-08: /api/mcp without a session cookie gives 403", async () => {
+    const response = await fetch(url("/api/mcp"), {
       method: "POST",
       headers: { "Content-Type": "application/json", ...origin() },
       body: JSON.stringify({ tool: "get_scene", input: {} }),
@@ -196,15 +196,15 @@ describe("Security tests (SEC-01..SEC-07)", () => {
     expect(response.status).toBe(403);
   });
 
-  it("SEC-08b: /events without a session cookie gives 403", async () => {
-    const response = await fetch(url("/events"));
+  it("SEC-08b: /api/events without a session cookie gives 403", async () => {
+    const response = await fetch(url("/api/events"));
     expect(response.status).toBe(403);
   });
 
   it("SEC-08c: /mcp with a valid session cookie returns the scene", async () => {
     await seedScene();
     const cookie = await exchange();
-    const response = await fetch(url("/mcp"), {
+    const response = await fetch(url("/api/mcp"), {
       method: "POST",
       headers: { "Content-Type": "application/json", ...origin(), Cookie: cookie },
       body: JSON.stringify({
@@ -217,10 +217,10 @@ describe("Security tests (SEC-01..SEC-07)", () => {
     expect(body.success).toBe(true);
   });
 
-  it("SEC-08d: an authenticated /events connection is opened", async () => {
+  it("SEC-08d: an authenticated /api/events connection is opened", async () => {
     const cookie = await exchange();
     const controller = new AbortController();
-    const response = await fetch(url("/events"), {
+    const response = await fetch(url("/api/events"), {
       signal: controller.signal,
       headers: { Cookie: cookie },
     });

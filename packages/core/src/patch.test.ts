@@ -41,7 +41,7 @@ function makePatch(objectId: string, path: string, op: "set" | "unset" = "set"):
     path,
     value: "new",
     createdAt: "2026-11-13T00:00:00.000Z",
-    status: "pending",
+    status: "sent",
   };
 }
 

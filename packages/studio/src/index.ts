@@ -54,7 +54,7 @@ export class Studio {
 
   async refreshScene(): Promise<void> {
     try {
-      const response = await fetch(`${this.mcpBaseUrl}/mcp`, {
+      const response = await fetch(`${this.mcpBaseUrl}/api/mcp`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -100,7 +100,7 @@ export class Studio {
     const p = patch as { op?: string; path?: string };
     this.pushHistory(`Apply patch: ${p.op} ${p.path}`);
 
-    const response = await fetch(`${this.mcpBaseUrl}/mcp`, {
+    const response = await fetch(`${this.mcpBaseUrl}/api/mcp`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ tool: "apply_patch", input: { patch } }),
@@ -124,7 +124,7 @@ export class Studio {
       path,
       value,
       createdAt: new Date().toISOString(),
-      status: "pending",
+      status: "sent",
     };
     await this.applyPatch(patch);
   }
@@ -153,7 +153,7 @@ export class Studio {
 
   private async applyScene(_scene: Scene): Promise<void> {
     // Apply scene to preview via MCP
-    await fetch(`${this.mcpBaseUrl}/mcp`, {
+    await fetch(`${this.mcpBaseUrl}/api/mcp`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ tool: "apply_patch", input: { patch: [] } }),
@@ -167,7 +167,7 @@ export class Studio {
   }
 
   connectSSE(): void {
-    this.eventSource = new EventSource(`http://localhost:${this.config.previewPort}/events?scene=${this.state.sceneId}`);
+    this.eventSource = new EventSource(`http://localhost:${this.config.previewPort}/api/events?scene=${this.state.sceneId}`);
     this.eventSource.onmessage = (event) => {
       const data = JSON.parse(event.data);
       if (data.type === "revision") {
@@ -211,4 +211,4 @@ export function createStudio(config: StudioConfig): Studio {
   return new Studio(config);
 }
 
-export { buildPreviewDocument } from "./preview.js";
+export { buildPreviewDocument, previewScriptHashes } from "./preview.js";

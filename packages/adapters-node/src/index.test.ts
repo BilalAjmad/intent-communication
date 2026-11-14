@@ -131,7 +131,6 @@ describe("Adapters-Node package", () => {
         severity: "medium",
         status: "sent",
         createdAt: "2026-11-02T22:38:00.000Z",
-        acknowledgedAt: null,
         appliedAt: null,
         patchId: null,
       }];

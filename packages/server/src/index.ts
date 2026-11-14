@@ -1,23 +1,38 @@
 import { createServer as createHttpServer, IncomingMessage, ServerResponse } from "node:http";
-import { readFile } from "node:fs/promises";
+import { existsSync } from "node:fs";
 import { randomBytes, timingSafeEqual } from "node:crypto";
-import { resolve, extname, sep } from "node:path";
+import { resolve, dirname } from "node:path";
 import {
   StoragePort,
   LockPort,
   CryptoPort,
-  IntentError,
-  ErrorCodes,
 } from "@intent/core";
-import { Config, Patch } from "@intent/schema";
+import {
+  Config,
+  Patch,
+} from "@intent/schema";
 import { createFileStoragePort, createFileLockPort, createNodeCryptoPort } from "@intent/adapters-node";
-import { handleMCPRequest } from "@intent/mcp-server";
+import { previewScriptHashes } from "@intent/studio";
+import { ApiContext } from "./api-helpers.js";
+import {
+  handleApiScene,
+  handleApiPreview,
+  handleApiPatchList,
+  handleApiPatchCreate,
+  handleApiPatchUpdate,
+  handleApiPatchDelete,
+  handleApiPatchSend,
+  handleApiPatchResolve,
+  handleMcp,
+} from "./api-routes.js";
+import { handleSSE, serveStatic, writeRuntimeFile } from "./runtime.js";
 
 export interface ServerConfig {
   projectRoot: string;
   previewPort: number;
   studioPort: number;
   mcpPort: number;
+  /** Directory the SPA is served from. Defaults to the bundled packages/studio/public. */
   staticDir?: string;
   /**
    * Per-run token required for the /api session exchange (trd 11.2).
@@ -36,6 +51,28 @@ export interface SSEClient {
 }
 
 export class IntentServer {
+  /** Default SPA directory: INTENT_SPA_DIR override, else walk up from cwd to the workspace root. */
+  private readonly defaultStaticDir = this.resolveDefaultSpaDir();
+
+  /** import.meta is unusable here — some ESM loaders transpile this file to CJS. */
+  private resolveDefaultSpaDir(): string {
+    const fromEnv = process.env["INTENT_SPA_DIR"];
+    if (fromEnv) return fromEnv;
+    let dir = process.cwd();
+    for (let i = 0; i < 8; i++) {
+      const candidate = resolve(dir, "packages", "studio", "public");
+      try {
+        if (existsSync(resolve(candidate, "index.html"))) return candidate;
+      } catch {
+        // keep walking up
+      }
+      const parent = dirname(dir);
+      if (parent === dir) break;
+      dir = parent;
+    }
+    return resolve(process.cwd(), "packages", "studio", "public");
+  }
+
   private config: ServerConfig;
   private storage: StoragePort;
   private lockPort: LockPort;
@@ -47,6 +84,7 @@ export class IntentServer {
   private sessionMaxAgeSeconds: number;
   /** Known live session ids -> createdAt (ms). */
   private sessions: Map<string, number> = new Map();
+  private readonly apiCtx: ApiContext;
 
   constructor(config: ServerConfig) {
     this.config = config;
@@ -57,6 +95,28 @@ export class IntentServer {
     this.sessionToken =
       config.sessionToken ?? randomBytes(32).toString("hex");
     this.sessionMaxAgeSeconds = config.sessionMaxAgeSeconds ?? 1800;
+    this.apiCtx = {
+      storage: this.storage,
+      lockPort: this.lockPort,
+      crypto: this.crypto,
+      projectRoot: config.projectRoot,
+      broadcastPatchChanged: (sceneId, id, status) => this.broadcastPatchChanged(sceneId, id, status),
+      broadcastRevision: (sceneId, revision) => this.broadcastRevision(sceneId, revision),
+    };
+  }
+
+  private runtimeCtx() {
+    return {
+      storage: this.storage,
+      sseClients: this.sseClients,
+      getRevision: () => this.revision,
+      setRevision: (revision: number) => {
+        this.revision = revision;
+      },
+      staticDir: this.config.staticDir || this.defaultStaticDir,
+      projectRoot: this.config.projectRoot,
+      sessionToken: this.sessionToken,
+    };
   }
 
   /** The session token the /api exchange requires. Written to runtime.json by start(). */
@@ -77,9 +137,14 @@ export class IntentServer {
     res.setHeader("X-Content-Type-Options", "nosniff");
     res.setHeader("X-Frame-Options", "DENY");
     res.setHeader("Referrer-Policy", "no-referrer");
+    res.setHeader("Cross-Origin-Opener-Policy", "same-origin");
+    // trd 11.1 shell CSP + sha256 sources for the two constant preview-runtime scripts
+    // (about:srcdoc inherits this policy; hash sources cover the inline runtime)
     res.setHeader(
       "Content-Security-Policy",
-      "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'; frame-ancestors 'none'"
+      "default-src 'self'; script-src 'self' " +
+        previewScriptHashes().join(" ") +
+        "; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; frame-src 'self' blob:; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"
     );
   }
 
@@ -200,6 +265,9 @@ export class IntentServer {
     }
 
     this.setSecurityHeaders(res);
+    if (pathname.startsWith("/api/")) {
+      res.setHeader("Cache-Control", "no-store");
+    }
 
     // Session exchange (trd 11.2 step 2): Host must be exact, the token is
     // compared in constant time, and the cookie carries a random session id,
@@ -246,9 +314,12 @@ export class IntentServer {
       return;
     }
 
-    // Every other route: exact Host, a live session cookie, and (for non-GET)
-    // a matching Origin (trd 11.2 step 4). Refused with no detail otherwise.
-    if (!this.requireSession(req, res)) return;
+    // Session gate applies to /api only — the SPA shell and its assets are public
+    // (trd 11.2: the token arrives via the URL fragment, so the shell must load
+    // before any session exists; it carries no scene data or secrets).
+    if (pathname.startsWith("/api/")) {
+      if (!this.requireSession(req, res)) return;
+    }
 
     if (pathname === "/api/protected") {
       res.writeHead(200, { "Content-Type": "application/json" });
@@ -256,161 +327,68 @@ export class IntentServer {
       return;
     }
 
-    // SSE endpoint
-    if (pathname === "/events") {
-      await this.handleSSE(req, res, url);
+    // SSE endpoint (trd 11.3)
+    if (pathname === "/api/events") {
+      await handleSSE(this.runtimeCtx(), req, res, url);
       return;
     }
 
-    // MCP endpoint
-    if (pathname === "/mcp" && req.method === "POST") {
-      this.handleMCP(req, res);
+    // MCP endpoint (trd 11.3)
+    if (pathname === "/api/mcp" && req.method === "POST") {
+      await handleMcp(this.apiCtx, req, res);
+      return;
+    }
+
+    // Full scene for the Studio shell (trd 11.3)
+    if (pathname === "/api/scene" && req.method === "GET") {
+      await handleApiScene(this.apiCtx, req, res, url);
+      return;
+    }
+
+    // Preview srcdoc (trd 12.1; hash-pinned constant scripts)
+    if (pathname === "/api/preview" && req.method === "GET") {
+      await handleApiPreview(this.apiCtx, req, res, url);
+      return;
+    }
+
+    // Feedback patch queue (trd 11.3 / design.md 4.8)
+    if (pathname === "/api/patches" && req.method === "GET") {
+      await handleApiPatchList(this.apiCtx, req, res, url);
+      return;
+    }
+    if (pathname === "/api/patches" && req.method === "POST") {
+      await handleApiPatchCreate(this.apiCtx, req, res);
+      return;
+    }
+    if (pathname === "/api/patches/send" && req.method === "POST") {
+      await handleApiPatchSend(this.apiCtx, req, res);
+      return;
+    }
+    const patchMatch = /^\/api\/patches\/([^/]+)(\/resolve)?$/.exec(pathname);
+    const patchId = patchMatch?.[1] ?? '';
+    const patchSuffix = patchMatch?.[2];
+    if (patchMatch && req.method === "PATCH" && !patchSuffix) {
+      await handleApiPatchUpdate(this.apiCtx, req, res, patchId);
+      return;
+    }
+    if (patchMatch && req.method === "DELETE" && !patchSuffix) {
+      await handleApiPatchDelete(this.apiCtx, req, res, patchId);
+      return;
+    }
+    if (patchMatch && patchSuffix === "/resolve" && req.method === "POST") {
+      await handleApiPatchResolve(this.apiCtx, req, res, patchId);
+      return;
+    }
+
+    // Unknown /api routes: JSON 404, never the SPA HTML
+    if (pathname.startsWith("/api/")) {
+      res.writeHead(404, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ error: "Not found" }));
       return;
     }
 
     // Static file serving
-    await this.serveStatic(req, res, pathname);
-  }
-
-  private async handleSSE(req: IncomingMessage, res: ServerResponse, url: URL) {
-    const sceneId = url.searchParams.get("scene") || "default";
-    const lastEventIdHeader = req.headers["last-event-id"];
-    const lastEventIdValue = Array.isArray(lastEventIdHeader) ? lastEventIdHeader[0] : lastEventIdHeader;
-    const lastEventId = parseInt(lastEventIdValue || "0", 10);
-
-    // Seed the in-memory revision from the actual scene so the first event
-    // emits the current revision (not the default 0).
-    try {
-      const scene = await this.storage.readScene(sceneId);
-      if (scene && typeof scene.revision === "number" && scene.revision >= this.revision) {
-        this.revision = scene.revision;
-      }
-    } catch {
-      // Non-fatal: client still receives an event with revision 0.
-    }
-
-    res.writeHead(200, {
-      "Content-Type": "text/event-stream",
-      "Cache-Control": "no-cache",
-      "Connection": "keep-alive",
-      "X-Accel-Buffering": "no",
-    });
-
-    res.write(`retry: 1000\n\n`);
-
-    const client: SSEClient = { response: res, sceneId, lastEventId };
-    const clients = this.sseClients.get(sceneId) || [];
-    clients.push(client);
-    this.sseClients.set(sceneId, clients);
-
-    res.write(`id: ${this.revision}\n`);
-    res.write(`data: ${JSON.stringify({ type: "revision", revision: this.revision })}\n\n`);
-
-    req.on("close", () => {
-      const clients = this.sseClients.get(sceneId) || [];
-      const idx = clients.indexOf(client);
-      if (idx !== -1) clients.splice(idx, 1);
-    });
-  }
-
-  private async handleMCP(req: IncomingMessage, res: ServerResponse) {
-    let body: string;
-    try {
-      body = await this.readBody(req, 2 * 1024 * 1024);
-    } catch {
-      res.writeHead(413, { "Content-Type": "application/json" });
-      res.end(JSON.stringify({ success: false, error: "Payload too large" }));
-      return;
-    }
-    try {
-      const { tool, input } = JSON.parse(body);
-      let patchSceneId: string | undefined;
-      if (tool === "apply_patch" && input && typeof input === "object") {
-        const maybePatch = (input as { patch?: unknown }).patch as { sceneId?: unknown } | undefined;
-        if (maybePatch && typeof maybePatch.sceneId === "string") {
-          patchSceneId = maybePatch.sceneId;
-        }
-      }
-      const result = await handleMCPRequest(tool, input, {
-        projectRoot: this.config.projectRoot,
-        storage: this.storage,
-        lockPort: this.lockPort,
-        crypto: this.crypto,
-      });
-      // Real-time studio: after a successful patch, broadcast the new revision
-      // to any connected SSE clients (S-1-12).
-      if (
-        tool === "apply_patch" &&
-        patchSceneId &&
-        result &&
-        typeof result === "object" &&
-        (result as { success?: boolean; revision?: number }).success === true &&
-        typeof (result as { revision?: number }).revision === "number"
-      ) {
-        this.broadcastRevision(patchSceneId, (result as { revision: number }).revision);
-      }
-      res.writeHead(200, { "Content-Type": "application/json" });
-      res.end(JSON.stringify({ success: true, result }));
-    } catch (error) {
-      res.writeHead(400, { "Content-Type": "application/json" });
-      res.end(JSON.stringify({ success: false, error: (error as Error).message }));
-    }
-  }
-
-  private async serveStatic(req: IncomingMessage, res: ServerResponse, pathname: string) {
-    const staticDir = this.config.staticDir || resolve(this.config.projectRoot, ".intent", "studio");
-    
-    // Check for path traversal attempts BEFORE resolving
-    if (pathname.includes("..")) {
-      res.writeHead(403);
-      res.end("Forbidden: Path traversal not allowed");
-      return;
-    }
-
-    const filePath = resolve(staticDir, pathname.slice(1) || "index.html");
-
-    // Additional safety check after resolution
-    const normalizedStaticDir = resolve(staticDir);
-    const normalizedFilePath = resolve(filePath);
-    if (!normalizedFilePath.startsWith(normalizedStaticDir + sep) && normalizedFilePath !== normalizedStaticDir) {
-      res.writeHead(403);
-      res.end("Forbidden: Path traversal not allowed");
-      return;
-    }
-
-    try {
-      const content = await readFile(normalizedFilePath);
-      const ext = extname(normalizedFilePath).toLowerCase();
-      const mimeTypes: Record<string, string> = {
-        ".html": "text/html",
-        ".js": "application/javascript",
-        ".mjs": "application/javascript",
-        ".css": "text/css",
-        ".json": "application/json",
-        ".png": "image/png",
-        ".jpg": "image/jpeg",
-        ".svg": "image/svg+xml",
-        ".ico": "image/x-icon",
-        ".woff": "font/woff",
-        ".woff2": "font/woff2",
-      };
-      res.writeHead(200, { "Content-Type": mimeTypes[ext] || "application/octet-stream" });
-      res.end(content);
-    } catch {
-      if (pathname !== "/index.html") {
-        try {
-          const content = await readFile(resolve(staticDir, "index.html"));
-          res.writeHead(200, { "Content-Type": "text/html" });
-          res.end(content);
-        } catch {
-          res.writeHead(404);
-          res.end("Not Found");
-        }
-      } else {
-        res.writeHead(404);
-        res.end("Not Found");
-      }
-    }
+    await serveStatic(this.runtimeCtx(), req, res, pathname);
   }
 
   broadcastRevision(sceneId: string, revision: number) {
@@ -438,6 +416,19 @@ export class IntentServer {
     }
   }
 
+  broadcastPatchChanged(sceneId: string, id: string, status: string) {
+    const clients = this.sseClients.get(sceneId) || [];
+    const payload = JSON.stringify({ type: "patch.changed", id, status });
+    for (const client of clients) {
+      try {
+        client.response.write(`id: ${Date.now()}\n`);
+        client.response.write(`data: ${payload}\n\n`);
+      } catch {
+        // Intentionally swallow SSE delivery errors
+      }
+    }
+  }
+
   start(): Promise<number> {
     return new Promise((resolve) => {
       this.httpServer.listen(this.config.previewPort, "127.0.0.1", () => {
@@ -447,27 +438,27 @@ export class IntentServer {
         // trd 5: the Studio server writes .intent/runtime.json (port, pid, token)
         // so the agent can open the exact URL the SPA exchanges on. Best effort;
         // failure here must not take down the server.
-        void this.writeRuntimeFile(port).catch(() => {});
+        void writeRuntimeFile({ projectRoot: this.config.projectRoot, sessionToken: this.sessionToken }, port).catch(() => {});
         resolve(port);
       });
     });
   }
 
-  private async writeRuntimeFile(port: number): Promise<void> {
-    const { mkdir, writeFile } = await import("node:fs/promises");
-    const intentDir = resolve(this.config.projectRoot, ".intent");
-    await mkdir(intentDir, { recursive: true });
-    const runtime = { port, pid: process.pid, token: this.sessionToken, startedAt: new Date().toISOString() };
-    await writeFile(resolve(intentDir, "runtime.json"), JSON.stringify(runtime, null, 2), {
-      encoding: "utf-8",
-      mode: 0o600,
-    });
-  }
-
   stop(): Promise<void> {
-    return new Promise((resolve) => {
-      this.httpServer.close(() => {
-        resolve();
+    return new Promise((resolvePromise, reject) => {
+      if (!this.httpServer.listening) {
+        // Never started — nothing to close. (Static file server only if start() was called.)
+        resolvePromise();
+        return;
+      }
+      // closeAllConnections() force-closes keep-alive/SSE sockets so httpServer.close()
+      // can finish (Node >= 18.2). Without it, an open SSE stream hangs shutdown forever.
+      if (typeof (this.httpServer as { closeAllConnections?: () => void }).closeAllConnections === "function") {
+        this.httpServer.closeAllConnections();
+      }
+      this.httpServer.close((err?: Error) => {
+        if (err) reject(err);
+        else resolvePromise();
       });
     });
   }
@@ -486,4 +477,3 @@ export function createServerFromConfig(projectRoot: string, config: Config): Int
   });
 }
 
-export { IntentError, ErrorCodes };

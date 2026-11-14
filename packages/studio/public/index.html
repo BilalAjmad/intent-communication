@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Intent Studio</title>
+    <link rel="icon" href="data:," />
+    <link rel="stylesheet" href="/style.css" />
+    <script src="/app.js" defer></script>
+  </head>
+  <body>
+    <header class="topbar" role="banner">
+      <span class="brand">Intent&nbsp;Studio</span>
+      <span class="project" id="project-name">Loading…</span>
+      <label class="screen-switcher" for="screen-select">
+        Screen
+        <select id="screen-select" aria-label="Select screen"></select>
+      </label>
+      <span class="mode" id="mode-label" aria-live="polite">Edit mode</span>
+      <span class="spacer"></span>
+      <button id="send-btn" class="primary" disabled>Send changes</button>
+    </header>
+
+    <main class="layout" role="main">
+      <nav class="panel left" aria-label="Screens and layers">
+        <h2 class="panel-title">Screens</h2>
+        <ul id="screens-list" class="screens"></ul>
+        <h2 class="panel-title layers-title">Layers</h2>
+        <ul id="layers-list" class="layers" role="tree" aria-label="Layer tree"></ul>
+      </nav>
+
+      <section class="canvas-wrap" aria-label="Prototype canvas" tabindex="0">
+        <div id="iframe-wrap" class="iframe-wrap">
+          <iframe
+            id="preview-frame"
+            title="Prototype preview"
+            sandbox="allow-scripts"
+          ></iframe>
+          <div id="overlay" class="overlay" aria-hidden="true"></div>
+          <p id="canvas-error" class="canvas-error" hidden role="alert"></p>
+        </div>
+      </section>
+
+      <section class="panel right" aria-label="Inspector and feedback">
+        <div class="tabs" role="tablist" aria-label="Right panel">
+          <button role="tab" id="tab-inspector" aria-selected="true" aria-controls="inspector-panel">Inspector</button>
+          <button role="tab" id="tab-feedback" aria-selected="false" aria-controls="feedback-panel">Feedback</button>
+        </div>
+
+        <div id="inspector-panel" class="tabpanel" role="tabpanel" aria-labelledby="tab-inspector">
+          <div id="inspector-body"></div>
+        </div>
+
+        <div id="feedback-panel" class="tabpanel" role="tabpanel" aria-labelledby="tab-feedback" hidden>
+          <p class="feedback-target">Feedback for: <strong id="feedback-target">nothing selected</strong></p>
+          <label for="feedback-text">What should change?</label>
+          <textarea id="feedback-text" rows="4" maxlength="2000" placeholder="Describe the change…"></textarea>
+          <fieldset class="chips-fieldset">
+            <legend class="panel-title">Quick feedback</legend>
+            <div class="chips" id="chips" role="group" aria-label="Quick feedback"></div>
+          </fieldset>
+          <button id="add-to-queue" class="primary block-button">Add to queue</button>
+        </div>
+      </section>
+    </main>
+
+    <footer class="tray" aria-label="Patch queue">
+      <button id="tray-toggle" class="tray-toggle" aria-expanded="false" aria-controls="tray-body">
+        <span class="tray-caret" id="tray-caret" aria-hidden="true">▸</span>
+        <span id="tray-summary" class="tray-summary">0 draft · 0 sent · 0 applied · 0 rejected · 0 conflict</span>
+      </button>
+      <div id="tray-body" class="tray-body" hidden>
+        <ul id="queue-list" class="queue"></ul>
+        <div id="waiting-banner" class="waiting" hidden>
+          <span>Waiting for the agent. Ask your agent to check for feedback.</span>
+          <button id="copy-prompt" class="icon-button">Copy prompt</button>
+        </div>
+      </div>
+      <div id="tray-notice" class="tray-notice" hidden role="status"></div>
+      <div id="toast" class="toast" role="status" aria-live="polite"></div>
+    </footer>
+  </body>
+</html>

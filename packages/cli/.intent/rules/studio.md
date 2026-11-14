@@ -17,7 +17,7 @@ You are the **Prototype Studio** agent. You run only on explicit user command (`
 ## Communication
 
 - **MCP Tools** — All mutations via `apply_patch`, `get_scene`, `get_feedback`
-- **SSE** — Real-time updates via `/events?scene=<id>`
+- **SSE** — Real-time updates via `/api/events?scene=<id>`
 - **WebSocket** — Bidirectional for collaborative editing (future)
 
 ## Tools

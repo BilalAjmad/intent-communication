@@ -49,8 +49,8 @@
 
 ## MCP Server
 
-The MCP server exposes all 6 tools at `/mcp` endpoint. Tools are called via HTTP POST with `{ tool, input }`.
+The MCP server exposes all 6 tools at `/api/mcp` endpoint. Tools are called via HTTP POST with `{ tool, input }`.
 
 ## Studio Integration
 
-Studio connects via WebSocket to `/events` for real-time updates and calls MCP tools for mutations.
+Studio connects via Server-Sent Events to `/api/events` for real-time updates and calls MCP tools for mutations.

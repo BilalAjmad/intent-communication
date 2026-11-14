@@ -142,7 +142,6 @@ describe("Core package", () => {
         severity: "medium",
         status: "sent",
         createdAt: "2026-11-02T22:38:00.000Z",
-        acknowledgedAt: null,
         appliedAt: null,
         patchId: null,
       }];
@@ -266,7 +265,7 @@ describe("Core package", () => {
         path: "props.content",
         value: "World",
         createdAt: "2026-11-02T22:38:00.000Z",
-        status: "pending",
+        status: "sent",
       };
       const result = applyPatch(scene, patch);
       expect(result.revision).toBe(1);
@@ -306,7 +305,7 @@ describe("Core package", () => {
         op: "unset",
         path: "props.fontSize",
         createdAt: "2026-11-02T22:38:00.000Z",
-        status: "pending",
+        status: "sent",
       };
       const result = applyPatch(scene, patch);
       expect("fontSize" in result.objects[objectId].props).toBe(false);
@@ -336,7 +335,7 @@ describe("Core package", () => {
         path: "props.content",
         value: "Test",
         createdAt: "2026-11-02T22:38:00.000Z",
-        status: "pending",
+        status: "sent",
       };
       expect(() => applyPatch(scene, patch)).toThrow(IntentError);
     });
@@ -379,7 +378,7 @@ describe("Core package", () => {
         path: "props.content",
         value: "World",
         createdAt: "2026-11-02T22:38:00.000Z",
-        status: "pending",
+        status: "sent",
       };
       const result = await writePipeline(storage, lockPort, sceneId, [patch]);
       expect(result.success).toBe(true);
@@ -412,7 +411,7 @@ describe("Core package", () => {
         path: "props.content",
         value: "World",
         createdAt: "2026-11-02T22:38:00.000Z",
-        status: "pending",
+        status: "sent",
       };
       const result = await writePipeline(storage, lockPort, sceneId, [patch]);
       expect(result.success).toBe(false);
@@ -457,7 +456,7 @@ describe("Core package", () => {
         path: "props.content",
         value: "World",
         createdAt: "2026-11-02T22:38:00.000Z",
-        status: "pending",
+        status: "sent",
       };
       const result = await writePipeline(storage, lockPort, sceneId, [patch]);
       expect(result.success).toBe(false);

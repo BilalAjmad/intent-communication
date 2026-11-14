@@ -55,7 +55,7 @@ function patch(objectId: string, value: string, baseRevision = 0, targetObjectId
   return {
     id: objectId, sceneId, baseRevision, objectId: targetObjectId || objectId,
     op: "set", path: "props.content", value,
-    createdAt: new Date().toISOString(), status: "pending",
+    createdAt: new Date().toISOString(), status: "sent",
   };
 }
 
