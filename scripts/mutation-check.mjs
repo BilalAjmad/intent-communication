@@ -11,7 +11,7 @@
  */
 
 import { execSync } from 'child_process';
-import { readFileSync, writeFileSync, rmSync } from 'fs';
+import { readFileSync, writeFileSync, rmSync, copyFileSync, existsSync } from 'fs';
 import { resolve } from 'path';
 import { fileURLToPath } from 'url';
 
@@ -57,6 +57,51 @@ const MUTATIONS = [
   },
 ];
 
+// Crash safety: each mutated file gets a `.mutation-bak` copy taken BEFORE the
+// mutation is applied, and restored in the finally block. If the process dies
+// mid-cycle (power loss, session kill, restart), the backup survives on disk.
+const BAK_SUFFIX = '.mutation-bak';
+const MUTATION_FILES = [...new Set(MUTATIONS.map((m) => resolve(CORE_SRC, m.file)))];
+
+function restoreFromBackups() {
+  let restored = 0;
+  for (const filePath of MUTATION_FILES) {
+    const bak = filePath + BAK_SUFFIX;
+    try {
+      if (existsSync(bak)) {
+        copyFileSync(bak, filePath);
+        rmSync(bak, { force: true });
+        restored++;
+      }
+    } catch {
+      // best effort
+    }
+  }
+  return restored;
+}
+
+// Self-heal: a previous interrupted run may have left a backup behind (or left a
+// mutation applied). Restore before doing anything else.
+const healed = restoreFromBackups();
+if (healed > 0) {
+  console.log(`Recovered ${healed} file(s) from a previous interrupted mutation run; rebuilding @intent/core`);
+  try {
+    execSync('pnpm --filter @intent/core build', { cwd: ROOT, stdio: 'pipe', timeout: 120000 });
+  } catch {
+    console.error('WARNING: rebuild after recovery failed — rebuild @intent/core manually');
+  }
+}
+
+process.on('exit', () => {
+  restoreFromBackups();
+});
+for (const sig of ['SIGINT', 'SIGTERM', 'SIGHUP']) {
+  process.on(sig, () => {
+    restoreFromBackups();
+    process.exit(130);
+  });
+}
+
 function extractFailedTestsFromJSON(output) {
   try {
     const data = JSON.parse(output);
@@ -83,6 +128,10 @@ function extractFailedTestsFromJSON(output) {
 function runMutation(mutation) {
   const filePath = resolve(CORE_SRC, mutation.file);
   const original = readFileSync(filePath, 'utf-8');
+  // Crash safety: backup BEFORE the mutation is applied so an interrupted run
+  // can be healed by the startup self-heal pass above.
+  copyFileSync(filePath, filePath + BAK_SUFFIX);
+  const tmpReport = resolve('C:/Users/AFZAAL~1/AppData/Local/Temp', '.test-mutation-report.json');
 
   try {
     // 1. Apply mutation
@@ -98,7 +147,6 @@ function runMutation(mutation) {
     });
 
     // 3. Run core tests (mutation.test.ts specifically) with JSON output
-    const tmpReport = resolve('C:/Users/AFZAAL~1/AppData/Local/Temp', '.test-mutation-report.json');
     let output = '';
     let exitCode = 0;
     try {
@@ -140,8 +188,17 @@ function runMutation(mutation) {
 
     return { name: mutation.name, detected: true, failingTest: expectedFailed };
   } finally {
-    // 5. Restore original source in finally block
-    writeFileSync(filePath, original);
+    // 5. Restore original source in finally block (from the pre-mutation backup)
+    try {
+      copyFileSync(filePath + BAK_SUFFIX, filePath);
+    } catch {
+      writeFileSync(filePath, original);
+    }
+    try {
+      rmSync(filePath + BAK_SUFFIX, { force: true });
+    } catch {
+      // Best effort cleanup
+    }
     try {
       rmSync(tmpReport, { force: true });
     } catch {
