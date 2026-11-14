@@ -1,6 +1,6 @@
 # Documentation Index
 
-Generated: 2026-11-14T06:31:01.211Z
+Generated: 2026-11-14T09:43:31.294Z
 
 ## Plan
 
@@ -24,7 +24,7 @@ Generated: 2026-11-14T06:31:01.211Z
   - 8.1 8.1 Scope (from PRD section 8, architecture 22, intent 17.2, with P1)
   - 8.2 8.2 Sub-slices
   - 8.3 8.3 Steps
-  - 8.3.1 8.3.1 S-1 Step Status (evidence from `pnpm verify`)
+  - 8.3.1 8.3.1 S-1 Step Status (evidence from `pnpm verify` 2026-11-14)
   - 8.4 8.4 Cut line for M1 (what goes first if M1 is too big)
   - 8.5 8.5 M1 acceptance criteria
   - 8.6 8.6 Demo D script (the M1 demo)
@@ -77,6 +77,10 @@ Generated: 2026-11-14T06:31:01.211Z
   - 24 24. Flags for Later Documents
   - 25 25. Change Log
 
+## Change Log M1
+
+- Path: `docs/change-log-m1.md`
+
 ## Context
 
 - Path: `docs/context.md`
@@ -111,6 +115,10 @@ Generated: 2026-11-14T06:31:01.211Z
   - 16 16. Open Questions (to resolve in later documents)
   - 17 17. Flags for Later Documents
   - 18 18. Change Log
+
+## Demo D
+
+- Path: `docs/demo-d.md`
 
 ## Design
 
@@ -401,6 +409,9 @@ Generated: 2026-11-14T06:31:01.211Z
   - 18 18. Open Questions
   - 19 19. Flags for Later Documents
   - 20 20. Change Log
+  - 21 21. AC-M1 Audit — 2026-11-14
+  - 21.1 21.1 M1 gate verdict
+  - 21.2 21.2 Risks found that are NOT AC-M1-blocking but should be tracked
 
 ## Rules
 

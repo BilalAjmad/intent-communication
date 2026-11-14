@@ -1,5 +1,7 @@
 # Intent v0.1.0 — Release Candidate Status
 
+> **Update 2026-11-14 (pass 3):** `pnpm verify` re-verified end-to-end after the AC-M1-07 work and the mutation-check crash fix: 12/12 PASS, unit+integration **305/305** (was 286/286). New crypto-strong evidence now exists for the preview/export claim: `tests/fidelity-pixel.spec.ts` (6 FX fixtures × light/dark × phone/tablet/desktop, Playwright pixel matcher, maxDiffPixels: 0; 20/20 calibration runs at 0 diff on Windows 11) and `tests/visual-diff.spec.ts` rewritten to real pixel comparison (it previously counted compressed-PNG bytes — that metric was meaningless). An interrupted `pnpm verify` had left `packages/core/src/patch.ts` with the trd 6.2 scope check disabled; it was restored from git and `scripts/mutation-check.mjs` is now crash-safe (pre-mutation backup + startup self-heal + signal handlers). The M1 gate verdict is still **NOT READY for v0.1.0** — see docs/review.md §21/§21.1. Numbers below are the 2026-11-13 historical snapshot.
+
 Date: 2026-11-13
 HEAD: see `git log --oneline -3` (docs recorded by this RC; the claims below verified on HEAD after the Phase 2 commits)
 

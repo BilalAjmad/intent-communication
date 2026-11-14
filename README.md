@@ -24,12 +24,13 @@ All 12 verify steps pass on this machine (Windows 11, Node v22.23.4, pnpm 9.7.1;
 | build | PASS | 10/10 packages build clean |
 | typecheck | PASS | 0 errors |
 | lint | PASS | 0 errors |
-| unit+integration tests | PASS | **286/286 across 10 packages** |
+| unit+integration tests | PASS | **305/305 across 10 packages** |
 | multi-process tests | PASS | 2/2 different-objects, 2/2 same-object, 10/10 consecutive runs green |
 | sigkill test | PASS | SIGKILLed stale scene lock reclaimed |
-| mutation proof | PASS | 5/5 mutations detected (lock, conflict, scope, descendant-lock, schema) |
-| visual diff (Playwright) | PASS | 11/11 visual-diff pass |
+| mutation proof | PASS | 5/5 mutations detected (lock, conflict, scope, descendant-lock, schema); crash-safe backup + self-heal added 2026-11-14 |
+| visual diff (Playwright) | PASS | 6/6 real pixel-comparison tests (threshold 0, no stored baselines) |
 | smoke test (Playwright) | PASS | 5/5 tier-1 smoke pass, incl. init→doctor→export→open-with-no-network |
+| AC-M1-07 fidelity pixel harness | PASS (Windows only) | 6 fixtures × 2 themes × 3 breakpoints, 0 differing px, 20-run calibration — `tests/fidelity-pixel.spec.ts`, `tests/visual/threshold.json`; Linux/macOS NOT RUN |
 | docs:index | PASS | docs/INDEX.md regenerated |
 | context:check | PASS | 500-line budget respected (schema = 496 lines, ports.ts = 492) |
 
