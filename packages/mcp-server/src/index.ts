@@ -70,7 +70,7 @@ export const getSceneTool: MCPTool = {
     let locks: string[] = [];
 
     if (validated.objectIds && validated.objectIds.length > 0) {
-      const fullScene = await context.storage.readScene("default");
+      const fullScene = await context.storage.readScene(validated.sceneId);
       if (!fullScene) {
         throw new IntentError(ErrorCodes.E_NOT_FOUND, "Scene not found");
       }
@@ -80,9 +80,9 @@ export const getSceneTool: MCPTool = {
           objects[id] = scene.objects[id];
         }
       }
-      locks = await context.lockPort.getLockedObjects("default");
+      locks = await context.lockPort.getLockedObjects(validated.sceneId);
     } else {
-      const fullScene = await context.storage.readScene("default");
+      const fullScene = await context.storage.readScene(validated.sceneId);
       if (!fullScene) {
         throw new IntentError(ErrorCodes.E_NOT_FOUND, "Scene not found");
       }
@@ -100,7 +100,7 @@ export const getSceneTool: MCPTool = {
         pendingPatches: 0,
         updatedAt: scene.updatedAt,
       };
-      locks = await context.lockPort.getLockedObjects("default");
+      locks = await context.lockPort.getLockedObjects(validated.sceneId);
     }
 
     const result = {

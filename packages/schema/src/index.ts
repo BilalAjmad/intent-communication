@@ -290,6 +290,7 @@ export const GetSceneInputSchema = z.object({
   depth: z.number().int().min(0).max(4).default(2),
   includeLocks: z.boolean().default(true),
   maxBytes: z.number().int().positive().default(32768),
+  sceneId: z.string().min(1).max(120).default("default"),
 });
 
 export type GetSceneInput = z.infer<typeof GetSceneInputSchema>;
