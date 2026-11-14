@@ -1,0 +1,87 @@
+{
+  "version": 1,
+  "revision": 0,
+  "createdAt": "2026-11-13T00:00:00.000Z",
+  "updatedAt": "2026-11-13T00:00:00.000Z",
+  "screens": {
+    "s_01ARZ3NDEKTSV4RRFFQ69G5FAV": {
+      "id": "s_01ARZ3NDEKTSV4RRFFQ69G5FAV",
+      "type": "screen",
+      "parentId": null,
+      "children": ["o_01ARZ3NDEKTSV4RRFFQ69G5FAV", "o_02ARZ3NDEKTSV4RRFFQ69G5FAV", "o_03ARZ3NDEKTSV4RRFFQ69G5FAV", "o_04ARZ3NDEKTSV4RRFFQ69G5FAV", "o_05ARZ3NDEKTSV4RRFFQ69G5FAV", "o_06ARZ3NDEKTSV4RRFFQ69G5FAV", "o_08ARZ3NDEKTSV4RRFFQ69G5FAV"],
+      "props": { "title": "</title><script>alert('screen-title')</script>", "width": 390, "height": 844 },
+      "style": { "background": "red;background:url(javascript:alert('css'))" },
+      "meta": {}
+    }
+  },
+  "objects": {
+    "o_01ARZ3NDEKTSV4RRFFQ69G5FAV": {
+      "id": "o_01ARZ3NDEKTSV4RRFFQ69G5FAV",
+      "type": "text",
+      "parentId": "s_01ARZ3NDEKTSV4RRFFQ69G5FAV",
+      "children": [],
+      "props": { "content": "<script>alert('text-1')</script>Booking Successful", "fontSize": 18 },
+      "style": {},
+      "meta": {}
+    },
+    "o_02ARZ3NDEKTSV4RRFFQ69G5FAV": {
+      "id": "o_02ARZ3NDEKTSV4RRFFQ69G5FAV",
+      "type": "text",
+      "parentId": "s_01ARZ3NDEKTSV4RRFFQ69G5FAV",
+      "children": [],
+      "props": { "content": "{{constructor.constructor('alert(1)')()}}<svg/onload=alert('text-2')> &quot;&gt;</p>", "fontSize": 14 },
+      "style": { "margin": "0</style><script>alert('style-breakout')</script>", "fontSize": "-moz-binding:url(javascript:alert('ff'))" },
+      "meta": {}
+    },
+    "o_03ARZ3NDEKTSV4RRFFQ69G5FAV": {
+      "id": "o_03ARZ3NDEKTSV4RRFFQ69G5FAV",
+      "type": "input",
+      "parentId": "s_01ARZ3NDEKTSV4RRFFQ69G5FAV",
+      "children": [],
+      "props": { "type": "text", "placeholder": "\" autofocus onfocus=\"alert('input')\" x=\"" },
+      "style": {},
+      "meta": {}
+    },
+    "o_04ARZ3NDEKTSV4RRFFQ69G5FAV": {
+      "id": "o_04ARZ3NDEKTSV4RRFFQ69G5FAV",
+      "type": "button",
+      "parentId": "s_01ARZ3NDEKTSV4RRFFQ69G5FAV",
+      "children": [],
+      "props": { "label": "Confirm Booking</button><script>alert('button')</script>", "variant": "primary", "onClick": "alert('click')" },
+      "style": {},
+      "meta": {}
+    },
+    "o_05ARZ3NDEKTSV4RRFFQ69G5FAV": {
+      "id": "o_05ARZ3NDEKTSV4RRFFQ69G5FAV",
+      "type": "image",
+      "parentId": "s_01ARZ3NDEKTSV4RRFFQ69G5FAV",
+      "children": [],
+      "props": { "src": "javascript:alert('src')", "alt": "<img src=x onerror=alert('alt')>", "fit": "cover" },
+      "style": { "width": 120, "height": 80 },
+      "meta": {}
+    },
+    "o_06ARZ3NDEKTSV4RRFFQ69G5FAV": {
+      "id": "o_06ARZ3NDEKTSV4RRFFQ69G5FAV",
+      "type": "image",
+      "parentId": "s_01ARZ3NDEKTSV4RRFFQ69G5FAV",
+      "children": [],
+      "props": { "src": "data:image/svg+xml;base64,PHN2ZyBvbmxvYWQ9YWxlcnQoJ3N2ZycpPjwvc3ZnPg==", "alt": "svg payload", "fit": "cover" },
+      "style": { "width": 120, "height": 80 },
+      "meta": {}
+    },
+    "o_08ARZ3NDEKTSV4RRFFQ69G5FAV": {
+      "id": "o_08ARZ3NDEKTSV4RRFFQ69G5FAV",
+      "type": "image",
+      "parentId": "s_01ARZ3NDEKTSV4RRFFQ69G5FAV",
+      "children": [],
+      "props": { "src": "https://evil.example/track.png", "alt": "external", "fit": "cover" },
+      "style": { "width": 120, "height": 80 },
+      "meta": {}
+    }
+  },
+  "screenOrder": ["s_01ARZ3NDEKTSV4RRFFQ69G5FAV"],
+  "metadata": {
+    "name": "</title><script>alert('metadata')</script>",
+    "tags": ["</style><script>alert('tag')</script>", "hostile"]
+  }
+}
