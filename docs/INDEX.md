@@ -1,6 +1,6 @@
 # Documentation Index
 
-Generated: 2026-11-14T16:22:29.815Z
+Generated: 2026-11-14T18:52:08.960Z
 
 ## Plan
 
@@ -82,6 +82,7 @@ Generated: 2026-11-14T16:22:29.815Z
 - Path: `docs/change-log-m1.md`
 - Sections:
   - 2026 2026-11-14 (pass 3) — AC-M1-07 pixel fidelity + mutation-check crash fix + interrupted-verify incident
+  - 2026 2026-11-14 (pass 4) — STUDIO M1 UI (S-1-10/11/12) + routes/E_SCHEMA
 
 ## Context
 

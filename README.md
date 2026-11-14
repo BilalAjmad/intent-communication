@@ -24,7 +24,7 @@ All 12 verify steps pass on this machine (Windows 11, Node v22.23.4, pnpm 9.7.1;
 | build | PASS | 10/10 packages build clean |
 | typecheck | PASS | 0 errors |
 | lint | PASS | 0 errors |
-| unit+integration tests | PASS | **316/316 across 10 packages** |
+| unit+integration tests | PASS | **317/317 across 10 packages** |
 | multi-process tests | PASS | 2/2 different-objects, 2/2 same-object, 10/10 consecutive runs green |
 | sigkill test | PASS | SIGKILLed stale scene lock reclaimed |
 | mutation proof | PASS | 5/5 mutations detected (lock, conflict, scope, descendant-lock, schema); crash-safe backup + self-heal added 2026-11-14 |
