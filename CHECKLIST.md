@@ -1,6 +1,6 @@
 # Intent v0.1.0 — Release Candidate Checklist
 
-> **Update 2026-11-14 (pass 3):** verify re-run after AC-M1-07 work + mutation-check crash fix: 12/12 PASS, unit+integration **305/305**. Table below is the 2026-11-13 snapshot (263 tests at that time).
+> **Update 2026-11-14 (pass 3):** verify re-run after AC-M1-07 work + mutation-check crash fix: 12/12 PASS, unit+integration **316/316**. Table below is the 2026-11-13 snapshot (263 tests at that time).
 
 ## Build & Test Status
 
@@ -12,7 +12,7 @@ All 12 verify steps pass (see VERIFY-REPORT.md for evidence).
 | build | PASS |
 | typecheck | PASS |
 | lint | PASS |
-| unit+integration tests | PASS (263 tests at that time; 305/305 as of 2026-11-14) |
+| unit+integration tests | PASS (263 tests at that time; 316/316 as of 2026-11-14) |
 | multi-process tests | PASS |
 | sigkill test | PASS |
 | mutation proof | PASS |

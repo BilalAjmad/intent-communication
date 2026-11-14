@@ -46,3 +46,12 @@ tmp_test_count.txt
 
 # Verify output
 VERIFY-REPORT.md
+
+# Local credentials and secrets (never commit) -- added 2026-11-14
+opencode.json
+opencode.*.local.json
+.env
+.env.*
+*.pem
+*.key
+.envrc

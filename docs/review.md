@@ -817,7 +817,7 @@ AC-M1-01, AC-M1-03, AC-M1-07, AC-M1-09, AC-M1-11, AC-M1-13 are not fully green:
 - AC-M1-11 — no agent-driven end-to-end Tier 1 recording.
 - AC-M1-13 — Demo D stranger-test is not recorded.
 
-Even though the code passes locally on Windows (305/305 unit tests, 12/12 verify, all Playwright suites green, lint clean, typecheck clean), the intent.md promise for this milestone is not yet demonstrably met by evidence captured in this repo. Recommended path: either (a) define `kind: "roadmap-out"` for the unimplemented M1 CI/E2E evidence and proceed with the user's ruling, or (b) complete the remaining items listed above and re-audit.
+Even though the code passes locally on Windows (316/316 unit tests, 12/12 verify, all Playwright suites green, lint clean, typecheck clean), the intent.md promise for this milestone is not yet demonstrably met by evidence captured in this repo. Recommended path: either (a) define `kind: "roadmap-out"` for the unimplemented M1 CI/E2E evidence and proceed with the user's ruling, or (b) complete the remaining items listed above and re-audit.
 
 ### 21.2 Risks found that are NOT AC-M1-blocking but should be tracked
 
