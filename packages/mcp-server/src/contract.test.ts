@@ -62,7 +62,7 @@ describe("AC-M1-03: six-tool contract matrix", () => {
 
   // 1. get_scene
   it("get_scene — happy path returns scene at the current revision", async () => {
-    const result = (await handleMCPRequest("get_scene", { sceneId: "s_01ARZ3NDEKTSV4RRFFQ69G5FAV", depth: 2, includeLocks: true, maxBytes: 8192 }, context)) as any;
+    const result = (await handleMCPRequest("get_scene", { sceneId: "s_01ARZ3NDEKTSV4RRFFQ69G5FAV", depth: 2, includeLocks: true, maxBytes: 8192 }, context)) as Record<string, unknown>;
     expect(result).toBeDefined();
     expect(result.revision).toBe(1);
     expect(result.truncated).toBe(false);
@@ -71,7 +71,7 @@ describe("AC-M1-03: six-tool contract matrix", () => {
   it("get_scene — defaults to 'default' scene when sceneId is omitted", async () => {
     try {
       // The contract database does not carry a 'default' scene; this documents the default behaviour.
-      const result = (await handleMCPRequest("get_scene", { depth: 1 }, context)) as any;
+      const result = (await handleMCPRequest("get_scene", { depth: 1 }, context)) as Record<string, unknown>;
       // Whatever happens, it must be a structured object (not a raw crash).
       expect(result).toBeDefined();
     } catch (err) {
@@ -112,7 +112,7 @@ describe("AC-M1-03: six-tool contract matrix", () => {
         },
       },
       context
-    )) as any;
+    )) as Record<string, unknown>;
     expect(result.success).toBe(true);
     expect(result.revision).toBe(2);
   });
@@ -164,14 +164,14 @@ describe("AC-M1-03: six-tool contract matrix", () => {
         },
       },
       context
-    )) as any;
+    )) as Record<string, unknown>;
     expect(result.success).toBe(false);
     expect(result.error).toBe(ErrorCodes.E_CONFLICT);
   });
 
   // 3. get_feedback
   it("get_feedback — happy path returns empty feedback for an untouched scene", async () => {
-    const result = (await handleMCPRequest("get_feedback", { sceneId: "s_01ARZ3NDEKTSV4RRFFQ69G5FAV" }, context)) as any;
+    const result = (await handleMCPRequest("get_feedback", { sceneId: "s_01ARZ3NDEKTSV4RRFFQ69G5FAV" }, context)) as Record<string, unknown>;
     expect(Array.isArray(result)).toBe(false);
     expect(result).toEqual({ feedback: [] });
   });
@@ -182,7 +182,7 @@ describe("AC-M1-03: six-tool contract matrix", () => {
       "ask_user",
       { questionId: "q-test-1", kind: "choice", prompt: "Pick one?", options: [{ value: "a", label: "A" }] },
       context
-    )) as any;
+    )) as Record<string, unknown>;
     expect(result.answer).toBeNull();
     expect(typeof result.meter).toBe("number");
     expect(result.nextQuestion).toBeDefined();
@@ -195,7 +195,7 @@ describe("AC-M1-03: six-tool contract matrix", () => {
       "open_studio",
       { sceneId: "s_01ARZ3NDEKTSV4RRFFQ69G5FAV", userRequested: true, quote: "open the studio" },
       context
-    )) as any;
+    )) as Record<string, unknown>;
     expect(result.url).toMatch(/^http:\/\/localhost:\d+\?scene=s_01ARZ3NDEKTSV4RRFFQ69G5FAV$/);
     expect(typeof result.sessionId).toBe("string");
   });
@@ -206,7 +206,7 @@ describe("AC-M1-03: six-tool contract matrix", () => {
       "validate",
       { type: "scene", data: SCENE },
       context
-    )) as any;
+    )) as Record<string, unknown>;
     expect(result.valid).toBe(true);
   });
 
@@ -215,7 +215,7 @@ describe("AC-M1-03: six-tool contract matrix", () => {
       "validate",
       { type: "what-is-this", data: {} },
       context
-    )) as any;
+    )) as Record<string, unknown>;
     expect(result.valid).toBe(false);
     expect(typeof result.error).toBe("string");
   });
@@ -225,7 +225,7 @@ describe("AC-M1-03: six-tool contract matrix", () => {
       "validate",
       { type: "scene", data: { version: 2 } },
       context
-    )) as any;
+    )) as Record<string, unknown>;
     expect(result.valid).toBe(false);
     expect(typeof result.error).toBe("string");
   });
