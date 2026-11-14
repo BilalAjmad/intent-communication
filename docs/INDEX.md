@@ -1,6 +1,6 @@
 # Documentation Index
 
-Generated: 2026-11-14T09:43:31.294Z
+Generated: 2026-11-14T09:59:50.968Z
 
 ## Plan
 
@@ -80,6 +80,8 @@ Generated: 2026-11-14T09:43:31.294Z
 ## Change Log M1
 
 - Path: `docs/change-log-m1.md`
+- Sections:
+  - 2026 2026-11-14 (pass 3) — AC-M1-07 pixel fidelity + mutation-check crash fix + interrupted-verify incident
 
 ## Context
 
