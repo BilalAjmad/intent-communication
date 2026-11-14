@@ -258,7 +258,7 @@ export class IntentServer {
 
     // SSE endpoint
     if (pathname === "/events") {
-      this.handleSSE(req, res, url);
+      await this.handleSSE(req, res, url);
       return;
     }
 
@@ -272,11 +272,22 @@ export class IntentServer {
     await this.serveStatic(req, res, pathname);
   }
 
-  private handleSSE(req: IncomingMessage, res: ServerResponse, url: URL) {
+  private async handleSSE(req: IncomingMessage, res: ServerResponse, url: URL) {
     const sceneId = url.searchParams.get("scene") || "default";
     const lastEventIdHeader = req.headers["last-event-id"];
     const lastEventIdValue = Array.isArray(lastEventIdHeader) ? lastEventIdHeader[0] : lastEventIdHeader;
     const lastEventId = parseInt(lastEventIdValue || "0", 10);
+
+    // Seed the in-memory revision from the actual scene so the first event
+    // emits the current revision (not the default 0).
+    try {
+      const scene = await this.storage.readScene(sceneId);
+      if (scene && typeof scene.revision === "number" && scene.revision >= this.revision) {
+        this.revision = scene.revision;
+      }
+    } catch {
+      // Non-fatal: client still receives an event with revision 0.
+    }
 
     res.writeHead(200, {
       "Content-Type": "text/event-stream",
@@ -313,12 +324,31 @@ export class IntentServer {
     }
     try {
       const { tool, input } = JSON.parse(body);
+      let patchSceneId: string | undefined;
+      if (tool === "apply_patch" && input && typeof input === "object") {
+        const maybePatch = (input as { patch?: unknown }).patch as { sceneId?: unknown } | undefined;
+        if (maybePatch && typeof maybePatch.sceneId === "string") {
+          patchSceneId = maybePatch.sceneId;
+        }
+      }
       const result = await handleMCPRequest(tool, input, {
         projectRoot: this.config.projectRoot,
         storage: this.storage,
         lockPort: this.lockPort,
         crypto: this.crypto,
       });
+      // Real-time studio: after a successful patch, broadcast the new revision
+      // to any connected SSE clients (S-1-12).
+      if (
+        tool === "apply_patch" &&
+        patchSceneId &&
+        result &&
+        typeof result === "object" &&
+        (result as { success?: boolean; revision?: number }).success === true &&
+        typeof (result as { revision?: number }).revision === "number"
+      ) {
+        this.broadcastRevision(patchSceneId, (result as { revision: number }).revision);
+      }
       res.writeHead(200, { "Content-Type": "application/json" });
       res.end(JSON.stringify({ success: true, result }));
     } catch (error) {

@@ -1,5 +1,6 @@
 import { Scene } from "@intent/schema";
 import { exportToHtml } from "@intent/engine";
+import { buildPreviewDocument } from "./preview.js";
 
 export interface StudioState {
   sceneId: string;
@@ -159,6 +160,12 @@ export class Studio {
     });
   }
 
+  /** Live preview document (iframe srcdoc) for the current scene, or null before the first load. */
+  previewHtml(): string | null {
+    if (!this.state.scene) return null;
+    return buildPreviewDocument(this.state.scene);
+  }
+
   connectSSE(): void {
     this.eventSource = new EventSource(`http://localhost:${this.config.previewPort}/events?scene=${this.state.sceneId}`);
     this.eventSource.onmessage = (event) => {
@@ -203,3 +210,5 @@ export class Studio {
 export function createStudio(config: StudioConfig): Studio {
   return new Studio(config);
 }
+
+export { buildPreviewDocument } from "./preview.js";
