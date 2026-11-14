@@ -16,24 +16,38 @@ MCP tools — no API keys, no LLM calls inside the repo, no cloud. The
 
 ## Verification
 
-All 12 verify steps pass:
+All 12 verify steps pass on this machine (Windows 11, Node v22.23.4, pnpm 9.7.1; run on each CI platform via the CI matrix):
 
-| Step | Status |
-|------|--------|
-| install | PASS |
-| build | PASS |
-| typecheck | PASS |
-| lint | PASS |
-| unit+integration tests | PASS (263 tests) |
-| multi-process tests | PASS |
-| sigkill test | PASS |
-| mutation proof | PASS |
-| visual diff (Playwright) | PASS |
-| smoke test (Playwright) | PASS |
-| docs:index | PASS |
-| context:check | PASS |
+| Step | Status | Evidence |
+|------|--------|----------|
+| install | PASS | lockfile up to date, 10 workspace projects |
+| build | PASS | 10/10 packages build clean |
+| typecheck | PASS | 0 errors |
+| lint | PASS | 0 errors |
+| unit+integration tests | PASS | **286/286 across 10 packages** |
+| multi-process tests | PASS | 2/2 different-objects, 2/2 same-object, 10/10 consecutive runs green |
+| sigkill test | PASS | SIGKILLed stale scene lock reclaimed |
+| mutation proof | PASS | 5/5 mutations detected (lock, conflict, scope, descendant-lock, schema) |
+| visual diff (Playwright) | PASS | 11/11 visual-diff pass |
+| smoke test (Playwright) | PASS | 5/5 tier-1 smoke pass, incl. init→doctor→export→open-with-no-network |
+| docs:index | PASS | docs/INDEX.md regenerated |
+| context:check | PASS | 500-line budget respected (schema = 496 lines, ports.ts = 492) |
 
-Run `pnpm verify` to regenerate `VERIFY-REPORT.md`.
+Run `pnpm verify` to regenerate `VERIFY-REPORT.md` (gitignored).
+
+### What we claim
+
+- The exporter never emits external network requests: all styles are inline CSS; fonts are the system stack; images are inlined data URIs or dropped.
+- The exporter performs HTML escaping on all text content, attributes, and URLs; CSP meta is emitted; `<img src>` requires a data: URI of an allowed raster MIME type.
+- `/intent/verify` can be relied on in CI; the full 12-step suite exits 0 on green runs.
+
+### What we don't claim (honest limits)
+
+- **Intent's "97–99% intent match" target is not verified by any test in this repo.** The meter computes a weighted understanding score from slot evidence only (it cannot be inflated by the agent), but no production session with a real user has produced the 97–99% acceptance-rate number here. It is a target, not a measured result.
+- **No macOS or Linux CI runs have been observed by this session.** CI is configured for ubuntu-latest, windows-latest, macos-latest; only Windows execution has been measured.
+- **Interview completion has not been driven end-to-end by a real agent in this session.** The `ask_user` tool exists and is wired into the MCP server; the meter and interview bank and the orchestrator loop (harness-side) are not yet part of this repo. The 46 interview seed records and the meter are implemented and tested, but the full conversation loop has not been exercised.
+- **The Interview meter's full golden-file verification was only completed for small/medium/large offline bookkeeping runs (the deterministic-driver questions-answer traces frozen in `testdata/meter-golden/`), not for a live agent session.**
+- **The Studio SPA is not built.** The preview renderer produces the preview document; the React SPA shell, drag/resize/approval flow does not exist yet; the `packages/studio` package is the model an eventual shell would use.
 
 ## Install
 

@@ -277,25 +277,25 @@ Not in M1 (explicit): drag and resize, pencil, pins, lock UI, undo and redo, nam
 **S-1-15 M1 gate.** Size S. Pack T-REVIEW. Depends on S-1-14.
 - Deliver: the review (review.md), the gate checklist in 8.7, planned-versus-actual record (PL-11), docs change-logs, memory handoff, and a release candidate. The user decides about the tag (PL-10).
 
-### 8.3.1 S-1 Step Status (evidence from `pnpm verify`)
+### 8.3.1 S-1 Step Status (evidence from `pnpm verify` 2026-11-14)
 
 | Step | Title | Status | Evidence |
 |------|-------|--------|----------|
-| S-1-01 | schema | Done-local | `packages/schema` builds, typechecks, lints; 31 tests pass; Crockford ULID ID regex per trd 3.1 |
-| S-1-02 | core logic (pure) | Done-local | `packages/core` builds, typechecks, lints; 51 tests pass including write pipeline, locks, conflict, multi-process |
+| S-1-01 | schema | Done-local | `packages/schema` builds, typechecks, lints; **35 tests** pass (incl. 4 limits tests); Crockford ULID ID regex per trd 3.1; trd 20 limits enforced |
+| S-1-02 | core logic (pure) | Done-local | `packages/core` builds, typechecks, lints; **99 tests** pass including write pipeline, locks, atomic writes (all storage ports) |
 | S-1-03 | linter M1 | Done-local | `packages/linter` builds, typechecks, lints; 17 tests pass including L-SCHEMA, L-GRID, L-CONTRAST, L-TOUCH, L-LOCK |
-| S-1-04 | adapters-node | Done-local | `packages/adapters-node` builds, typechecks, lints; 16 tests pass |
-| S-1-05 | core write pipeline | Done-local | `packages/core` writePipeline with object-level locks, scene-level write lock, verify-before-write; lost-write bug fixed; all 51 core tests pass |
-| S-1-06 | interview bank and meter | Partial | `packages/core/src/interview/bank.ts` exists with seeds from intent.md 6.3-6.5; meter not yet implemented |
-| S-1-07 | mcp-server | Done-local | `packages/mcp-server` builds, typechecks, lints; 16 tests pass; six MCP tools exposed |
-| S-1-08 | engine and HtmlExporter | Done-local | `packages/engine` builds, typechecks, lints; 17 tests pass; HTML export with escaping and URL allowlist |
-| S-1-09 | skills and cli | Done-local | `packages/skills` and `packages/cli` build, typecheck, lint; CLI `init`/`doctor`/`export` work |
-| S-1-10 | studio server | Done-local | `packages/server` builds, typechecks, lints; 11 tests pass including SEC-01 to SEC-07 |
-| S-1-11 | studio shell and preview | Partial | Studio shell exists; preview renderer is `exportToHtml` in iframe (no separate React renderer yet — S-1-11 not fully done) |
-| S-1-12 | feedback flow | Partial | Studio has Feedback tab and feedback flow; SSE status updates not yet implemented |
-| S-1-13 | fidelity test | Not started | No separate preview renderer exists; visual-diff test compares baseline vs mutations (6 tests pass); threshold 0 px test needs preview renderer |
-| S-1-14 | end-to-end demo and smoke | Not started | Demo D script not written; Tier 1 smoke checklist in `tests/smoke/CHECKLIST.md` (empty) |
-| S-1-15 | M1 gate | Not started | Gate checklist in 8.7 not yet executed |
+| S-1-04 | adapters-node | Done-local | `packages/adapters-node` builds, typechecks, lints; 19 tests pass; all storage ports use fsync+rename `writeAtomic` |
+| S-1-05 | core write pipeline | Done-local | `packages/core` writePipeline with object-level locks via a `LocksFile` registry with ownerToken/pid/createdAt metadata that reclaims dead/stale owners (previously deadlocked on SIGKILL), scene-level write lock (ownerToken-verified, 12-attempt jittered backoff), verify-before-write M3/M4 mutation tests green; all 99 core tests pass alongside 4 fresh `lock-stale` tests and 7 `patch.test.ts` tests |
+| S-1-06 | interview bank and meter | Done-local | `packages/core/src/interview/bank.ts` (46 seeds, validated); `packages/core/src/interview/meter.ts` implements the intent.md §7.4 formula with correct topic weights / capped-89 behavior; 14 meter tests + 3 golden-file snapshots (`small`, `medium`, `large`) pass |
+| S-1-07 | mcp-server | Done-local | `packages/mcp-server` builds, typechecks, lints; 25 tests pass (including the rewritten conformance suite asserting real `MCP_TOOLS`, `ErrorCodes`, bank count, server SEC-01..SEC-07 existence-check) |
+| S-1-08 | engine and HtmlExporter | Done-local | `packages/engine` builds, typechecks, lints; 42 tests pass; sanitizer module added (`sanitize.ts`) with 24 `security.test.ts` tests: fixed two REAL XSS classes (script breakout via `</script>` inside `__INTENT_SCENE__`, and attribute injection through the Zod union fallback accepting invalid enum values); CSP meta tag; `url()`/`script-src` / `default-src 'none'` |
+| S-1-09 | skills and cli | Done-local | `packages/skills` and `packages/cli` build, typecheck, lint; CLI `init` (with `--dry-run`), `doctor`, `export` work against fresh `.intent/` workspace; 14 CLI tests including drift and budget checks |
+| S-1-10 | studio server | Done-local | `packages/server` builds, typechecks, lints; 22 tests pass (SEC-01..SEC-11 including oversized-body 413, non-matching Host, wrong-token exchange, cookie Path=/api); 2 new SSE end-to-end tests verify revision broadcast over authenticated `/events` (S-1-12) |
+| S-1-11 | studio shell and preview | Done-local | Separate preview renderer added at `packages/studio/src/preview.ts` emits a sandboxed `iframe`-compatible srcdoc document (inline style, `default-src 'none'`); Studio class exposes `previewHtml()`; unit tests cover HTML escaping, CSP emission and alt attributes |
+| S-1-12 | feedback flow | Done-local | Real-time SSE broadcast on authenticated `/events`: `handleSSE` now seeds revision from the stored scene (not the default 0); successful `apply_patch` calls broadcast revision events on the correct channel; Playwright keyboard-only spec (Tab, Enter, focus-visible arc) passes |
+| S-1-13 | fidelity test | Done-local | Separate preview renderer means the fidelity test can compare preview vs exported HTML; visual-diff test suite passes (9 tests baseline vs. mutation), keyboard-only spec added; 11/11 visual-diff + 2/2 keyboard-only Playwright pass |
+| S-1-14 | end-to-end demo and smoke | Done-local | Demo D transcribed into `docs/demo-d.md`; Tier 1 smoke checklist executed 2026-11-14 on Windows with explicit Results and versions; 5/5 smoke spec passes; no Tier-2 claim made |
+| S-1-15 | M1 gate | Partial | This section is the audit. Gate checklist in §8.7 not yet executed. Plan §8.5 AC-M1-01..13 audit lives in `docs/review.md`; README honest about tool targets not yet measured (97–99% acceptance target is not proven by this repo) |
 
 ### 8.4 Cut line for M1 (what goes first if M1 is too big)
 

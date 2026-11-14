@@ -86,3 +86,18 @@ PROBLEMS / RISKS FOUND:
 12. "in this you can start work but breakdown work okay and bro you can do okay"
 
 13. "bro yar mujhe ws wale ma kaam karn haibro yarr 'H:\intent communication' yar tumko mane phale keya kha ta wokaro phale tumcheckkaro per jo be bakihaimujhe batookay"
+    (i.e. "I want to work in 'H:\intent communication'; whatever you were doing before, do that first, then check it, then tell me what's left")
+
+14. "bro this one complete 'NOT VERIFIED / ASSUMPTIONS:
+- The other agent's registry design replaced the per-object .lock files. It now reclaims dead owners, but a full design review of that change was not done; only observed-behavior tests + 10× multi-process runs back it.
+- 10/10 is a sample — the flake is much rarer now but not proven extinct.
+- VERIFY-REPORT's README/RC claims are consistent with this run only.
+- context.md/full_context.md/usercontext.md still describe the pre-fix world (stale).
+- The Interview Meter (S-1-06), zod HIGH (GHSA-mrhx-c7xc-m3w5), and the actual M1 gate (Phases 3-8) are NOT done.
+
+PROBLEMS / RISKS FOUND:
+- The RC rework had a proven deadlock (crashed writer locked object forever) — now fixed.
+- Stale-claim risk: README "12 verify steps pass" was written before the fixes; it is now supported by this run, not before it.
+- The phase2-concurrency worktree branch is redundant now (superseded here); leave or delete?
+- Two agents were editing the same files concurrently; this landed clean, but review before merge would have been better.'"
+    (i.e. "complete every one of those items")
