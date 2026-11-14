@@ -1,0 +1,93 @@
+{
+  "version": 1,
+  "revision": 0,
+  "createdAt": "2026-11-13T00:00:00.000Z",
+  "updatedAt": "2026-11-13T00:00:00.000Z",
+  "screens": {
+    "s_01ARZ3NDEKTSV4RRFFQ69G5FAV": {
+      "id": "s_01ARZ3NDEKTSV4RRFFQ69G5FAV",
+      "type": "screen",
+      "parentId": null,
+      "children": ["o_01ARZ3NDEKTSV4RRFFQ69G5FAV"],
+      "props": { "title": "All Types", "width": 1440, "height": 900 },
+      "style": {},
+      "meta": {}
+    }
+  },
+  "objects": {
+    "o_01ARZ3NDEKTSV4RRFFQ69G5FAV": {
+      "id": "o_01ARZ3NDEKTSV4RRFFQ69G5FAV",
+      "type": "container",
+      "parentId": "s_01ARZ3NDEKTSV4RRFFQ69G5FAV",
+      "children": ["o_02ARZ3NDEKTSV4RRFFQ69G5FAV", "o_03ARZ3NDEKTSV4RRFFQ69G5FAV", "o_08ARZ3NDEKTSV4RRFFQ69G5FAV"],
+      "props": { "layout": "flex", "direction": "column", "gap": 16, "padding": 16 },
+      "style": { "direction": "column", "gap": 16, "padding": 16 },
+      "meta": {}
+    },
+    "o_02ARZ3NDEKTSV4RRFFQ69G5FAV": {
+      "id": "o_02ARZ3NDEKTSV4RRFFQ69G5FAV",
+      "type": "text",
+      "parentId": "o_01ARZ3NDEKTSV4RRFFQ69G5FAV",
+      "children": [],
+      "props": { "content": "All M1 Types", "fontSize": 24, "fontWeight": "bold" },
+      "style": {},
+      "meta": {}
+    },
+    "o_03ARZ3NDEKTSV4RRFFQ69G5FAV": {
+      "id": "o_03ARZ3NDEKTSV4RRFFQ69G5FAV",
+      "type": "container",
+      "parentId": "o_01ARZ3NDEKTSV4RRFFQ69G5FAV",
+      "children": ["o_04ARZ3NDEKTSV4RRFFQ69G5FAV", "o_05ARZ3NDEKTSV4RRFFQ69G5FAV"],
+      "props": { "layout": "flex", "direction": "row", "gap": 8, "padding": 8 },
+      "style": { "direction": "row", "gap": 8, "padding": 8 },
+      "meta": {}
+    },
+    "o_04ARZ3NDEKTSV4RRFFQ69G5FAV": {
+      "id": "o_04ARZ3NDEKTSV4RRFFQ69G5FAV",
+      "type": "button",
+      "parentId": "o_03ARZ3NDEKTSV4RRFFQ69G5FAV",
+      "children": [],
+      "props": { "label": "Primary", "variant": "primary" },
+      "style": {},
+      "meta": {}
+    },
+    "o_05ARZ3NDEKTSV4RRFFQ69G5FAV": {
+      "id": "o_05ARZ3NDEKTSV4RRFFQ69G5FAV",
+      "type": "button",
+      "parentId": "o_03ARZ3NDEKTSV4RRFFQ69G5FAV",
+      "children": [],
+      "props": { "label": "Ghost", "variant": "ghost" },
+      "style": {},
+      "meta": {}
+    },
+    "o_06ARZ3NDEKTSV4RRFFQ69G5FAV": {
+      "id": "o_06ARZ3NDEKTSV4RRFFQ69G5FAV",
+      "type": "input",
+      "parentId": "o_08ARZ3NDEKTSV4RRFFQ69G5FAV",
+      "children": [],
+      "props": { "type": "text", "placeholder": "Grid cell input" },
+      "style": {},
+      "meta": {}
+    },
+    "o_07ARZ3NDEKTSV4RRFFQ69G5FAV": {
+      "id": "o_07ARZ3NDEKTSV4RRFFQ69G5FAV",
+      "type": "image",
+      "parentId": "o_08ARZ3NDEKTSV4RRFFQ69G5FAV",
+      "children": [],
+      "props": { "src": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=", "alt": "Swatch", "fit": "cover" },
+      "style": { "width": 96, "height": 96 },
+      "meta": {}
+    },
+    "o_08ARZ3NDEKTSV4RRFFQ69G5FAV": {
+      "id": "o_08ARZ3NDEKTSV4RRFFQ69G5FAV",
+      "type": "container",
+      "parentId": "o_01ARZ3NDEKTSV4RRFFQ69G5FAV",
+      "children": ["o_06ARZ3NDEKTSV4RRFFQ69G5FAV", "o_07ARZ3NDEKTSV4RRFFQ69G5FAV"],
+      "props": { "layout": "grid", "gap": 12, "padding": 12 },
+      "style": { "display": "grid", "gridTemplateColumns": "1fr 1fr", "gap": 12, "padding": 12 },
+      "meta": {}
+    }
+  },
+  "screenOrder": ["s_01ARZ3NDEKTSV4RRFFQ69G5FAV"],
+  "metadata": { "name": "FX-03 All Types", "tags": ["fixture"] }
+}

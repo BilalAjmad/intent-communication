@@ -1,30 +1,28 @@
 import { Scene, SceneObject } from "@intent/schema";
-import { escapeHtml, sanitizeCssValue, sanitizeUrl, safeClassToken } from "@intent/engine";
+import {
+  escapeHtml,
+  safeClassToken,
+  sanitizeUrl,
+  renderExportCss,
+  buildStyleString,
+} from "@intent/engine";
 
 // S-1-11 / AC-M1-07: the Studio preview renderer.
 //
-// This is deliberately separate from the exporter (`exportToHtml`). The exporter
-// is a product deliverable (a static file); the preview is a live, interactive
-// surface rendered inside a sandboxed iframe. They share the same scene data but
-// not the same document.
+// Deliberately separate from the exporter (`exportToHtml`) at the document and
+// markup level: the exporter is a product deliverable (a static file); the
+// preview is a live, interactive surface rendered inside a sandboxed iframe.
+// Both sides intentionally share the exact same CSS text and the same
+// inline-style builder (via `renderExportCss` / `buildStyleString` from
+// @intent/engine), so the preview renders the scene with the same stylesheet
+// the export ships. That is what makes the AC-M1-07 pixel comparison
+// meaningful (trd 13.8): same scene, same content, same fonts — same pixels.
 
-const STYLE = `
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  html, body { height: 100%; font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
-  main.preview-root { display: flex; flex-direction: column; min-height: 100%; }
-  .intent-screen { display: flex; flex-direction: column; min-height: 100%; padding: 24px; gap: 12px; }
-  .intent-container { display: flex; gap: 12px; align-items: stretch; }
-  .intent-container[style*="direction: column"] { flex-direction: column; }
-  .intent-text { font-size: 16px; line-height: 1.5; color: #212529; }
-  .intent-button { border: none; cursor: pointer; padding: 12px 16px; border-radius: 6px; min-width: 44px; min-height: 44px; background: #0066cc; color: #fff; font-size: 14px; }
-  .intent-button-primary:hover { background: #0052a3; }
-  .intent-button-destructive { background: #dc3545; }
-  .intent-button-secondary { background: #6c757d; }
-  .intent-input { padding: 10px 12px; border: 1px solid #dee2e6; border-radius: 6px; min-height: 44px; font-size: 14px; }
-  .intent-image { max-width: 100%; height: auto; display: block; }
+const PREVIEW_EXTRAS = `
+  /* height: 100% (definite) so the .intent-screen child's min-height: 100% resolves against it,
+     matching how the exported file fills the viewport */
+  main.preview-root { display: flex; flex-direction: column; height: 100%; min-height: 100%; }
   [data-state="hover"]:hover { outline: 2px dashed #0066cc; outline-offset: 2px; }
-  :focus-visible { outline: 3px solid #0066cc; outline-offset: 2px; }
-  @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
 `;
 
 function renderNode(obj: SceneObject, all: Record<string, SceneObject>, depth = 0): string {
@@ -35,7 +33,7 @@ function renderNode(obj: SceneObject, all: Record<string, SceneObject>, depth = 
     .map((c) => renderNode(c, all, depth + 1))
     .join("\n");
 
-  const style = buildInlineStyle(obj.style);
+  const style = buildStyleString(obj.style);
   const styleAttr = style ? ` style="${escapeHtml(style)}"` : "";
 
   switch (obj.type) {
@@ -72,21 +70,6 @@ function renderNode(obj: SceneObject, all: Record<string, SceneObject>, depth = 
   }
 }
 
-function buildInlineStyle(style: Record<string, unknown>): string {
-  const out: string[] = [];
-  for (const [rawKey, value] of Object.entries(style)) {
-    const key = String(rawKey).replace(/([A-Z])/g, "-$1").toLowerCase();
-    const parts: string[] = [];
-    if (typeof value === "string") parts.push(value);
-    else if (typeof value === "number") parts.push(`${value}px`);
-    for (const part of parts) {
-      const safe = sanitizeCssValue(part);
-      if (safe) out.push(`${key}: ${safe};`);
-    }
-  }
-  return out.join(" ");
-}
-
 /** Builds the sandboxed preview document for an iframe srcdoc. */
 export function buildPreviewDocument(scene: Scene): string {
   const screenIds = Object.keys(scene.screens);
@@ -112,7 +95,8 @@ export function buildPreviewDocument(scene: Scene): string {
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta http-equiv="Content-Security-Policy" content="${escapeHtml("default-src 'none'; style-src 'unsafe-inline'; img-src data:; font-src 'none'; base-uri 'none'; form-action 'none'")}">
 <title>${escapeHtml(scene.metadata.name ?? "Preview")}</title>
-<style>${STYLE}</style>
+<style>${renderExportCss()}</style>
+<style>${PREVIEW_EXTRAS}</style>
 </head>
 <body>
 <main class="preview-root" id="preview-root">

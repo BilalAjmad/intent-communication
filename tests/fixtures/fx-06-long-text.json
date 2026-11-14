@@ -1,0 +1,48 @@
+{
+  "version": 1,
+  "revision": 0,
+  "createdAt": "2026-11-13T00:00:00.000Z",
+  "updatedAt": "2026-11-13T00:00:00.000Z",
+  "screens": {
+    "s_01ARZ3NDEKTSV4RRFFQ69G5FAV": {
+      "id": "s_01ARZ3NDEKTSV4RRFFQ69G5FAV",
+      "type": "screen",
+      "parentId": null,
+      "children": ["o_01ARZ3NDEKTSV4RRFFQ69G5FAV", "o_02ARZ3NDEKTSV4RRFFQ69G5FAV", "o_03ARZ3NDEKTSV4RRFFQ69G5FAV"],
+      "props": { "title": "Long Text", "width": 320, "height": 844 },
+      "style": { "width": 320, "padding": 16 },
+      "meta": {}
+    }
+  },
+  "objects": {
+    "o_01ARZ3NDEKTSV4RRFFQ69G5FAV": {
+      "id": "o_01ARZ3NDEKTSV4RRFFQ69G5FAV",
+      "type": "text",
+      "parentId": "s_01ARZ3NDEKTSV4RRFFQ69G5FAV",
+      "children": [],
+      "props": { "content": "This is an intentionally extremely long heading that must wrap inside a narrow three hundred and twenty pixel column without overflowing or clipping its parent container boundary at any viewport", "fontSize": 24, "fontWeight": "bold" },
+      "style": {},
+      "meta": {}
+    },
+    "o_02ARZ3NDEKTSV4RRFFQ69G5FAV": {
+      "id": "o_02ARZ3NDEKTSV4RRFFQ69G5FAV",
+      "type": "text",
+      "parentId": "s_01ARZ3NDEKTSV4RRFFQ69G5FAV",
+      "children": [],
+      "props": { "content": "And here is an even longer paragraph of body copy that continues and continues and continues so that the inline-block wrapping, anywhere-break behaviour and line-height choices in both renderers can be compared pixel for pixel across breakpoints and themes without manual guessing or assumptions about what will happen with such extended text content in a constrained width column.", "fontSize": 14 },
+      "style": {},
+      "meta": {}
+    },
+    "o_03ARZ3NDEKTSV4RRFFQ69G5FAV": {
+      "id": "o_03ARZ3NDEKTSV4RRFFQ69G5FAV",
+      "type": "button",
+      "parentId": "s_01ARZ3NDEKTSV4RRFFQ69G5FAV",
+      "children": [],
+      "props": { "label": "A button with an unusually long label that should also wrap or size correctly inside the narrow container without breaking layout", "variant": "primary" },
+      "style": {},
+      "meta": {}
+    }
+  },
+  "screenOrder": ["s_01ARZ3NDEKTSV4RRFFQ69G5FAV"],
+  "metadata": { "name": "FX-06 Long Text", "tags": ["fixture"] }
+}

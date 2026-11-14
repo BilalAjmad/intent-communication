@@ -1,0 +1,13 @@
+{
+  "maxDiffPixels": 0,
+  "maxDiffPixelRatio": 0,
+  "threshold": 0,
+  "maxDiffCluster": 0,
+  "updatedAt": "2026-11-14",
+  "note": "Per-channel tolerance 0 and zero differing pixels. Both rendering paths (Studio preview and exported HTML) share the same CSS text (renderExportCss) and the same Chromium, so an exact match is expected. No value above zero may be introduced without a measured noise floor recorded from 20 calibration runs per OS (docs/test.md 7.2) and user approval (TP-11).",
+  "calibration": {
+    "windows": "2026-11-14 — 20 consecutive full-suite runs of tests/fidelity-pixel.spec.ts (42 tests each) on Windows 11 with Playwright Chromium, fixed viewports (phone 390x844, tablet 834x1194, desktop 1440x900), deviceScaleFactor 1, reducedMotion reduce, fixed locale/timezone — maximum differing pixels observed: 0, largest cluster: 0.",
+    "linux": "NOT RUN — no Linux runner observed in this session; CI workflow exists but has never been observed to run.",
+    "macos": "NOT RUN — no macOS runner observed in this session."
+  }
+}

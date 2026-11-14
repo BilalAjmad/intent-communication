@@ -13,6 +13,17 @@ import {
   buildCsp,
 } from "./sanitize.js";
 
+/**
+ * The exact CSS text the export emits (CSS variables + base rules), shared with
+ * the Studio preview so both sides of the fidelity comparison (AC-M1-07,
+ * trd 13.8) render from the same stylesheet text.
+ */
+export function renderExportCss(): string {
+  return `${generateCssVariables()}\n${generateBaseStyles()}`;
+}
+
+export { buildStyleString };
+
 export interface HtmlExportOptions {
   includeStyles?: boolean;
   includeScripts?: boolean;

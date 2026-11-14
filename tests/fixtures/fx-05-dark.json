@@ -1,0 +1,48 @@
+{
+  "version": 1,
+  "revision": 0,
+  "createdAt": "2026-11-13T00:00:00.000Z",
+  "updatedAt": "2026-11-13T00:00:00.000Z",
+  "screens": {
+    "s_01ARZ3NDEKTSV4RRFFQ69G5FAV": {
+      "id": "s_01ARZ3NDEKTSV4RRFFQ69G5FAV",
+      "type": "screen",
+      "parentId": null,
+      "children": ["o_01ARZ3NDEKTSV4RRFFQ69G5FAV", "o_02ARZ3NDEKTSV4RRFFQ69G5FAV", "o_03ARZ3NDEKTSV4RRFFQ69G5FAV"],
+      "props": { "title": "Dark Tokens", "width": 390, "height": 844 },
+      "style": { "background": { "$type": "token", "$value": "token.color.surface" } },
+      "meta": {}
+    }
+  },
+  "objects": {
+    "o_01ARZ3NDEKTSV4RRFFQ69G5FAV": {
+      "id": "o_01ARZ3NDEKTSV4RRFFQ69G5FAV",
+      "type": "text",
+      "parentId": "s_01ARZ3NDEKTSV4RRFFQ69G5FAV",
+      "children": [],
+      "props": { "content": "Token-styled text", "fontSize": 20 },
+      "style": { "color": { "$type": "token", "$value": "token.color.text-primary" } },
+      "meta": {}
+    },
+    "o_02ARZ3NDEKTSV4RRFFQ69G5FAV": {
+      "id": "o_02ARZ3NDEKTSV4RRFFQ69G5FAV",
+      "type": "text",
+      "parentId": "s_01ARZ3NDEKTSV4RRFFQ69G5FAV",
+      "children": [],
+      "props": { "content": "Secondary copy", "fontSize": 14 },
+      "style": { "color": { "$type": "token", "$value": "token.color.text-secondary" } },
+      "meta": {}
+    },
+    "o_03ARZ3NDEKTSV4RRFFQ69G5FAV": {
+      "id": "o_03ARZ3NDEKTSV4RRFFQ69G5FAV",
+      "type": "button",
+      "parentId": "s_01ARZ3NDEKTSV4RRFFQ69G5FAV",
+      "children": [],
+      "props": { "label": "Continue", "variant": "primary" },
+      "style": {},
+      "meta": {}
+    }
+  },
+  "screenOrder": ["s_01ARZ3NDEKTSV4RRFFQ69G5FAV"],
+  "metadata": { "name": "FX-05 Dark", "tags": ["fixture"] }
+}

@@ -1,0 +1,111 @@
+{
+  "version": 1,
+  "revision": 0,
+  "createdAt": "2026-11-13T00:00:00.000Z",
+  "updatedAt": "2026-11-13T00:00:00.000Z",
+  "screens": {
+    "s_01ARZ3NDEKTSV4RRFFQ69G5FAV": {
+      "id": "s_01ARZ3NDEKTSV4RRFFQ69G5FAV",
+      "type": "screen",
+      "parentId": null,
+      "children": ["o_01ARZ3NDEKTSV4RRFFQ69G5FAV", "o_04ARZ3NDEKTSV4RRFFQ69G5FAV", "o_02ARZ3NDEKTSV4RRFFQ69G5FAV", "o_03ARZ3NDEKTSV4RRFFQ69G5FAV"],
+      "props": { "title": "Salon Home", "width": 390, "height": 844 },
+      "style": {},
+      "meta": {}
+    },
+    "s_02ARZ3NDEKTSV4RRFFQ69G5FAV": {
+      "id": "s_02ARZ3NDEKTSV4RRFFQ69G5FAV",
+      "type": "screen",
+      "parentId": null,
+      "children": ["o_05ARZ3NDEKTSV4RRFFQ69G5FAV", "o_06ARZ3NDEKTSV4RRFFQ69G5FAV", "o_07ARZ3NDEKTSV4RRFFQ69G5FAV", "o_08ARZ3NDEKTSV4RRFFQ69G5FAV", "o_09ARZ3NDEKTSV4RRFFQ69G5FAV"],
+      "props": { "title": "Book", "width": 390, "height": 844 },
+      "style": {},
+      "meta": {}
+    }
+  },
+  "objects": {
+    "o_01ARZ3NDEKTSV4RRFFQ69G5FAV": {
+      "id": "o_01ARZ3NDEKTSV4RRFFQ69G5FAV",
+      "type": "text",
+      "parentId": "s_01ARZ3NDEKTSV4RRFFQ69G5FAV",
+      "children": [],
+      "props": { "content": "Salon Serenity", "fontSize": 24, "fontWeight": "bold" },
+      "style": { "color": "#212529" },
+      "meta": {}
+    },
+    "o_04ARZ3NDEKTSV4RRFFQ69G5FAV": {
+      "id": "o_04ARZ3NDEKTSV4RRFFQ69G5FAV",
+      "type": "image",
+      "parentId": "s_01ARZ3NDEKTSV4RRFFQ69G5FAV",
+      "children": [],
+      "props": { "src": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=", "alt": "Salon interior", "fit": "cover" },
+      "style": { "width": 320, "height": 180 },
+      "meta": {}
+    },
+    "o_02ARZ3NDEKTSV4RRFFQ69G5FAV": {
+      "id": "o_02ARZ3NDEKTSV4RRFFQ69G5FAV",
+      "type": "button",
+      "parentId": "s_01ARZ3NDEKTSV4RRFFQ69G5FAV",
+      "children": [],
+      "props": { "label": "Book Appointment", "variant": "primary" },
+      "style": {},
+      "meta": {}
+    },
+    "o_03ARZ3NDEKTSV4RRFFQ69G5FAV": {
+      "id": "o_03ARZ3NDEKTSV4RRFFQ69G5FAV",
+      "type": "button",
+      "parentId": "s_01ARZ3NDEKTSV4RRFFQ69G5FAV",
+      "children": [],
+      "props": { "label": "View Services", "variant": "secondary" },
+      "style": {},
+      "meta": {}
+    },
+    "o_05ARZ3NDEKTSV4RRFFQ69G5FAV": {
+      "id": "o_05ARZ3NDEKTSV4RRFFQ69G5FAV",
+      "type": "text",
+      "parentId": "s_02ARZ3NDEKTSV4RRFFQ69G5FAV",
+      "children": [],
+      "props": { "content": "Book your visit", "fontSize": 20, "fontWeight": "bold" },
+      "style": {},
+      "meta": {}
+    },
+    "o_06ARZ3NDEKTSV4RRFFQ69G5FAV": {
+      "id": "o_06ARZ3NDEKTSV4RRFFQ69G5FAV",
+      "type": "input",
+      "parentId": "s_02ARZ3NDEKTSV4RRFFQ69G5FAV",
+      "children": [],
+      "props": { "type": "text", "placeholder": "Your name" },
+      "style": {},
+      "meta": {}
+    },
+    "o_07ARZ3NDEKTSV4RRFFQ69G5FAV": {
+      "id": "o_07ARZ3NDEKTSV4RRFFQ69G5FAV",
+      "type": "input",
+      "parentId": "s_02ARZ3NDEKTSV4RRFFQ69G5FAV",
+      "children": [],
+      "props": { "type": "email", "placeholder": "you@example.com" },
+      "style": {},
+      "meta": {}
+    },
+    "o_08ARZ3NDEKTSV4RRFFQ69G5FAV": {
+      "id": "o_08ARZ3NDEKTSV4RRFFQ69G5FAV",
+      "type": "button",
+      "parentId": "s_02ARZ3NDEKTSV4RRFFQ69G5FAV",
+      "children": [],
+      "props": { "label": "Confirm Booking", "variant": "primary" },
+      "style": {},
+      "meta": {}
+    },
+    "o_09ARZ3NDEKTSV4RRFFQ69G5FAV": {
+      "id": "o_09ARZ3NDEKTSV4RRFFQ69G5FAV",
+      "type": "button",
+      "parentId": "s_02ARZ3NDEKTSV4RRFFQ69G5FAV",
+      "children": [],
+      "props": { "label": "Cancel", "variant": "destructive" },
+      "style": {},
+      "meta": {}
+    }
+  },
+  "screenOrder": ["s_01ARZ3NDEKTSV4RRFFQ69G5FAV", "s_02ARZ3NDEKTSV4RRFFQ69G5FAV"],
+  "metadata": { "name": "FX-02 Salon", "tags": ["fixture"] }
+}

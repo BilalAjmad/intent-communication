@@ -281,6 +281,8 @@ function ensureRequiredProps(obj: SceneObject, changes: string[]): SceneObject {
 export {
   exportToHtml,
   exportSceneToFile,
+  renderExportCss,
+  buildStyleString,
 } from "./html.js";
 
 export type { HtmlExportOptions } from "./html.js";

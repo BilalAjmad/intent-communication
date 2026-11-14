@@ -1,0 +1,75 @@
+{
+  "version": 1,
+  "revision": 0,
+  "createdAt": "2026-11-13T00:00:00.000Z",
+  "updatedAt": "2026-11-13T00:00:00.000Z",
+  "screens": {
+    "s_01ARZ3NDEKTSV4RRFFQ69G5FAV": {
+      "id": "s_01ARZ3NDEKTSV4RRFFQ69G5FAV",
+      "type": "screen",
+      "parentId": null,
+      "children": ["o_01ARZ3NDEKTSV4RRFFQ69G5FAV", "o_02ARZ3NDEKTSV4RRFFQ69G5FAV", "o_03ARZ3NDEKTSV4RRFFQ69G5FAV", "o_04ARZ3NDEKTSV4RRFFQ69G5FAV", "o_05ARZ3NDEKTSV4RRFFQ69G5FAV", "o_06ARZ3NDEKTSV4RRFFQ69G5FAV"],
+      "props": { "title": "States", "width": 390, "height": 844 },
+      "style": {},
+      "meta": {}
+    }
+  },
+  "objects": {
+    "o_01ARZ3NDEKTSV4RRFFQ69G5FAV": {
+      "id": "o_01ARZ3NDEKTSV4RRFFQ69G5FAV",
+      "type": "text",
+      "parentId": "s_01ARZ3NDEKTSV4RRFFQ69G5FAV",
+      "children": [],
+      "props": { "content": "Button States", "fontSize": 20, "fontWeight": "bold" },
+      "style": {},
+      "meta": {}
+    },
+    "o_02ARZ3NDEKTSV4RRFFQ69G5FAV": {
+      "id": "o_02ARZ3NDEKTSV4RRFFQ69G5FAV",
+      "type": "button",
+      "parentId": "s_01ARZ3NDEKTSV4RRFFQ69G5FAV",
+      "children": [],
+      "props": { "label": "Normal Primary", "variant": "primary" },
+      "style": {},
+      "meta": {}
+    },
+    "o_03ARZ3NDEKTSV4RRFFQ69G5FAV": {
+      "id": "o_03ARZ3NDEKTSV4RRFFQ69G5FAV",
+      "type": "button",
+      "parentId": "s_01ARZ3NDEKTSV4RRFFQ69G5FAV",
+      "children": [],
+      "props": { "label": "Disabled", "variant": "secondary", "disabled": true },
+      "style": {},
+      "meta": {}
+    },
+    "o_04ARZ3NDEKTSV4RRFFQ69G5FAV": {
+      "id": "o_04ARZ3NDEKTSV4RRFFQ69G5FAV",
+      "type": "button",
+      "parentId": "s_01ARZ3NDEKTSV4RRFFQ69G5FAV",
+      "children": [],
+      "props": { "label": "Delete", "variant": "destructive" },
+      "style": {},
+      "meta": {}
+    },
+    "o_05ARZ3NDEKTSV4RRFFQ69G5FAV": {
+      "id": "o_05ARZ3NDEKTSV4RRFFQ69G5FAV",
+      "type": "input",
+      "parentId": "s_01ARZ3NDEKTSV4RRFFQ69G5FAV",
+      "children": [],
+      "props": { "type": "text", "placeholder": "Required field", "required": true },
+      "style": {},
+      "meta": {}
+    },
+    "o_06ARZ3NDEKTSV4RRFFQ69G5FAV": {
+      "id": "o_06ARZ3NDEKTSV4RRFFQ69G5FAV",
+      "type": "input",
+      "parentId": "s_01ARZ3NDEKTSV4RRFFQ69G5FAV",
+      "children": [],
+      "props": { "type": "text", "placeholder": "Disabled field", "disabled": true },
+      "style": {},
+      "meta": {}
+    }
+  },
+  "screenOrder": ["s_01ARZ3NDEKTSV4RRFFQ69G5FAV"],
+  "metadata": { "name": "FX-04 States", "tags": ["fixture"] }
+}
