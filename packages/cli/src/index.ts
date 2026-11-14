@@ -17,7 +17,34 @@ interface CLIContext {
   crypto: ReturnType<typeof createNodeCryptoPort>;
 }
 
-async function initCommand(projectRoot: string): Promise<void> {
+function getInitPlan(projectRoot: string): { path: string; kind: "file" | "directory" }[] {
+  const intentDir = resolve(projectRoot, ".intent");
+  return [
+    { path: resolve(intentDir, "scenes"), kind: "directory" },
+    { path: resolve(intentDir, "locks"), kind: "directory" },
+    { path: resolve(intentDir, "briefs"), kind: "directory" },
+    { path: resolve(intentDir, "feedback"), kind: "directory" },
+    { path: resolve(intentDir, "interview"), kind: "directory" },
+    { path: resolve(intentDir, "config.json"), kind: "file" },
+    { path: resolve(intentDir, "scenes", "default.json"), kind: "file" },
+    { path: resolve(intentDir, "rules"), kind: "directory" },
+  ];
+}
+
+async function initCommand(projectRoot: string, options?: { dryRun?: boolean }): Promise<void> {
+  const dryRun = options?.dryRun === true;
+  const plan = getInitPlan(projectRoot);
+
+  if (dryRun) {
+    console.log(chalk.bold("DRY RUN — no files will be written"));
+    console.log(chalk.gray("  Project root: " + projectRoot));
+    console.log("  Would create:");
+    for (const item of plan) {
+      console.log(`  ${item.kind === "directory" ? "+" : "·"} ${item.path}`);
+    }
+    return;
+  }
+
   const spinner = ora("Initializing Intent project...").start();
   const intentDir = resolve(projectRoot, ".intent");
   const scenesDir = resolve(intentDir, "scenes");
@@ -189,8 +216,11 @@ export function createCLI(): Command {
   program
     .command("init")
     .description("Initialize a new Intent project in the current directory")
-    .action(async () => {
-      await initCommand(resolve(program.opts()["path"] as string));
+    .option("--dry-run", "Print the files init would create; do not write anything")
+    .action(async (options) => {
+      await initCommand(resolve(program.opts()["path"] as string), {
+        dryRun: options.dryRun === true,
+      });
     });
 
   program
