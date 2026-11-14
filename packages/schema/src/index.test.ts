@@ -195,7 +195,7 @@ describe("Schema validation", () => {
         path: "props.label",
         value: "New Label",
         createdAt: "2026-11-02T22:38:00.000Z",
-        status: "pending",
+        status: "sent",
       };
       expect(PatchSchema.safeParse(patch).success).toBe(true);
     });
@@ -209,7 +209,7 @@ describe("Schema validation", () => {
         op: "unset",
         path: "style.background",
         createdAt: "2026-11-02T22:38:00.000Z",
-        status: "pending",
+        status: "sent",
       };
       expect(PatchSchema.safeParse(patch).success).toBe(true);
     });
@@ -339,7 +339,6 @@ describe("Schema validation", () => {
         severity: "high",
         status: "sent",
         createdAt: "2026-11-02T22:38:00.000Z",
-        acknowledgedAt: null,
         appliedAt: null,
         patchId: null,
         screenshot: "data:image/png;base64,...",
@@ -420,7 +419,6 @@ describe("Schema validation", () => {
         severity: "high",
         status: "sent",
         createdAt: "2026-11-02T22:38:00.000Z",
-        acknowledgedAt: null,
         appliedAt: null,
         patchId: null,
       };

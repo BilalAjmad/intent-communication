@@ -1,13 +1,9 @@
 import { z } from "zod";
-export const CrockfordULIDSchema = z.string().regex(/^(o|s|c|p|a|q|v|k)_[0-9A-HJKMNP-TV-Z]{26}$/, { message: "Must be a valid prefixed Crockford ULID (prefix_<26 Crockford base32 chars>)" });
-
-export const ISODateTimeSchema = z.string().datetime({ offset: true }).refine((val) => val.endsWith("Z"), { message: "Must be UTC (end with Z)" });
-
-export const RevisionSchema = z.number().int().nonnegative();
-
-export const ObjectIdSchema = CrockfordULIDSchema;
-
-export const ScreenIdSchema = CrockfordULIDSchema;
+import { CrockfordULIDSchema, ISODateTimeSchema, RevisionSchema, ObjectIdSchema, ScreenIdSchema, SafeIdSchema, ChipSchema } from "./primitives.js";
+import { CreatePatchInputSchema, UpdatePatchInputSchema, SendPatchesInputSchema, ResolvePatchInputSchema, PatchListQuerySchema } from "./studio-api.js";
+export { CrockfordULIDSchema, ISODateTimeSchema, RevisionSchema, ObjectIdSchema, ScreenIdSchema, SafeIdSchema, ChipSchema, CreatePatchInputSchema, UpdatePatchInputSchema, SendPatchesInputSchema, ResolvePatchInputSchema, PatchListQuerySchema };
+export type { Chip } from "./primitives.js";
+export type { CreatePatchInput, UpdatePatchInput, SendPatchesInput, ResolvePatchInput } from "./studio-api.js";
 
 export const PrimitiveValueSchema = z.union([z.string(), z.number(), z.boolean(), z.null()]);
 
@@ -136,7 +132,7 @@ export const PatchOpSchema = z.enum(["set", "unset", "add", "remove", "move", "s
 
 export const PatchSchema = z.object({
   id: CrockfordULIDSchema,
-  sceneId: CrockfordULIDSchema,
+  sceneId: SafeIdSchema,
   baseRevision: RevisionSchema,
   objectId: ObjectIdSchema,
   op: PatchOpSchema,
@@ -146,7 +142,7 @@ export const PatchSchema = z.object({
   fromIndex: z.number().int().nonnegative().optional(),
   toParentId: ObjectIdSchema.optional(),
   createdAt: ISODateTimeSchema,
-  status: z.enum(["pending", "applied", "rejected", "conflict"]).default("pending"),
+  status: z.enum(["draft", "sent", "applied", "rejected", "conflict"]).default("draft"),
   appliedAt: ISODateTimeSchema.nullable().default(null),
   conflictWith: CrockfordULIDSchema.nullable().default(null),
 });
@@ -254,21 +250,24 @@ export type Brief = z.infer<typeof BriefSchema>;
 
 export const FeedbackSchema = z.object({
   id: CrockfordULIDSchema,
-  sceneId: CrockfordULIDSchema,
+  sceneId: SafeIdSchema,
   objectId: ObjectIdSchema,
   kind: z.enum(["visual", "behavior", "content", "layout", "accessibility", "other"]),
   message: z.string().min(1).max(2000),
   severity: z.enum(["low", "medium", "high", "critical"]).default("medium"),
-  status: z.enum(["sent", "acknowledged", "applied", "rejected", "deferred"]).default("sent"),
+  status: z.enum(["draft", "sent", "applied", "rejected", "conflict"]).default("draft"),
+  chips: z.array(ChipSchema).max(7).default([]),
+  baseRevision: RevisionSchema.nullable().default(null),
   createdAt: ISODateTimeSchema,
-  acknowledgedAt: ISODateTimeSchema.nullable().default(null),
+  sentAt: ISODateTimeSchema.nullable().default(null),
   appliedAt: ISODateTimeSchema.nullable().default(null),
   patchId: CrockfordULIDSchema.nullable().default(null),
   screenshot: z.string().optional(),
 });
 
 export type Feedback = z.infer<typeof FeedbackSchema>;
-
+// Studio server API inputs (trd 11.3). Feedback drafts are created as patches in
+// the current simplified model; chips are the quick-feedback set from design.md 4.3.
 export const SceneSummarySchema = z.object({
   revision: RevisionSchema,
   screenCount: z.number().int().nonnegative(),
@@ -330,7 +329,7 @@ export const ApplyPatchOutputSchema = z.object({
 export type ApplyPatchOutput = z.infer<typeof ApplyPatchOutputSchema>;
 
 export const GetFeedbackInputSchema = z.object({
-  sceneId: CrockfordULIDSchema,
+  sceneId: SafeIdSchema,
   objectIds: z.array(ObjectIdSchema).optional(),
   includeImageData: z.boolean().default(false),
   since: ISODateTimeSchema.optional(),
@@ -373,7 +372,7 @@ export const AskUserOutputSchema = z.object({
 export type AskUserOutput = z.infer<typeof AskUserOutputSchema>;
 
 export const OpenStudioInputSchema = z.object({
-  sceneId: CrockfordULIDSchema,
+  sceneId: SafeIdSchema,
   userRequested: z.boolean(),
   quote: z.string().optional(),
 });
