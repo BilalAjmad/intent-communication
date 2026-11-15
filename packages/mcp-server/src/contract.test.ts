@@ -173,7 +173,7 @@ describe("AC-M1-03: six-tool contract matrix", () => {
   it("get_feedback — happy path returns empty feedback for an untouched scene", async () => {
     const result = (await handleMCPRequest("get_feedback", { sceneId: "s_01ARZ3NDEKTSV4RRFFQ69G5FAV" }, context)) as Record<string, unknown>;
     expect(Array.isArray(result)).toBe(false);
-    expect(result).toEqual({ feedback: [] });
+    expect(result).toEqual({ feedback: [], interviewAnswers: [], locked: [] });
   });
 
   // 4. ask_user (deterministic first question for taskSize=small)
@@ -183,9 +183,9 @@ describe("AC-M1-03: six-tool contract matrix", () => {
       { questionId: "q-test-1", kind: "choice", prompt: "Pick one?", options: [{ value: "a", label: "A" }] },
       context
     )) as Record<string, unknown>;
-    expect(result.answer).toBeNull();
-    expect(typeof result.meter).toBe("number");
-    expect(result.nextQuestion).toBeDefined();
+    expect(result.questionId).toBe("q-test-1");
+    expect(typeof result.renderedText).toBe("string");
+    expect((result as { meterApplied?: { percent: number } }).meterApplied?.percent).toBe(0);
     expect(typeof result.delegated).toBe("boolean");
   });
 

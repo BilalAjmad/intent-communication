@@ -45,10 +45,15 @@
         <div class="tabs" role="tablist" aria-label="Right panel">
           <button role="tab" id="tab-inspector" aria-selected="true" aria-controls="inspector-panel">Inspector</button>
           <button role="tab" id="tab-feedback" aria-selected="false" aria-controls="feedback-panel">Feedback</button>
+          <button role="tab" id="tab-interview" aria-selected="false" aria-controls="interview-panel">Interview</button>
         </div>
 
         <div id="inspector-panel" class="tabpanel" role="tabpanel" aria-labelledby="tab-inspector">
           <div id="inspector-body"></div>
+        </div>
+
+        <div id="interview-panel" class="tabpanel" role="tabpanel" aria-labelledby="tab-interview" hidden>
+          <div id="interview-body"></div>
         </div>
 
         <div id="feedback-panel" class="tabpanel" role="tabpanel" aria-labelledby="tab-feedback" hidden>

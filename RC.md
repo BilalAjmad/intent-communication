@@ -1,68 +1,48 @@
-# Intent v0.1.0 — Release Candidate Status
+# Intent — Release Candidate Status
 
-> **Update 2026-11-14 (pass 3):** `pnpm verify` re-verified end-to-end after the AC-M1-07 work and the mutation-check crash fix: 12/12 PASS, unit+integration **317/317** (was 286/286). New crypto-strong evidence now exists for the preview/export claim: `tests/fidelity-pixel.spec.ts` (6 FX fixtures × light/dark × phone/tablet/desktop, Playwright pixel matcher, maxDiffPixels: 0; 20/20 calibration runs at 0 diff on Windows 11) and `tests/visual-diff.spec.ts` rewritten to real pixel comparison (it previously counted compressed-PNG bytes — that metric was meaningless). An interrupted `pnpm verify` had left `packages/core/src/patch.ts` with the trd 6.2 scope check disabled; it was restored from git and `scripts/mutation-check.mjs` is now crash-safe (pre-mutation backup + startup self-heal + signal handlers). The M1 gate verdict is still **NOT READY for v0.1.0** — see docs/review.md §21/§21.1. Numbers below are the 2026-11-13 historical snapshot.
+Date: 2026-11-15
+Scope: M1, in-tree state at the current working tree after the Interview-tab pass (SCHEMA/MCP/server/Studio). Nothing has been pushed or tagged.
 
-Date: 2026-11-13
-HEAD: see `git log --oneline -3` (docs recorded by this RC; the claims below verified on HEAD after the Phase 2 commits)
+> **The M1 gate verdict remains NOT READY for v0.1.0** (docs/review.md A-21/A-21.1). This file states what is proven and what is not. Do not read "works" below as a release claim.
 
-## Summary
+## What works (verified with evidence, this tree)
 
-M1 milestone regression pass complete (as of this date, in-tree). All 12 verify steps pass.
-Then it was found that the registry object-lock design could deadlock objects for
-crashed writers; that is now fixed (stale-owner reclaim + owner-token release), and the
-applyPatch path is hardened against traversal/prototype pollution and forbidden roots.
-Re-verified end-to-end: `pnpm verify` → 12/12 PASS, unit+integration tests 263/263 pass.
+- **All 12 verify steps pass** on this machine (Windows 11, Node v22.23.4, pnpm 9.7.1): install, build (10/10), typecheck, lint, unit+integration **322/322**, multi-process 2/2, sigkill 1/1, mutation proof 5/5, visual diff 6/6, smoke 5/5, docs:index, context:check. See `VERIFY-REPORT.md` (regenerated; gitignored).
+- **Full Playwright suite: 76/76** on Windows 11 (includes visual-diff pixel comparisons, smoke, fidelity-pixel, keyboard-only flow, and the new interview-tab and axe specs).
+- **Interview tab, real code, no fixtures** (this pass): question card with options / "0) Don't know, you choose" / "s) Skip" / why-asked; estimated-understanding meter with topic chips (icon + text); summary screen with `[you said]` / `[chosen by me]` tags and the three buttons; answers POST to `/api/interview/answer` into `.intent/interview/state.json`; Studio answer wins over chat; `get_feedback` returns unconsumed answers once.
+- **TC-INT-17** — Studio answer returned by `get_feedback` exactly once; a later chat answer for the same questionId is ignored with a note. 3/3 unit tests pass.
+- **TC-SRV-04** — SSE: Last-Event-ID replay of the last 100 events; a larger gap sends `resync`. 2/2 unit tests pass.
+- **TC-STU-08** — the Interview tab card content equals the plain-text card. Pass (Playwright, real server).
+- **TC-INT-E2E** — real-UI roundtrip: `ask_user` via `/api/mcp` → question visible in the Studio tab → answer clicked in the Studio → `get_feedback` returns it once. Pass.
+- **axe-core on the Interview tab: 0 critical/serious.** Pass (Playwright).
+- **`GET /api/patches` cursor pagination** — base64url cursor of the last item's `[createdAt, id]`, 200 max per page, stable newest-first ordering, `nextCursor` null at the end.
+- **`pnpm verify` no longer exceeds any budget**: schema 476 lines, mcp-server 430, server 472 (500-line per-file budget; context:check green).
 
-## Changes since HEAD@4b581af (d825918/4b581af → this pass)
+## What does NOT work / is NOT done (stated plainly, 2026-11-15)
 
-- `packages/core/src/ports.ts`: rework `createLockPort` — per-object locks are now entries in
-  `.intent/locks/<sceneId>.locks.json` (LocksFile `lockedObjects` array). Atomic writes go through
-  `writeAtomic` in `atomic.ts`. Scene lock uses an ownerToken re-verify + exponential backoff
-  with jitter (10ms→×1.6, cap 250ms, ±20% jitter). Object locks now carry `{ pid, ownerToken, createdAt }`
-  in an additive `owners` map (non-breaking for existing files; legacy entries have no owner info
-  and are kept conservatively). `acquire()` reclaims entries whose owner is dead or stale (>10 s).
-  `release()` only removes the entry this process registered; foreign entries are never unlinked.
-  `getLockedObjects()` filters dead/stale entries used by the descendant-lock check.
-- `packages/core/src/atomic.ts`: new file — atomic write with fsync, Windows rename retry
-  (20/40/80/160/320 ms), `E_IO` on failure, symlink protection. Shared by all storage ports.
-- `packages/core/src/patch.ts`: applyPatch path hardened — trd 6.2 root whitelist for set/unset
-  (name, visible, size, position, margin, style, layout, props, a11y, interactions, responsive),
-  `E_BAD_REQUEST` otherwise; rejects `..`, `.`, empty segments, `__proto__`, `constructor`,
-  `prototype`; path lengths and part patterns capped.
-- `packages/core/src/patch.test.ts`: new — 7 path-safety tests incl. `../../escape`, prototype
-  pollution, forbidden roots, and valid-path control.
-- `packages/core/src/lock-stale.test.ts`: new — 4 stale-owner/reclaim tests for the registry.
-- `packages/schema/src/index.ts`: `LocksFileSchema` gains optional `owners` map (additive).
-  Schema kept at 496 lines (≤500 budget). ISODateTime/PrimitiveValue compacted.
-- `packages/adapters-node/src/index.ts`: storage ports use `writeAtomic`; `createFileLockPort` updated for the new signature.
-- `tests/`: multi-process/sigkill workers updated for the new lock port signature; mutation-proof
-  and mutation-check updated for vitest v2 JSON output and the new patch.ts anchor.
-- `scripts/verify.mjs`: ANSI-escape-safe test-count extraction (real count = 263 now); supports
-  vitest v2 schema. `scripts/mutation-check.mjs`: patch.ts anchor updated; reads vitest v2 JSON
-  from the report file. `tests/mutation-proof.mjs`: rewritten to the same pipeline coordinates.
-- `README.md`: test count updated 252 → 263.
+- **The M1 gate has not been executed** (plan §8.7, S-1-15: Partial). Do not tag v0.1.0, do not publish.
+- **Agent end-to-end interview is NOT exercised here.** No live Claude Code / Cursor session drove the interview. The Tier 1 smoke checklist (tests/smoke/CHECKLIST.md) is intentionally **empty** — nothing has been run against a real agent, no version recorded.
+- **97–99% intent match is an unmeasured target**, not a measured result. The meter is implemented (capped-89 rule) and golden-tested offline, but no production session has produced the acceptance number.
+- **Agent connection steps for Claude Code and Cursor are UNVERIFIED** — `docs/versions.md` does not exist. README and USAGE must be read with that caveat.
+- **macOS/Linux have never been executed.** CI (ubuntu/windows/macos matrix) is configured but has not been observed to run here. Fidelity calibration is Windows-only.
+- **Interview summary "Change something"** edits items in the DOM as contenteditable but there is no diff/confirmation path for the edited items; `Exactly right` marks the interview `complete`. `Ask more questions` records `summaryChoice: "ask-more"` and keeps the interview in progress.
+- **Refine mode and metrics.json are deferred to M2** (P1 cut).
+- **M2/M3 features** (drag/resize, pencil annotations, pins, unread/pinned, profile learning, Scanner) are not built.
+- **The Studio SPA deep-link fallback is deliberately absent** — unknown paths return 404; the SPA is served at `/` only.
+- **An interrupted verify run can leave `packages/core/src/patch.ts` restored from git**; `scripts/mutation-check.mjs` is crash-safe (backup + self-heal) since 2026-11-14, but the class of failure exists.
+- **The summary "Change something" path is not automated-tested** — no Playwright or unit test exercises the edited-items branch (`contenteditable` → `save-summary-changes`); only the code path is written. Do not claim it works until a test exists.
 
-## Verified (this pass, 2026-11-13 ~17:20)
+## Risks
 
-- `pnpm verify` → 12 steps PASS (see VERIFY-REPORT.md, unit+integration 263/263)
-- `pnpm lint` → 0 errors
-- `pnpm typecheck` → 0 errors
-- Multi-process tests: 2/2 PASS in verify; 10 consecutive runs PASS (explicit flake sample)
-- Mutation check: 5/5 mutations detected (lock, conflict, scope, descendant-lock, schema)
-- Context check: all checks pass (schema/src/index.ts = 496 lines, budget 500)
-- Security audit (this folder, earlier): two browser-verified exported-HTML XSS classes fixed,
-  Studio server auth reviewed and hardened, 19 server SEC tests pass, trivy/gitleaks clean
+- **Status “applied” without agent verification**: `apply_patch` marks feedback `applied` on success — the agent could mark its own patch applied; the Studio has no independent verifier. (Mitigation today: human reads the diff; colors/tray are advisory only.)
+- **Stale locks can expire while a holder is paused** (>10 s stale reclaim): a suspended OS or a long GC pause can have its lock reclaimed underneath it. Untested on real sleep/wake cycles.
+- **SSE fan-out is in-memory, single process**: a server restart silently drops the ring and replayed history; clients must treat `resync` as a full reload. No persistence of `.intent/events` beyond the current process.
+- **`.intent/interview/state.json` is rewritten wholesale** on every `ask_user`/answer; a concurrent external edit between read and write is lost. Atomic writes prevent torn files, not lost updates.
+- **The SPA CSP pins the two constant preview inline scripts by sha256**: any change to those scripts breaks the preview silently unless the hashes in both policies are regenerated (no automation for this).
+- **Pixel fidelity thresholds are zero**; a font or rasterizer difference on a different OS would fail CI without a recalibration. CI is unobserved.
+- **All evidence is this one Windows machine** (plus whatever CI shows later). No clean-machine run has happened.
+- **No push / no tag / no release has happened.** The user decides.
 
-## Not Verified / Assumptions
+## Historical snapshot
 
-- Windows-only CI; network filesystems not tested.
-- 10/10 multi-process runs is a sample — the flake is much rarer but not proven extinct.
-- README's "All 12 verify steps pass" is supported by VERIFY-REPORT.md, but verify's unit-count
-  extraction needed an ANSI fix this pass (fresh report shows 263/263).
-- Two agents worked this tree concurrently; this file used to point at a stale HEAD before this pass.
-- M2/M3 features not implemented.
-
-## Next Steps
-
-- M2: drag/resize, pencil annotations, React exporter
-- M3: Scanner, profile learning, Design Profile
+See `git log --oneline` and the change log in docs/plan.md §19. Earlier RC numbers (317/317 unit, pre-Interview-tab) are superseded by the 2026-11-15 state above.

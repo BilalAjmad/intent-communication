@@ -6,7 +6,9 @@ import {
   SendPatchesInputSchema,
   ResolvePatchInputSchema,
   PatchListQuerySchema,
+  InterviewAnswerInputSchema,
   Feedback,
+  InterviewState,
 } from "@intent/schema";
 import { buildPreviewDocument } from "@intent/studio";
 import {
@@ -47,23 +49,56 @@ export async function handleApiPreview(ctx: ApiContext, req: IncomingMessage, re
 }
 
 /** GET /api/patches[?status=&scene=] â€” newest first, max 200, nextCursor always null (no pagination yet). */
+function encodeCursor(item: { createdAt: string; id: string }): string {
+  return Buffer.from(JSON.stringify([item.createdAt, item.id])).toString("base64url");
+}
+
+function decodeCursor(cursor: string): { at: string; id: string } | null {
+  try {
+    const parsed = JSON.parse(Buffer.from(cursor, "base64url").toString("utf-8")) as unknown;
+    if (!Array.isArray(parsed) || parsed.length !== 2 || typeof parsed[0] !== "string" || typeof parsed[1] !== "string") {
+      return null;
+    }
+    return { at: parsed[0], id: parsed[1] };
+  } catch {
+    return null;
+  }
+}
+
 export async function handleApiPatchList(ctx: ApiContext, req: IncomingMessage, res: ServerResponse, url: URL): Promise<void> {
+  const limitParam = url.searchParams.get("limit");
   let query;
   try {
     query = PatchListQuerySchema.parse({
       sceneId: url.searchParams.get("scene") ?? undefined,
       status: url.searchParams.get("status") ?? undefined,
+      limit: limitParam !== null && limitParam !== "" ? Number(limitParam) : undefined,
+      cursor: url.searchParams.get("cursor") ?? undefined,
     });
   } catch (err) {
     sendSchemaError(res, err);
     return;
   }
+  let cursor: { at: string; id: string } | null = null;
+  if (query.cursor) {
+    cursor = decodeCursor(query.cursor);
+    if (!cursor) {
+      sendJson(res, 400, { error: { code: "E_BAD_REQUEST", message: "Invalid cursor" } });
+      return;
+    }
+  }
   const items = (await readQueue(ctx.storage, query.sceneId))
     .filter((f) => !query.status || f.status === query.status)
+    .filter((f) => {
+      if (!cursor) return true;
+      // newest-first ordering; next page = items strictly older than the cursor entry
+      return f.createdAt < cursor.at || (f.createdAt === cursor.at && f.id < cursor.id);
+    })
     .slice()
-    .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
-    .slice(0, 200);
-  sendJson(res, 200, { patches: items, nextCursor: null });
+    .sort((a, b) => (b.createdAt + b.id).localeCompare(a.createdAt + a.id));
+  const page = items.slice(0, query.limit);
+  const nextCursor = page.length === query.limit && page.length > 0 ? encodeCursor(page[page.length - 1]!) : null;
+  sendJson(res, 200, { patches: page, nextCursor });
 }
 
 /** POST /api/patches â€” create a draft feedback patch for one object (design.md 4.3). */
@@ -290,6 +325,8 @@ export async function handleMcp(ctx: ApiContext, req: IncomingMessage, res: Serv
           typeof p?.status === "string"
         ) {
           ctx.broadcastPatchChanged(p.sceneId, p.id, p.status);
+        } else if (event === "interview.changed" && typeof p?.status === "string") {
+          ctx.broadcastInterviewChanged(p.status);
         }
       },
     });
@@ -320,4 +357,69 @@ export async function handleMcp(ctx: ApiContext, req: IncomingMessage, res: Serv
       })
     );
   }
+}
+
+function freshInterviewState(): InterviewState {
+  return {
+    version: 1,
+    status: "not_started",
+    currentQuestionIndex: 0,
+    meter: 0,
+    meterTopics: {},
+    requiredTopics: [],
+    answeredTopics: [],
+    delegated: false,
+    delegatedAt: null,
+    briefId: null,
+    updatedAt: new Date().toISOString(),
+    pendingQuestion: null,
+    answers: [],
+  };
+}
+
+/** GET /api/interview — the interview state (.intent/interview/state.json). */
+export async function handleApiInterviewGet(ctx: ApiContext, req: IncomingMessage, res: ServerResponse, _url: URL): Promise<void> {
+  const state = (await ctx.storage.readInterviewState()) ?? freshInterviewState();
+  sendJson(res, 200, { state });
+}
+
+/** POST /api/interview/answer — record a Studio-side answer; consumed by get_feedback exactly once. */
+export async function handleApiInterviewAnswer(ctx: ApiContext, req: IncomingMessage, res: ServerResponse): Promise<void> {
+  let body: unknown;
+  try {
+    body = await readJsonBody(req, 2 * 1024 * 1024);
+  } catch {
+    sendJson(res, 413, { error: { code: "E_LIMIT", message: "Payload too large" } });
+    return;
+  }
+  let input;
+  try {
+    input = InterviewAnswerInputSchema.parse(body);
+  } catch (err) {
+    sendSchemaError(res, err);
+    return;
+  }
+  const state = (await ctx.storage.readInterviewState()) ?? freshInterviewState();
+  const existingStudio = state.answers.find((a) => a.questionId === input.questionId && a.via === "studio");
+  if (existingStudio) {
+    // Idempotent: a re-send for the same question returns the current state unchanged.
+    sendJson(res, 200, { state });
+    return;
+  }
+  const now = new Date().toISOString();
+  state.answers.push({ questionId: input.questionId, answer: input.answer, via: "studio", answeredAt: now, consumed: false });
+  if (state.pendingQuestion?.questionId === input.questionId) {
+    state.pendingQuestion = null;
+  }
+  // Summary "Exactly right" marks the interview complete (trd 10.2); anything else stays in progress.
+  const answer = input.answer as { summaryChoice?: string } | null;
+  if (answer && answer.summaryChoice === "exactly-right") {
+    state.status = "complete";
+  } else if (state.status !== "complete") {
+    state.status = "in_progress";
+  }
+  state.updatedAt = now;
+  await ctx.storage.writeInterviewState(state);
+  ctx.broadcastInterviewChanged(state.status);
+  sendJson(res, 201, { state });
 }

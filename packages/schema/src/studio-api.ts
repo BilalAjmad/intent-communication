@@ -35,9 +35,19 @@ export const ResolvePatchInputSchema = z.object({
 export const PatchListQuerySchema = z.object({
   sceneId: z.string().min(1).max(120).default("default"),
   status: z.enum(["draft", "sent", "applied", "rejected", "conflict"]).optional(),
+  limit: z.number().int().min(1).max(200).default(200),
+  // base64url(JSON [createdAt, id]) of the last item of the previous page
+  cursor: z.string().max(200).optional(),
+});
+
+export const InterviewAnswerInputSchema = z.object({
+  sceneId: z.string().min(1).max(120).default("default"),
+  questionId: z.string().min(1).max(120),
+  answer: z.unknown(),
 });
 
 export type CreatePatchInput = z.infer<typeof CreatePatchInputSchema>;
 export type UpdatePatchInput = z.infer<typeof UpdatePatchInputSchema>;
 export type SendPatchesInput = z.infer<typeof SendPatchesInputSchema>;
 export type ResolvePatchInput = z.infer<typeof ResolvePatchInputSchema>;
+export type InterviewAnswerInput = z.infer<typeof InterviewAnswerInputSchema>;

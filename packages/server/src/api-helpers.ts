@@ -13,6 +13,7 @@ export interface ApiContext {
   projectRoot: string;
   broadcastPatchChanged: (sceneId: string, id: string, status: string) => void;
   broadcastRevision: (sceneId: string, revision: number) => void;
+  broadcastInterviewChanged: (status: string) => void;
 }
 
 /** New p_-prefixed Crockford id for feedback queue items. */

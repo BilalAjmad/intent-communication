@@ -1,6 +1,6 @@
 # Documentation Index
 
-Generated: 2026-11-14T19:00:47.968Z
+Generated: 2026-11-15T09:41:37.949Z
 
 ## Plan
 
@@ -24,7 +24,7 @@ Generated: 2026-11-14T19:00:47.968Z
   - 8.1 8.1 Scope (from PRD section 8, architecture 22, intent 17.2, with P1)
   - 8.2 8.2 Sub-slices
   - 8.3 8.3 Steps
-  - 8.3.1 8.3.1 S-1 Step Status (evidence from `pnpm verify` 2026-11-14)
+  - 8.3.1 8.3.1 S-1 Step Status (evidence from `pnpm verify` 2026-11-15)
   - 8.4 8.4 Cut line for M1 (what goes first if M1 is too big)
   - 8.5 8.5 M1 acceptance criteria
   - 8.6 8.6 Demo D script (the M1 demo)

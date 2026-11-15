@@ -1,8 +1,11 @@
 import { z } from "zod";
 import { CrockfordULIDSchema, ISODateTimeSchema, RevisionSchema, ObjectIdSchema, ScreenIdSchema, SafeIdSchema, ChipSchema } from "./primitives.js";
-import { CreatePatchInputSchema, UpdatePatchInputSchema, SendPatchesInputSchema, ResolvePatchInputSchema, PatchListQuerySchema } from "./studio-api.js";
-export { CrockfordULIDSchema, ISODateTimeSchema, RevisionSchema, ObjectIdSchema, ScreenIdSchema, SafeIdSchema, ChipSchema, CreatePatchInputSchema, UpdatePatchInputSchema, SendPatchesInputSchema, ResolvePatchInputSchema, PatchListQuerySchema };
+import { InterviewQuestionCoreSchema, PendingInterviewQuestionSchema, InterviewAnswerSchema, AskUserInputSchema, type AskUserInput } from "./interview.js";
+import { CreatePatchInputSchema, UpdatePatchInputSchema, SendPatchesInputSchema, ResolvePatchInputSchema, PatchListQuerySchema, InterviewAnswerInputSchema } from "./studio-api.js";
+export { CrockfordULIDSchema, ISODateTimeSchema, RevisionSchema, ObjectIdSchema, ScreenIdSchema, SafeIdSchema, ChipSchema, CreatePatchInputSchema, UpdatePatchInputSchema, SendPatchesInputSchema, ResolvePatchInputSchema, PatchListQuerySchema, InterviewAnswerInputSchema };
+export { InterviewQuestionCoreSchema, PendingInterviewQuestionSchema, InterviewAnswerSchema, AskUserInputSchema };
 export type { Chip } from "./primitives.js";
+export type { InterviewQuestionCore, PendingInterviewQuestion, InterviewAnswer, AskUserInput } from "./interview.js";
 export type { CreatePatchInput, UpdatePatchInput, SendPatchesInput, ResolvePatchInput } from "./studio-api.js";
 
 export const PrimitiveValueSchema = z.union([z.string(), z.number(), z.boolean(), z.null()]);
@@ -212,12 +215,15 @@ export const InterviewStateSchema = z.object({
   currentTopic: z.string().optional(),
   currentQuestionIndex: z.number().int().nonnegative().default(0),
   meter: z.number().min(0).max(100).default(0),
+  meterTopics: z.record(z.string(), z.enum(["none", "partial", "covered"])).default({}),
   requiredTopics: z.array(z.string()).max(50).default([]),
   answeredTopics: z.array(z.string()).max(50).default([]),
   delegated: z.boolean().default(false),
   delegatedAt: ISODateTimeSchema.nullable().default(null),
   briefId: CrockfordULIDSchema.nullable().default(null),
   updatedAt: ISODateTimeSchema,
+  pendingQuestion: PendingInterviewQuestionSchema.nullable().default(null),
+  answers: z.array(InterviewAnswerSchema).max(200).default([]),
 });
 
 export type InterviewState = z.infer<typeof InterviewStateSchema>;
@@ -339,37 +345,11 @@ export type GetFeedbackInput = z.infer<typeof GetFeedbackInputSchema>;
 
 export const GetFeedbackOutputSchema = z.object({
   feedback: z.array(FeedbackSchema).max(2000),
+  interviewAnswers: z.array(InterviewAnswerSchema).max(2000).default([]),
+  locked: z.array(ObjectIdSchema).max(2000).default([]),
 });
 
 export type GetFeedbackOutput = z.infer<typeof GetFeedbackOutputSchema>;
-
-export const AskUserInputSchema = z.object({
-  questionId: z.string().min(1),
-  kind: z.enum(["start", "choice", "text", "scale", "confirm", "skip"]),
-  prompt: z.string().min(1).max(2000),
-  options: z.array(z.object({
-    value: z.string().max(100),
-    label: z.string().max(200),
-    description: z.string().max(500).optional(),
-  })).max(10).optional(),
-  min: z.number().optional(),
-  max: z.number().optional(),
-  step: z.number().optional(),
-  previousAnswer: z.unknown().optional(),
-  requiredTopics: z.array(z.string()).max(50).optional(),
-});
-
-export type AskUserInput = z.infer<typeof AskUserInputSchema>;
-
-export const AskUserOutputSchema = z.object({
-  answer: z.unknown(),
-  meter: z.number().min(0).max(100),
-  nextQuestion: AskUserInputSchema.nullable().default(null),
-  briefId: CrockfordULIDSchema.nullable().default(null),
-  delegated: z.boolean().default(false),
-});
-
-export type AskUserOutput = z.infer<typeof AskUserOutputSchema>;
 
 export const OpenStudioInputSchema = z.object({
   sceneId: SafeIdSchema,

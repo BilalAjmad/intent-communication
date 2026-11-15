@@ -24,8 +24,12 @@ import {
   handleApiPatchSend,
   handleApiPatchResolve,
   handleMcp,
+  handleApiInterviewGet,
+  handleApiInterviewAnswer,
 } from "./api-routes.js";
 import { handleSSE, serveStatic, writeRuntimeFile } from "./runtime.js";
+import { SseEventBus, type SSEClient } from "./event-bus.js";
+export type { SSEClient } from "./event-bus.js";
 
 export interface ServerConfig {
   projectRoot: string;
@@ -42,12 +46,6 @@ export interface ServerConfig {
   sessionToken?: string;
   /** Idle timeout for a session cookie, in seconds (trd 11.2: Path=/api). */
   sessionMaxAgeSeconds?: number;
-}
-
-export interface SSEClient {
-  response: ServerResponse;
-  sceneId: string;
-  lastEventId: number;
 }
 
 export class IntentServer {
@@ -80,6 +78,8 @@ export class IntentServer {
   private sseClients: Map<string, SSEClient[]> = new Map();
   private httpServer: ReturnType<typeof createHttpServer>;
   private revision: number = 0;
+  /** Event counter + ring + client fan-out (trd 11.4). */
+  private readonly events = new SseEventBus(this.sseClients);
   private sessionToken: string;
   private sessionMaxAgeSeconds: number;
   /** Known live session ids -> createdAt (ms). */
@@ -102,6 +102,7 @@ export class IntentServer {
       projectRoot: config.projectRoot,
       broadcastPatchChanged: (sceneId, id, status) => this.broadcastPatchChanged(sceneId, id, status),
       broadcastRevision: (sceneId, revision) => this.broadcastRevision(sceneId, revision),
+      broadcastInterviewChanged: (status) => this.broadcastInterviewChanged(status),
     };
   }
 
@@ -116,6 +117,8 @@ export class IntentServer {
       staticDir: this.config.staticDir || this.defaultStaticDir,
       projectRoot: this.config.projectRoot,
       sessionToken: this.sessionToken,
+      eventLog: this.events.eventLog,
+      emitEvent: (type: string, payload: Record<string, unknown>) => this.events.emit(type, payload),
     };
   }
 
@@ -364,6 +367,16 @@ export class IntentServer {
       await handleApiPatchSend(this.apiCtx, req, res);
       return;
     }
+
+    // Interview (trd 11.3)
+    if (pathname === "/api/interview" && req.method === "GET") {
+      await handleApiInterviewGet(this.apiCtx, req, res, url);
+      return;
+    }
+    if (pathname === "/api/interview/answer" && req.method === "POST") {
+      await handleApiInterviewAnswer(this.apiCtx, req, res);
+      return;
+    }
     const patchMatch = /^\/api\/patches\/([^/]+)(\/resolve)?$/.exec(pathname);
     const patchId = patchMatch?.[1] ?? '';
     const patchSuffix = patchMatch?.[2];
@@ -393,40 +406,20 @@ export class IntentServer {
 
   broadcastRevision(sceneId: string, revision: number) {
     this.revision = revision;
-    const clients = this.sseClients.get(sceneId) || [];
-    for (const client of clients) {
-      try {
-        client.response.write(`id: ${revision}\n`);
-        client.response.write(`data: ${JSON.stringify({ type: "revision", revision })}\n\n`);
-      } catch {
-        // Intentionally swallow SSE delivery errors
-      }
-    }
+    this.events.send(sceneId, "revision", { revision });
   }
 
   broadcastPatch(sceneId: string, patch: Patch) {
-    const clients = this.sseClients.get(sceneId) || [];
-    for (const client of clients) {
-      try {
-        client.response.write(`id: ${this.revision}\n`);
-        client.response.write(`data: ${JSON.stringify({ type: "patch", patch })}\n\n`);
-      } catch {
-        // Intentionally swallow SSE delivery errors
-      }
-    }
+    this.events.send(sceneId, "patch", { patch });
   }
 
   broadcastPatchChanged(sceneId: string, id: string, status: string) {
-    const clients = this.sseClients.get(sceneId) || [];
-    const payload = JSON.stringify({ type: "patch.changed", id, status });
-    for (const client of clients) {
-      try {
-        client.response.write(`id: ${Date.now()}\n`);
-        client.response.write(`data: ${payload}\n\n`);
-      } catch {
-        // Intentionally swallow SSE delivery errors
-      }
-    }
+    this.events.send(sceneId, "patch.changed", { id, status, sceneId });
+  }
+
+  broadcastInterviewChanged(status: string) {
+    // The interview is project-wide; fan out to every connected scene channel.
+    this.events.sendAll("interview.changed", { status });
   }
 
   start(): Promise<number> {

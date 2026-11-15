@@ -159,9 +159,13 @@ describe("MCP Server", () => {
           { value: "b", label: "Option B" },
         ],
       }, context);
-      expect(result.answer).toBeNull();
-      expect(result.meter).toBe(0);
-      expect(result.nextQuestion).toBeDefined();
+      expect(result.questionId).toBe("q1");
+      expect(typeof result.renderedText).toBe("string");
+      expect(result.renderedText).toContain("Choose a layout");
+      expect(result.renderedText).toContain("Don't know, you choose");
+      expect(result.renderedText).toContain("Skip");
+      expect(typeof (result as { meterApplied?: { percent: number } }).meterApplied?.percent).toBe("number");
+      expect((result as { delegated?: boolean }).delegated).toBe(false);
     });
   });
 

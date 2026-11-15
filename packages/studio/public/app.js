@@ -68,6 +68,9 @@
     el.feedbackTarget = $("feedback-target");
     el.feedbackText = $("feedback-text");
     el.chips = $("chips");
+    el.interviewTab = $("tab-interview");
+    el.interviewPanel = $("interview-panel");
+    el.interviewBody = $("interview-body");
     el.addToQueue = $("add-to-queue");
     el.trayToggle = $("tray-toggle");
     el.trayCaret = $("tray-caret");
@@ -629,6 +632,8 @@
         loadSceneSoft();
       } else if (data.type === "patch.changed") {
         loadPatches();
+      } else if (data.type === "interview.changed") {
+        loadInterview();
       }
     };
     source.onopen = function () {
@@ -655,6 +660,367 @@
     }
   }
 
+
+  // ---------- Interview tab ----------
+
+  var TOPIC_LABELS = {
+    goal: "Goal", users: "Users", screens: "Screens", flow: "Flow",
+    style: "Style", content: "Content", behavior: "Behavior", "edge-cases": "Edge cases",
+  };
+
+  function interviewFreshState() {
+    return {
+      status: "not_started",
+      meter: 0,
+      meterTopics: {},
+      requiredTopics: [],
+      answeredTopics: [],
+      pendingQuestion: null,
+      answers: [],
+    };
+  }
+
+  async function loadInterview() {
+    try {
+      var data = await fetchJson("/api/interview?scene=" + encodeURIComponent(state.sceneId));
+      state.interview = data.state || interviewFreshState();
+      renderInterview();
+    } catch (err) {
+      // Interview tab stays visible with an error note; the rest of the shell is unaffected.
+      el.interviewBody.innerHTML = "";
+      var error = document.createElement("p");
+      error.className = "muted";
+      error.textContent = "The interview could not be loaded. (" + (err && err.message ? err.message : "unknown error") + ")";
+      el.interviewBody.appendChild(error);
+    }
+  }
+
+  function meterIcon(status) {
+    if (status === "covered") return "\u2713";
+    if (status === "partial") return "\u25D0";
+    return "\u2013";
+  }
+
+  function meterLabel(status) {
+    if (status === "covered") return "covered";
+    if (status === "partial") return "partly";
+    return "not covered";
+  }
+
+  function renderInterview() {
+    var state_interview = state.interview || interviewFreshState();
+    var body = el.interviewBody;
+    body.innerHTML = "";
+
+    // ---- Summary screen (kind === "summary")
+    var pending = state_interview.pendingQuestion;
+    if (pending && pending.kind === "summary" && pending.summary) {
+      renderSummaryScreen(body, state_interview, pending);
+      return;
+    }
+
+    // ---- Pending question card
+    if (pending) {
+      renderQuestionCard(body, state_interview, pending);
+      return;
+    }
+
+    // ---- Empty / waiting states
+    if (state_interview.status === "complete") {
+      var done = document.createElement("div");
+      done.className = "interview-complete";
+      done.innerHTML = "<strong>Interview complete.</strong><br><br>The brief is recorded. Anything else can go to the Feedback tab.";
+      body.appendChild(done);
+      return;
+    }
+    var empty = document.createElement("div");
+    empty.className = "interview-empty";
+    var message = state_interview.status === "not_started"
+      ? "No interview yet. When the agent asks questions, they will appear here."
+      : "Waiting for the agent\u2026";
+    empty.textContent = message;
+    body.appendChild(empty);
+  }
+
+  function renderMetaLine(body, pending, meter) {
+    var meta = document.createElement("div");
+    meta.className = "interview-meta";
+    var number = pending.questionNumber || 1;
+    var total = pending.estimatedTotal || 15;
+    var round = pending.round || pending.topic || "Interview";
+    meta.textContent =
+      "Question " + number + " of about " + total + " | Understanding: ~" + Math.round(meter) + "% (estimate) | Round: " + round;
+    body.appendChild(meta);
+  }
+
+  function renderMeter(body, interviewState) {
+    var wrap = document.createElement("div");
+    wrap.className = "meter-block";
+    var label = document.createElement("div");
+    label.className = "meter-label";
+    var left = document.createElement("span");
+    left.textContent = "Estimated understanding";
+    left.title = "The agent's own estimate. Always check the preview.";
+    var right = document.createElement("span");
+    right.textContent = Math.round(interviewState.meter || 0) + "%";
+    label.appendChild(left);
+    label.appendChild(right);
+    wrap.appendChild(label);
+    var track = document.createElement("div");
+    track.className = "meter-track";
+    track.setAttribute("role", "progressbar");
+    track.setAttribute("aria-valuemin", "0");
+    track.setAttribute("aria-valuemax", "100");
+    track.setAttribute("aria-valuenow", String(Math.round(interviewState.meter || 0)));
+    track.setAttribute("aria-label", "Estimated understanding");
+    var fill = document.createElement("div");
+    fill.className = "meter-fill";
+    fill.style.width = Math.max(2, Math.round(interviewState.meter || 0)) + "%";
+    track.appendChild(fill);
+    wrap.appendChild(track);
+    body.appendChild(wrap);
+
+    var topics = interviewState.requiredTopics || [];
+    if (topics.length > 0) {
+      var chipRow = document.createElement("div");
+      chipRow.className = "topic-chips";
+      topics.forEach(function (topic) {
+        var status = (interviewState.meterTopics && interviewState.meterTopics[topic]) || "none";
+        var chip = document.createElement("span");
+        chip.className = "topic-chip";
+        chip.setAttribute("data-state", status);
+        chip.textContent = meterIcon(status) + " " + (TOPIC_LABELS[topic] || topic) + " — " + meterLabel(status);
+        chipRow.appendChild(chip);
+      });
+      body.appendChild(chipRow);
+    }
+  }
+
+  function renderQuestionCard(body, interviewState, pending) {
+    renderMetaLine(body, pending, interviewState.meter || 0);
+
+    var q = document.createElement("p");
+    q.className = "interview-question";
+    q.textContent = pending.prompt;
+    body.appendChild(q);
+
+    // Options (single-select; buttons activate immediately as the answer)
+    if (Array.isArray(pending.options) && pending.options.length > 0) {
+      var list = document.createElement("div");
+      list.className = "interview-options";
+      pending.options.forEach(function (option, i) {
+        var btn = document.createElement("button");
+        btn.className = "interview-option";
+        btn.type = "button";
+        btn.setAttribute("aria-pressed", "false");
+        var num = document.createElement("span");
+        num.className = "option-number";
+        num.textContent = String(i + 1) + ")";
+        var text = document.createElement("span");
+        text.textContent = option.label;
+        btn.appendChild(num);
+        btn.appendChild(text);
+        btn.addEventListener("click", function () {
+          submitInterviewAnswer(pending.questionId, { kind: "choice", option: option.value, label: option.label });
+        });
+        list.appendChild(btn);
+      });
+      body.appendChild(list);
+    }
+
+    // Free-text answer
+    var ta = document.createElement("textarea");
+    ta.className = "interview-freetext";
+    ta.setAttribute("aria-label", "Or describe it in your own words");
+    ta.placeholder = "Or describe it in your own words";
+    ta.maxLength = 2000;
+    body.appendChild(ta);
+    var sendText = document.createElement("button");
+    sendText.className = "primary block-button";
+    sendText.type = "button";
+    sendText.textContent = "Send answer";
+    sendText.style.marginTop = "8px";
+    sendText.addEventListener("click", function () {
+      var value = ta.value.trim();
+      if (!value) {
+        showToast("Describe the answer first, or pick an option.");
+        return;
+      }
+      submitInterviewAnswer(pending.questionId, { kind: "text", text: value });
+    });
+    body.appendChild(sendText);
+
+    // Fixed secondary actions
+    var row = document.createElement("div");
+    row.className = "interview-secondary-row";
+    var dk = document.createElement("button");
+    dk.className = "icon-button";
+    dk.type = "button";
+    dk.textContent = "0) Don't know, you choose";
+    dk.addEventListener("click", function () {
+      submitInterviewAnswer(pending.questionId, { kind: "choice", option: "dont-know", label: "Don't know, you choose" });
+    });
+    var skip = document.createElement("button");
+    skip.className = "icon-button";
+    skip.type = "button";
+    skip.textContent = "s) Skip";
+    skip.addEventListener("click", function () {
+      submitInterviewAnswer(pending.questionId, { kind: "skip" });
+    });
+    row.appendChild(dk);
+    row.appendChild(skip);
+    body.appendChild(row);
+
+    // Why am I being asked this?
+    if (pending.whyAsked) {
+      var toggle = document.createElement("button");
+      toggle.className = "why-asked-toggle";
+      toggle.type = "button";
+      toggle.textContent = "Why am I being asked this?";
+      toggle.setAttribute("aria-expanded", "false");
+      var panel = document.createElement("p");
+      panel.className = "why-asked-panel";
+      panel.hidden = true;
+      panel.textContent = pending.whyAsked;
+      toggle.addEventListener("click", function () {
+        var open = toggle.getAttribute("aria-expanded") === "true";
+        toggle.setAttribute("aria-expanded", String(!open));
+        panel.hidden = open;
+      });
+      body.appendChild(toggle);
+      body.appendChild(panel);
+    }
+
+    renderMeter(body, interviewState);
+
+    var hint = document.createElement("p");
+    hint.className = "interview-hint";
+    hint.textContent = "Reply with a number, or describe it in your own words.";
+    body.appendChild(hint);
+  }
+
+  function renderSummaryScreen(body, interviewState, pending) {
+    var title = document.createElement("h2");
+    title.className = "summary-title";
+    title.textContent = "Here is what I understood";
+    body.appendChild(title);
+
+    if (pending.summary.paragraph) {
+      var p = document.createElement("p");
+      p.className = "summary-paragraph";
+      p.textContent = pending.summary.paragraph;
+      body.appendChild(p);
+    }
+
+    var items = pending.summary.items || [];
+    if (items.length) {
+      var ul = document.createElement("ul");
+      ul.className = "summary-items";
+      ul.setAttribute("aria-label", "Interview summary items");
+      items.forEach(function (item) {
+        var li = document.createElement("li");
+        li.className = "summary-item";
+        var tag = document.createElement("span");
+        tag.className = "tag tag-user";
+        tag.textContent = "[you said]";
+        var text = document.createElement("span");
+        text.textContent = (item.topic ? item.topic + ": " : "") + item.text;
+        li.appendChild(tag);
+        li.appendChild(text);
+        ul.appendChild(li);
+      });
+      body.appendChild(ul);
+    }
+
+    var delegated = pending.summary.delegated || [];
+    if (delegated.length) {
+      var box = document.createElement("div");
+      box.className = "summary-delegated";
+      var h = document.createElement("h3");
+      h.textContent = "Decided by me (agent)";
+      box.appendChild(h);
+      delegated.forEach(function (item) {
+        var line = document.createElement("p");
+        line.className = "summary-item";
+        var tag = document.createElement("span");
+        tag.className = "tag tag-chosen";
+        tag.textContent = "[chosen by me]";
+        var text = document.createElement("span");
+        text.textContent = (item.topic ? item.topic + ": " : "") + item.text;
+        line.appendChild(tag);
+        line.appendChild(text);
+        box.appendChild(line);
+      });
+      body.appendChild(box);
+    }
+
+    renderMeter(body, interviewState);
+
+    var actions = document.createElement("div");
+    actions.className = "summary-actions";
+
+    var exactly = document.createElement("button");
+    exactly.className = "primary";
+    exactly.type = "button";
+    exactly.textContent = "Exactly right";
+    exactly.addEventListener("click", function () {
+      submitInterviewAnswer(pending.questionId, { kind: "summary", summaryChoice: "exactly-right" });
+    });
+
+    var change = document.createElement("button");
+    change.className = "icon-button";
+    change.type = "button";
+    change.textContent = "Change something";
+    change.addEventListener("click", function () {
+      var list = body.querySelectorAll(".summary-item");
+      list.forEach(function (item) { item.contentEditable = "true"; });
+      change.disabled = true;
+      if (!body.querySelector(".save-summary-changes")) {
+        var save = document.createElement("button");
+        save.className = "primary save-summary-changes";
+        save.type = "button";
+        save.textContent = "Save changes";
+        save.addEventListener("click", function () {
+          var changes = [];
+          body.querySelectorAll(".summary-item").forEach(function (item) {
+            var textSpan = item.querySelector("span:last-child");
+            if (textSpan) changes.push(textSpan.textContent || "");
+          });
+          submitInterviewAnswer(pending.questionId, { kind: "summary", summaryChoice: "change", changes: changes });
+        });
+        actions.appendChild(save);
+      }
+    });
+
+    var more = document.createElement("button");
+    more.className = "icon-button";
+    more.type = "button";
+    more.textContent = "Ask more questions";
+    more.addEventListener("click", function () {
+      submitInterviewAnswer(pending.questionId, { kind: "summary", summaryChoice: "ask-more" });
+    });
+
+    actions.appendChild(exactly);
+    actions.appendChild(change);
+    actions.appendChild(more);
+    body.appendChild(actions);
+  }
+
+  async function submitInterviewAnswer(questionId, answer) {
+    try {
+      var data = await fetchJson("/api/interview/answer", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sceneId: state.sceneId, questionId: questionId, answer: answer }),
+      });
+      state.interview = (data && data.state) || interviewFreshState();
+      renderInterview();
+      showToast("Answer saved.");
+    } catch (err) {
+      showToast(err && err.message ? err.message : "Could not save the answer.");
+    }
+  }
+
   // ---------- wiring ----------
 
   function wireTabs() {
@@ -664,14 +1030,20 @@
     el.feedbackTab.addEventListener("click", function () {
       activateTab("feedback");
     });
+    el.interviewTab.addEventListener("click", function () {
+      activateTab("interview");
+    });
   }
 
   function activateTab(which) {
     var showFeedback = which === "feedback";
+    var showInterview = which === "interview";
     el.feedbackTab.setAttribute("aria-selected", String(showFeedback));
-    el.inspectorTab.setAttribute("aria-selected", String(!showFeedback));
+    el.inspectorTab.setAttribute("aria-selected", String(!showFeedback && !showInterview));
+    el.interviewTab.setAttribute("aria-selected", String(showInterview));
     el.feedbackPanel.hidden = !showFeedback;
-    el.inspectorPanel.hidden = showFeedback;
+    el.inspectorPanel.hidden = showFeedback || showInterview;
+    el.interviewPanel.hidden = !showInterview;
     if (showFeedback) el.feedbackText.focus();
   }
 
@@ -762,6 +1134,7 @@
     try {
       await loadScene();
       await loadPatches();
+      await loadInterview();
       connectEvents();
     } catch (err) {
       showFatal(err && err.message ? err.message : "The scene could not be loaded.");

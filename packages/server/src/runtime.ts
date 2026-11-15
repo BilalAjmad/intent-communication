@@ -3,6 +3,13 @@ import { readFile } from "node:fs/promises";
 import { resolve, extname, sep } from "node:path";
 import { StoragePort } from "@intent/core";
 
+/** One entry in the SSE event ring (trd 11.4). */
+export interface SseEvent {
+  seq: number;
+  type: string;
+  payload: Record<string, unknown>;
+}
+
 /** Runtime dependencies for the SSE stream and the static file server. */
 export interface RuntimeContext {
   storage: StoragePort;
@@ -14,9 +21,21 @@ export interface RuntimeContext {
   staticDir: string;
   projectRoot: string;
   sessionToken: string;
+  /** Live ring of the most recent events (max 100). */
+  eventLog: SseEvent[];
+  /** Append an event to the ring and return its seq (used as the SSE `id`). */
+  emitEvent: (type: string, payload: Record<string, unknown>) => number;
 }
 
-/** GET /api/events — SSE stream for a scene (trd 11.4; replays initial revision). */
+function writeSseEvent(res: ServerResponse, seq: number, type: string, payload: Record<string, unknown>): void {
+  res.write(`id: ${seq}\n`);
+  res.write(`data: ${JSON.stringify({ type, ...payload })}\n\n`);
+}
+
+/** GET /api/events — SSE stream for a scene (trd 11.4).
+ *  Fresh subscribers receive one seed revision event; reconnecting clients
+ *  with `Last-Event-ID` receive the events after that id (up to 100);
+ *  a larger gap receives a single `resync` event. */
 export async function handleSSE(ctx: RuntimeContext, req: IncomingMessage, res: ServerResponse, url: URL): Promise<void> {
   const sceneId = url.searchParams.get("scene") || "default";
   const lastEventIdHeader = req.headers["last-event-id"];
@@ -52,13 +71,31 @@ export async function handleSSE(ctx: RuntimeContext, req: IncomingMessage, res: 
     }
   }, 20000);
 
-  const client = { response: res, sceneId, lastEventId };
+  const client = { response: res, sceneId, lastEventId: Number.isFinite(lastEventId) ? lastEventId : 0 };
   const clients = ctx.sseClients.get(sceneId) || [];
   clients.push(client);
   ctx.sseClients.set(sceneId, clients);
 
-  res.write(`id: ${ctx.getRevision()}\n`);
-  res.write(`data: ${JSON.stringify({ type: "revision", revision: ctx.getRevision() })}\n\n`);
+  if (Number.isFinite(lastEventId) && lastEventId > 0 && ctx.eventLog.length > 0) {
+    // Reconnect: replay events newer than the client's last seen id.
+    const oldest = ctx.eventLog[0]!.seq;
+    if (ctx.eventLog.length >= 100 && lastEventId < oldest - 1) {
+      // Gap larger than the replay window — tell the client to refetch everything.
+      const seq = ctx.emitEvent("resync", {});
+      res.write(`id: ${seq}\n`);
+      res.write(`data: ${JSON.stringify({ type: "resync" })}\n\n`);
+    } else {
+      for (const ev of ctx.eventLog) {
+        if (ev.seq > lastEventId) {
+          writeSseEvent(res, ev.seq, ev.type, ev.payload);
+        }
+      }
+    }
+  } else {
+    // Fresh subscriber: one seed event with the current revision.
+    const seq = ctx.emitEvent("revision", { revision: ctx.getRevision() });
+    writeSseEvent(res, seq, "revision", { revision: ctx.getRevision() });
+  }
 
   req.on("close", () => {
     clearInterval(ping);
@@ -111,7 +148,7 @@ export async function serveStatic(ctx: RuntimeContext, req: IncomingMessage, res
     res.end(content);
     return;
   } catch {
-    // SPA is served at "/" only; no deep-link fallback
+    // SPA is served at "/" only; no deep-link fallback (every 404 here is a plain 404)
     if (pathname === "/" || pathname === "/index.html") {
       try {
         const content = await readFile(resolve(staticDir, "index.html"));

@@ -32,18 +32,18 @@ node packages/cli/dist/cli.js doctor
 node packages/cli/dist/cli.js export -s default -o my-app.html
 ```
 
-After the owner publishes to npm (not done, package name unverified):
+The CLI bin is `intent` (see `packages/cli/package.json`). After the owner publishes to npm (not done, name unverified):
 
 ```bash
-npx intent-studio init
+npx intent init
 ```
 
 ## In your project
 
 ```powershell
-intent-studio init --dry-run
-intent-studio init
-intent-studio doctor
+node packages/cli/dist/cli.js init --dry-run
+node packages/cli/dist/cli.js init
+node packages/cli/dist/cli.js doctor
 ```
 
 ### Files created
@@ -80,15 +80,33 @@ For design or UI work, interview me with the ask_user tool, one question at a ti
 6. Say: "open the studio"
 7. Select an object, send feedback
 8. Tell the agent: "check my feedback"
-9. Run: `intent-studio export html`
+9. Run: `node packages/cli/dist/cli.js export -s default -o my-app.html`
 10. Open the file by double-click
+
+## Use the Studio (Interview tab included)
+
+The Studio is a local web app served by `packages/server` at `http://127.0.0.1:<port>/`. It is the same shell the agent opens with `open_studio`.
+
+1. Start the server (or say "open the studio" to the agent):
+
+   ```powershell
+   pnpm --filter @intent/server start   # prints the URL; .intent/runtime.json holds port + token
+   ```
+
+2. Paste the URL with the token fragment from `.intent/runtime.json` (the token arrives via the URL fragment; never via query string).
+3. The shell has three right-panel tabs: **Inspector** (read-only object summary), **Feedback** (text + chips -> draft queue -> Send), and **Interview**.
+4. The Interview tab renders whatever question the agent last asked via `ask_user` (`.intent/interview/state.json`). It shows the same content as the plain-text card: question text, numbered options, "0) Don't know, you choose", "s) Skip", an optional "Why am I being asked this?" line, the **Estimated understanding** meter, and topic chips (icon + text: covered / partly / not covered). If a summary is pending, it renders the "Here is what I understood" screen with [you said] / [chosen by me] tags and the three buttons (**Exactly right** / **Change something** / **Ask more questions**).
+5. Your answer is saved with `POST /api/interview/answer` and returned to the agent exactly once by `get_feedback` (`interviewAnswers`). A chat answer for the same question that arrives after a Studio answer is ignored.
 
 ## Honest section
 
 - Intent makes no network requests. Your coding agent may send scene and
   interview content to its own model provider. No API key is needed for Intent.
-- Not done yet: M2/M3 features (drag/resize, pencil, Scanner, profile learning,
-  React export). Windows/macOS evidence unless CI shows it.
+- The Interview tab, the SSE replay/resync path and the patch queue are tested and
+  pass on this machine (Windows). What is NOT done: a live agent
+  end-to-end session (Tier 1 checklist empty), M2/M3 features (drag/resize,
+  pencil, Scanner, profile learning, React export), macOS/Linux evidence
+  (CI unobserved), and any claim that Intent measures 97-99% intent match.
 
 ## Uninstall
 

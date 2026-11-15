@@ -23,6 +23,7 @@ import {
   OpenStudioInputSchema,
 } from "@intent/schema";
 import { createFileStoragePort, createFileLockPort, createNodeCryptoPort } from "@intent/adapters-node";
+import { lockedWithDescendantsLocal, freshInterviewState, dedupe, renderPlainTextCard, applyMeterUpdate, meterWithRequiredTopicCap } from "./helpers.js";
 
 export interface MCPTool {
   name: string;
@@ -196,7 +197,37 @@ export const getFeedbackTool: MCPTool = {
     if (!validated.includeImageData) {
       feedback = feedback.map((f) => ({ ...f, screenshot: undefined }));
     }
-    return { feedback };
+
+    // Effective locked set: objects locked directly + descendants of locked containers.
+    const scene = await context.storage.readScene(validated.sceneId);
+    const lockedRaw = await context.lockPort.getLockedObjects(validated.sceneId);
+    const locked = lockedWithDescendantsLocal(scene, lockedRaw);
+
+    // Interview answers: unconsumed Studio/Chat answers, Studio wins on the same questionId
+    // (TC-INT-17), each returned exactly once, then marked consumed (trd 10.4).
+    const interviewState = await context.storage.readInterviewState();
+    let interviewAnswers: { questionId: string; answer: unknown; via: "studio" | "chat"; answeredAt: string }[] = [];
+    if (interviewState && interviewState.answers.length > 0) {
+      const unconsumed = interviewState.answers.filter((a) => !a.consumed);
+      const byQuestion = new Map<string, (typeof unconsumed)[number]>();
+      for (const a of unconsumed) {
+        const existing = byQuestion.get(a.questionId);
+        if (!existing || (existing.via === "chat" && a.via === "studio")) {
+          byQuestion.set(a.questionId, a);
+        }
+      }
+      interviewAnswers = Array.from(byQuestion.values()).map((a) => ({
+        questionId: a.questionId,
+        answer: a.answer,
+        via: a.via,
+        answeredAt: a.answeredAt,
+      }));
+      interviewState.answers = interviewState.answers.map((a) => ({ ...a, consumed: true }));
+      interviewState.updatedAt = new Date().toISOString();
+      await context.storage.writeInterviewState(interviewState);
+    }
+
+    return { feedback, interviewAnswers, locked };
   },
 };
 
@@ -204,14 +235,83 @@ export const askUserTool: MCPTool = {
   name: "ask_user",
   description: "Ask the user a question during interview",
   inputSchema: AskUserInputSchema,
-  async handler(input: unknown, _context: MCPContext) {
+  async handler(input: unknown, context: MCPContext) {
     const validated = AskUserInputSchema.parse(input);
+    const now = new Date().toISOString();
+    let state = await context.storage.readInterviewState();
+    if (!state) {
+      state = freshInterviewState();
+    }
+
+    // 1) A previous answer (chat, passed via previousAnswer) is recorded — unless a
+    //    Studio answer for the same questionId exists, in which case the Studio answer wins (TC-INT-17).
+    let note: string | undefined;
+    let recordedQuestionId: string | undefined;
+    const pa = validated.previousAnswer;
+    const paId =
+      pa && typeof pa === "object" && typeof (pa as { questionId?: unknown }).questionId === "string"
+        ? String((pa as { questionId: unknown }).questionId)
+        : undefined;
+    if (pa && paId && paId.length > 0 && "answer" in (pa as object)) {
+      const paAnswer = (pa as { answer: unknown }).answer;
+      const studioAnswer = state.answers.find((a) => a.questionId === paId && a.via === "studio");
+      if (studioAnswer) {
+        note = `Studio answer already recorded for ${paId}; chat answer ignored.`;
+      } else {
+        state.answers.push({
+          questionId: paId,
+          answer: paAnswer,
+          via: "chat",
+          answeredAt: now,
+          consumed: false,
+        });
+        recordedQuestionId = paId;
+        if (state.pendingQuestion?.questionId === paId) {
+          state.pendingQuestion = null;
+        }
+        state.status = "in_progress";
+        state.answeredTopics = dedupe([...state.answeredTopics, ...(validated.requiredTopics ?? [])]);
+        state.updatedAt = now;
+      }
+    }
+
+    // 2) Merge required topics + meter update from the caller
+    state.requiredTopics = dedupe([...state.requiredTopics, ...(validated.requiredTopics ?? [])]);
+    applyMeterUpdate(state, validated.meter);
+    const { percent, capped, reason } = meterWithRequiredTopicCap(
+      state.meter,
+      state.requiredTopics,
+      state.meterTopics,
+    );
+    state.meter = percent;
+
+    // 3) Persist pending question (summary questions included) so the Studio Interview tab can render it
+    const pendingQuestion = { questionId: validated.questionId, kind: validated.kind, prompt: validated.prompt,
+      options: validated.options, min: validated.min, max: validated.max, step: validated.step,
+      topic: validated.topic, round: validated.round, questionNumber: validated.questionNumber,
+      estimatedTotal: validated.estimatedTotal, whyAsked: validated.whyAsked,
+      requiredTopics: validated.requiredTopics, summary: validated.summary, askedAt: now };
+    state.pendingQuestion = pendingQuestion;
+    if (state.status !== "complete") {
+      state.status = "in_progress";
+      state.currentQuestionIndex =
+        typeof validated.questionNumber === "number" ? Math.max(0, validated.questionNumber - 1) : state.currentQuestionIndex;
+    }
+    state.updatedAt = now;
+    await context.storage.writeInterviewState(state);
+
+    const config = await context.storage.readConfig();
+    const renderedText = renderPlainTextCard(validated, state.meter);
+    context.notify?.("interview.changed", { status: state.status });
     return {
-      answer: null,
-      meter: 0,
-      nextQuestion: validated,
-      briefId: null,
-      delegated: false,
+      questionId: validated.questionId,
+      renderedText,
+      studio: { open: true, url: `http://localhost:${config.studioPort}?scene=default` },
+      meterApplied: { percent: state.meter, capped, ...(reason ? { reason } : {}) },
+      budget: { asked: state.currentQuestionIndex + 1, softCap: 25, over: false },
+      delegated: state.delegated,
+      ...(note ? { note } : {}),
+      ...(recordedQuestionId ? { recorded: { previousQuestionId: recordedQuestionId } } : {}),
     };
   },
 };
