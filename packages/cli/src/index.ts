@@ -10,6 +10,7 @@ import {
 } from "@intent/adapters-node";
 import { exportSceneToFile } from "@intent/engine";
 import { mergeAgentMcpConfigs } from "./mcp-config.js";
+import { ensureAgentsIntentBlock } from "./agents-block.js";
 
 import { runMcpStdio } from "./mcp.js";
 
@@ -52,6 +53,8 @@ async function initCommand(projectRoot: string, options?: { dryRun?: boolean }):
     for (const report of mergePlan) {
       console.log(`  ${report.changed ? "M" : "="} ${report.file}`);
     }
+    const agentsReport = await ensureAgentsIntentBlock(projectRoot, { dryRun: true });
+    console.log(`  Would write AGENTS.md intent block: ${agentsReport.action} (${agentsReport.file})`);
     return;
   }
 
@@ -119,8 +122,7 @@ async function initCommand(projectRoot: string, options?: { dryRun?: boolean }):
   const scenePath = resolve(scenesDir, "default.json");
   await fs.writeFile(scenePath, JSON.stringify(defaultScene, null, 2));
 
-  // Merge the "intent" MCP server into the agent configs (project scope).
-  // Other servers are preserved; only the "intent" entry is changed.
+  // Agent MCP configs: merge the "intent" server into .mcp.json + .cursor/mcp.json
   try {
     const mergeReports = await mergeAgentMcpConfigs(projectRoot, { dryRun: false });
     for (const report of mergeReports) {
@@ -128,6 +130,15 @@ async function initCommand(projectRoot: string, options?: { dryRun?: boolean }):
     }
   } catch (err) {
     spinner.fail(chalk.red("Intent project created, but the agent MCP configs could not be merged"));
+    throw err;
+  }
+
+  // AGENTS.md intent pointer block (context.md 8.4): agents pick up the rules
+  try {
+    const agentsReport = await ensureAgentsIntentBlock(projectRoot, { dryRun: false });
+    console.log(chalk.gray(`  AGENTS.md: ${agentsReport.action} intent block (${agentsReport.file})`));
+  } catch (err) {
+    spinner.fail(chalk.red("Intent project created, but AGENTS.md could not be updated"));
     throw err;
   }
 

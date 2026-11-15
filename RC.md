@@ -7,7 +7,7 @@ Scope: M1, in-tree state at the current working tree after the Interview-tab pas
 
 ## What works (verified with evidence, this tree)
 
-- **All 12 verify steps pass** on this machine (Windows 11, Node v22.23.4, pnpm 9.7.1): install, build (10/10), typecheck, lint, unit+integration **379/379**, multi-process 2/2, sigkill 1/1, mutation proof 5/5, visual diff 6/6, smoke 5/5, docs:index, context:check. See `VERIFY-REPORT.md` (regenerated; gitignored).
+- **All 12 verify steps pass** on this machine (Windows 11, Node v22.23.4, pnpm 9.7.1): install, build (10/10), typecheck, lint, unit+integration **386/386**, multi-process 2/2, sigkill 1/1, mutation proof 5/5, visual diff 6/6, smoke 5/5, docs:index, context:check. See `VERIFY-REPORT.md` (regenerated; gitignored).
 - **Full Playwright suite: 77/77** on Windows 11 (includes visual-diff pixel comparisons, smoke, fidelity-pixel, keyboard-only flow, interview-tab, axe, and the summary-change path).
 - **Interview tab, real code, no fixtures** (this pass): question card with options / "0) Don't know, you choose" / "s) Skip" / why-asked; estimated-understanding meter with topic chips (icon + text); summary screen with `[you said]` / `[chosen by me]` tags and the three buttons; answers POST to `/api/interview/answer` into `.intent/interview/state.json`; Studio answer wins over chat; `get_feedback` returns unconsumed answers once.
 - **TC-INT-17** — Studio answer returned by `get_feedback` exactly once; a later chat answer for the same questionId is ignored with a note. 3/3 unit tests pass.
@@ -23,6 +23,7 @@ Scope: M1, in-tree state at the current working tree after the Interview-tab pas
 
 ## What does NOT work / is NOT done (stated plainly, 2026-11-15)
 
+- **A live agent smoke CANNOT be run on this machine right now — account/billing, not code:** `claude -p "Reply with exactly: OK" --max-turns 1` returns `[claude-code:unrecognized_model] {"model":"z-ai/glm-5.3-flash"}` → `API Error: 402 Insufficient credits. This account never purchased credits.` (`ANTHROPIC_BASE_URL=https://openrouter.ai/api`). Cursor's `agent` CLI is not installed on this machine at all. Nothing agent-dependent was faked: tests/smoke/CHECKLIST.md stays empty.
 - **The M1 gate has not been executed** (plan §8.7, S-1-15: Partial). Do not tag v0.1.0, do not publish.
 - **Agent end-to-end interview is NOT exercised here.** No live Claude Code / Cursor session drove the interview. The Tier 1 smoke checklist (tests/smoke/CHECKLIST.md) is intentionally **empty** — nothing has been run against a real agent, no version recorded.
 - **97–99% intent match is an unmeasured target**, not a measured result. The meter is implemented (capped-89 rule) and golden-tested offline, but no production session has produced the acceptance number.
@@ -50,11 +51,11 @@ Scope: M1, in-tree state at the current working tree after the Interview-tab pas
 
 ## AC-M1 gate audit — evidence per criterion (2026-11-15, this machine)
 
-`pnpm verify` 12/12 PASS (unit 379/379) and full Playwright suite **77/77**, Windows 11, Node v22.23.4, pnpm 9.7.1. Everything below is what those runs prove and what they cannot prove.
+`pnpm verify` 12/12 PASS (unit 386/386) and full Playwright suite **77/77**, Windows 11, Node v22.23.4, pnpm 9.7.1. Everything below is what those runs prove and what they cannot prove.
 
 | AC | Verdict | Evidence / why |
 |----|---------|-----------------|
-| AC-M1-01 | **NOT VERIFIED Linux/macOS** | CI matrix configured (ubuntu/windows/macos) but never observed to run. Windows: `init`/`doctor`/`export` exercised in unit + smoke tests (CLI 34/34); `intent init` real-run in temp dir produced correct `.mcp.json` + `.cursor/mcp.json` |
+| AC-M1-01 | **NOT VERIFIED Linux/macOS** | CI matrix configured (ubuntu/windows/macos) but never observed to run. Windows: `init`/`doctor`/`export` exercised in unit + smoke tests (CLI 41/41); `intent init` real-run in temp dir produced correct `.mcp.json` + `.cursor/mcp.json` |
 | AC-M1-02 | Pass | Interview meter + golden-file suites (small/medium/large) pass (packages/core/src/interview/*.test.ts) |
 | AC-M1-03 | Pass | contract.test.ts, tool-errors.test.ts, tool-schemas.test.ts (36): six tools, every error-code path, E_SCHEMA with issue path, descriptions ≤120/700 words (trd 10.1) |
 | AC-M1-04 | **Pass Windows only** | multi-process 2/2, sigkill 1/1, lock-stale 4/4, atomic write tests; Linux/macOS NOT RUN |
@@ -63,7 +64,7 @@ Scope: M1, in-tree state at the current working tree after the Interview-tab pas
 | AC-M1-07 | **Pass Windows only** | fidelity-pixel 6/6 (×2 themes ×3 breakpoints, maxDiffPixels: 0, 20/20 calibration); visual-diff 6/6; fidelity 4/4; Linux/macOS NOT RUN |
 | AC-M1-08 | **Pass Windows only** | 22 server SEC tests (loopback/token/Host/Origin/traversal/sandbox/banned APIs) + export XSS fixes; CI observation missing |
 | AC-M1-09 | Pass | keyboard-only 2/2 (render→select→feedback→draft→send→status), AC-M1-09 roundtrip, 77/77 suite |
-| AC-M1-10 | Pass | CLI 34/34 (init incl. --dry-run writes nothing, drift + budget tests) + .intent/.gitignore 4/4 (git check-ignore) |
+| AC-M1-10 | Pass | CLI 41/41 (init incl. --dry-run writes nothing, drift + budget tests) + .intent/.gitignore 4/4 (git check-ignore) |
 | AC-M1-11 | **NOT DONE** | Tier 1 smoke checklist is empty; no live Claude Code/Cursor session was run; cannot be produced from this machine |
 | AC-M1-12 | **PARTIAL** | typecheck 0, lint 0, docs:index fresh, no `any` in shipped src; **`pnpm audit` is NOT clean**: 19 findings (1 low, 13 moderate, 2 high, 3 critical) — all criticals/most-highs sit in the dev/test toolchain (vitest/vite/tinypool/esbuild); the zod high (GHSA-mrhx-c7xc-m3w5, <4.6.6) is mitigated (stdio 1 MiB line cap, objectIds .max(50)) but unpatched pending your approval (3→4 migration) |
 | AC-M1-13 | **NOT DONE** | Demo D transcribed (docs/demo-d.md) but never executed on a clean machine; stranger test (3 humans) never run |
@@ -80,6 +81,7 @@ Scope: M1, in-tree state at the current working tree after the Interview-tab pas
 
 ## Handoff (for the next session, per plan §8.7)
 
+0. **Unblock the agent path:** add OpenRouter credits (or point `ANTHROPIC_BASE_URL`/`ANTHROPIC_API_KEY`/`ANTHROPIC_AUTH_TOKEN` at a funded Anthropic-compatible endpoint and install/authorize Cursor's `agent` CLI if you want Cursor evidence). Then the one command is ready: `cd <fresh temp project> && claude -p "Design a booking app for my salon" --mcp-config ./.mcp.json --strict-mcp-config --allowedTools mcp__intent__ask_user,mcp__intent__get_scene,mcp__intent__get_feedback,mcp__intent__apply_patch,mcp__intent__validate,mcp__intent__open_studio` — the project init writes `.mcp.json`, `.cursor/mcp.json`, `AGENTS.md` (pointer block) and rules automatically (2026-11-15 fix).
 1. **Do not tag or publish.** The gate is NOT READY. Tagging/pushing/publishing is the user's call alone (PL-10, R-B33).
 2. Remaining manual work, in order: (a) run Tier 1 smoke against real Claude Code and Cursor (fill tests/smoke/CHECKLIST.md with versions + dates + results); (b) push to a remote and observe CI matrix (ubuntu/macos/windows); (c) run Demo D on a clean machine and the stranger test (3 humans) — record wall-clock and blockers; (d) decide the zod 3→4 migration; (e) fix the 19 audit findings where they touch shipped code (dev-only chain findings may be accepted with a written waiver); (f) then the user may tag v0.1.0.
 3. Keep the 12 verify steps green; if anything regresses, the gate goes red again.
