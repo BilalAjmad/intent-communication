@@ -9,6 +9,9 @@ import {
   createNodeCryptoPort,
 } from "@intent/adapters-node";
 import { exportSceneToFile } from "@intent/engine";
+import { mergeAgentMcpConfigs } from "./mcp-config.js";
+
+import { runMcpStdio } from "./mcp.js";
 
 interface CLIContext {
   projectRoot: string;
@@ -41,6 +44,12 @@ async function initCommand(projectRoot: string, options?: { dryRun?: boolean }):
     console.log("  Would create:");
     for (const item of plan) {
       console.log(`  ${item.kind === "directory" ? "+" : "·"} ${item.path}`);
+    }
+    // Agent MCP configs: report the merge, write nothing.
+    const mergePlan = await mergeAgentMcpConfigs(projectRoot, { dryRun: true });
+    console.log("  Would merge MCP server \"intent\" into (other servers kept):");
+    for (const report of mergePlan) {
+      console.log(`  ${report.changed ? "M" : "="} ${report.file}`);
     }
     return;
   }
@@ -90,11 +99,25 @@ async function initCommand(projectRoot: string, options?: { dryRun?: boolean }):
   const scenePath = resolve(scenesDir, "default.json");
   await fs.writeFile(scenePath, JSON.stringify(defaultScene, null, 2));
 
+  // Merge the "intent" MCP server into the agent configs (project scope).
+  // Other servers are preserved; only the "intent" entry is changed.
+  try {
+    const mergeReports = await mergeAgentMcpConfigs(projectRoot, { dryRun: false });
+    for (const report of mergeReports) {
+      console.log(chalk.gray(`  MCP: ${report.changed ? "merged" : "unchanged"} ${report.file}`));
+    }
+  } catch (err) {
+    spinner.fail(chalk.red("Intent project created, but the agent MCP configs could not be merged"));
+    throw err;
+  }
+
   spinner.succeed(chalk.green("Intent project initialized"));
   console.log(chalk.gray(`  Project root: ${projectRoot}`));
   console.log(chalk.gray(`  Config: ${configPath}`));
   console.log(chalk.gray(`  Default scene: ${scenePath}`));
   console.log(chalk.gray(`  Skill rules: ${resolve(projectRoot, ".intent", "rules")}`));
+  console.log(chalk.gray("  How to start: say \"Design a booking app for my salon\" to your agent."));
+  console.log(chalk.gray("  Agent configs: .mcp.json (Claude Code) and .cursor/mcp.json (Cursor) — review them before approving."));
 }
 
 async function doctorCommand(projectRoot: string): Promise<void> {
@@ -221,6 +244,19 @@ export function createCLI(): Command {
       await initCommand(resolve(program.opts()["path"] as string), {
         dryRun: options.dryRun === true,
       });
+    });
+
+  program
+    .command("mcp")
+    .description("Start the MCP server on stdio (intended to be launched by an agent)")
+    .action(async () => {
+      try {
+        await runMcpStdio(resolve(program.opts()["path"] as string));
+      } catch (err) {
+        // stderr is fine for agents; stdout must stay pure protocol.
+        console.error(chalk.red("intent mcp failed: " + (err instanceof Error ? err.message : String(err))));
+        process.exitCode = 1;
+      }
     });
 
   program

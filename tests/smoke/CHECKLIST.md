@@ -5,7 +5,7 @@
 **OS**: not recorded
 **`intent-studio` version**: not recorded
 **Person who ran it**: not recorded
-**Target**: this repo at the current working tree (2026-11-15), after the Interview-tab M1 pass (SCHEMA/MCP/server/Studio changes uncommitted at the time the checklist was reset)
+**Target**: this repo at the current working tree (2026-11-15), after the Interview-tab + stdio MCP M1 passes (SCHEMA/MCP/server/Studio changes uncommitted at the time the checklist was reset)
 
 One result per line. Result words: **Pass**, **Pass with notes**, **Fail**, **Not run**. A Fail on lines 3, 4, 9, 11, 12 or 13 on a Tier 1 agent blocks the gate **or** changes the README's support claim for that agent (test.md 8.2). The README claim always equals the latest recorded result.
 

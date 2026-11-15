@@ -1,7 +1,7 @@
 {
   "name": "@intent/cli",
   "version": "0.1.0",
-  "description": "Intent CLI: intent init, intent doctor, intent export",
+  "description": "Intent CLI: intent init, intent doctor, intent export, intent mcp (MCP stdio server)",
   "type": "module",
   "main": "dist/index.js",
   "module": "dist/index.mjs",
@@ -26,6 +26,7 @@
     "@intent/adapters-node": "workspace:*",
     "@intent/core": "workspace:*",
     "@intent/engine": "workspace:*",
+    "@intent/mcp-server": "workspace:^",
     "@intent/schema": "workspace:*",
     "@intent/skills": "workspace:*",
     "chalk": "^5.3.0",

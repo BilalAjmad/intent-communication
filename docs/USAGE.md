@@ -2,7 +2,7 @@
 
 ## Prerequisites
 
-- Node.js 22 LTS (verified range in `docs/versions.md` — **UNVERIFIED**: file does not exist yet)
+- Node.js >= 20.17 (engines); this repo was built on Node v22.23.4 / pnpm 9.7.1. See `docs/versions.md` for what was verified on 2026-11-15.
 - git
 
 ## Install
@@ -51,15 +51,38 @@ node packages/cli/dist/cli.js doctor
 - `.intent/` — project config, scenes, locks, feedback, interview state
 - `AGENTS.md` block — agent rule-file pointer lines (marker blocks, never overwrites user content)
 - `.intent/rules/` — generated on-request rule files (`design-principles.md`, `studio.md`)
-- MCP config entry — added to your agent's MCP configuration
+- `.mcp.json` (repo root) and `.cursor/mcp.json` — the `intent` MCP server merged in (other servers preserved; only the `intent` entry is changed; `--dry-run` writes nothing)
 
 ## Connect an agent
 
-### Claude Code and Cursor (Tier 1)
+These steps come from `docs/versions.md` (checked 2026-11-15 against the official docs). **No live agent session has been driven end-to-end by this repo** — the Tier 1 checklist (tests/smoke/CHECKLIST.md) is deliberately empty; these steps describe what the docs say, not what was observed.
 
-Exact MCP config and rules steps are taken from `docs/versions.md` (**UNVERIFIED**: file does not exist yet).
+### Claude Code (project scope, `.mcp.json`)
 
-Manual fallback — paste this trigger line from `context.md` section 8.4:
+`intent init` merges this entry into `.mcp.json` at the repo root (an entry with no `type` is read as stdio; absolute node path and absolute cli.js path — safe on Windows with spaces):
+
+```json
+{ "mcpServers": { "intent": { "command": "<absolute node>", "args": ["<absolute cli.js>", "mcp"] } } }
+```
+
+Equivalent by hand, from the docs: `claude mcp add --scope project intent -- <node> <cli.js> mcp`
+
+1. Run `claude` in the project. A project-scoped server from `.mcp.json` is shown as **pending approval** and is NOT connected until you approve it in the interactive session (workspace trust).
+2. Approve it, then `claude mcp list` should show it connected, with six tools.
+3. Claude Code sets `CLAUDE_PROJECT_DIR` for the spawned server.
+
+### Cursor (project scope, `.cursor/mcp.json`)
+
+`intent init` merges this entry ("type": "stdio" is required):
+
+```json
+{ "mcpServers": { "intent": { "type": "stdio", "command": "<absolute node>", "args": ["<absolute cli.js>", "mcp"] } } }
+```
+
+1. Run `agent mcp list` — the server is listed with its status and source (project/global). If it is not enabled: `agent mcp enable intent`. Cursor asks before using MCP tools by default.
+2. The editor config and the CLI config are the same files.
+
+Manual fallback (both agents) — paste this trigger line from `context.md` section 8.4:
 
 ```
 Use the Intent rules in this project. Read the "intent" block in AGENTS.md first.
@@ -68,9 +91,11 @@ For design or UI work, interview me with the ask_user tool, one question at a ti
 
 ### Tier 2 agents
 
-"Best effort" — untested.
+"Best effort" — untested, no config shipped.
 
 ## First session script
+
+> Honest status: steps involving a live agent have NOT been executed by this repo. They are the intended flow, not measured results. The protocol-level roundtrip (agent asks via `ask_user` → answer in Studio → `get_feedback` returns it once) IS tested over real stdio + the official SDK.
 
 1. Open the agent in your project
 2. Say: "Design a booking app for my salon"
@@ -110,4 +135,7 @@ The Studio is a local web app served by `packages/server` at `http://127.0.0.1:<
 
 ## Uninstall
 
-Remove the marked blocks in `AGENTS.md` and the `.intent/` folder.
+- Remove the `intent` entry from `.mcp.json` and `.cursor/mcp.json` (leave your other servers alone).
+- Remove the marked blocks in `AGENTS.md`.
+- Remove the `.intent/` folder.
+If you published nothing (this repo is not published), there is no package to uninstall.

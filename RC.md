@@ -16,7 +16,8 @@ Scope: M1, in-tree state at the current working tree after the Interview-tab pas
 - **TC-INT-E2E** — real-UI roundtrip: `ask_user` via `/api/mcp` → question visible in the Studio tab → answer clicked in the Studio → `get_feedback` returns it once. Pass.
 - **axe-core on the Interview tab: 0 critical/serious.** Pass (Playwright).
 - **`GET /api/patches` cursor pagination** — base64url cursor of the last item's `[createdAt, id]`, 200 max per page, stable newest-first ordering, `nextCursor` null at the end.
-- **`pnpm verify` no longer exceeds any budget**: schema 476 lines, mcp-server 430, server 472 (500-line per-file budget; context:check green).
+- **`pnpm verify` no longer exceeds any budget**: schema 476 lines, mcp-server 464, server 472 (500-line per-file budget; context:check green).
+- **`intent mcp` stdio transport (trd 14.3, 2026-11-15):** a real `@modelcontextprotocol/sdk` client lists **exactly the six tools** over stdio; stdout carries only protocol messages (stderr empty); `tools/list` inputSchema derives from Zod (`validate` = documented hand-written exception) and round-trips valid/invalid examples in ajv (36 test-only tests). `intent init` merges the `intent` server into `.mcp.json` + `.cursor/mcp.json` (merge-json; other servers preserved; idempotent; `--dry-run` writes nothing; absolute node/cli.js paths, spaces-safe) — 9/9 merge tests. Tool descriptions ≤120 words each, ≤700 total (trd 10.1).
 
 ## What does NOT work / is NOT done (stated plainly, 2026-11-15)
 
