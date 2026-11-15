@@ -20,10 +20,11 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@intent/schema": "workspace:*",
-    "@intent/core": "workspace:*",
     "@intent/adapters-node": "workspace:*",
-    "zod": "^3.23.8"
+    "@intent/core": "workspace:*",
+    "@intent/schema": "workspace:*",
+    "zod": "^3.23.8",
+    "zod-to-json-schema": "3.25.2"
   },
   "devDependencies": {
     "@types/node": "^20.14.12",
