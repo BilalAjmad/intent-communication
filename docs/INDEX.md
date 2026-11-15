@@ -1,6 +1,6 @@
 # Documentation Index
 
-Generated: 2026-11-15T17:52:00.196Z
+Generated: 2026-11-15T18:32:40.629Z
 
 ## Plan
 
