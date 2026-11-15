@@ -336,7 +336,7 @@ export type ApplyPatchOutput = z.infer<typeof ApplyPatchOutputSchema>;
 
 export const GetFeedbackInputSchema = z.object({
   sceneId: SafeIdSchema,
-  objectIds: z.array(ObjectIdSchema).optional(),
+  objectIds: z.array(ObjectIdSchema).max(50).optional(),
   includeImageData: z.boolean().default(false),
   since: ISODateTimeSchema.optional(),
 });

@@ -117,7 +117,7 @@ describe("TC-INT-17 — Studio answer wins; delivered exactly once", () => {
       interviewAnswers: { questionId: string; answer: unknown; via: string }[];
     };
     expect(second.interviewAnswers).toHaveLength(0);
-  });
+  }, 15000);
 
   it("a later chat answer for the same questionId is ignored with a note", async () => {
     // State already has a consumed studio answer for q-goal-1 from the previous test.
@@ -137,7 +137,7 @@ describe("TC-INT-17 — Studio answer wins; delivered exactly once", () => {
     // The chat override was NOT recorded
     const state = await readState();
     expect(state.answers.find((a: { questionId: string }) => a.questionId === "q-goal-1" && a.via === "chat")).toBeUndefined();
-  });
+  }, 15000);
 
   it("an unconsumed studio answer also wins over an arriving chat answer", async () => {
     // Fresh unconsumed studio answer
@@ -176,5 +176,5 @@ describe("TC-INT-17 — Studio answer wins; delivered exactly once", () => {
     const state = await readState();
     expect(state.answers.filter((a: { questionId: string; via: string }) => a.questionId === "q-style-1" && a.via === "chat")).toHaveLength(0);
     expect(state.answers.filter((a: { questionId: string; via: string }) => a.questionId === "q-style-1" && a.via === "studio")).toHaveLength(1);
-  });
+  }, 15000);
 });

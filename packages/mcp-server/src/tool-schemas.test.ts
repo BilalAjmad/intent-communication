@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import Ajv from "ajv";
+import { GetFeedbackInputSchema } from "@intent/schema";
 import { MCP_TOOL_DESCRIPTORS, getMCPTool } from "./index";
 
 // tools/list descriptors (trd 14.3): every descriptor's inputSchema accepts a
@@ -101,6 +102,13 @@ describe("MCP_TOOL_DESCRIPTORS (tools/list inputSchema roundtrip)", () => {
       });
     });
   }
+
+  it("get_feedback rejects objectIds arrays longer than 50 (GHSA-mrhx-c7xc-m3w5 mitigation)", () => {
+    const fiftyOne = Array.from({ length: 51 }, () => "o_01ARZ3NDEKTSV4RRFFQ69G5FAV");
+    expect(GetFeedbackInputSchema.safeParse({ sceneId: "default", objectIds: fiftyOne }).success).toBe(false);
+    const fifty = fiftyOne.slice(0, 50);
+    expect(GetFeedbackInputSchema.safeParse({ sceneId: "default", objectIds: fifty }).success).toBe(true);
+  });
 
   it("all six descriptions together are at most 700 words (trd 10.1)", () => {
     const total = MCP_TOOL_DESCRIPTORS.reduce(

@@ -9,6 +9,42 @@ const PROTOCOL_VERSION = "2024-11-05";
 const SERVER_NAME = "intent";
 const SERVER_VERSION = "0.1.0";
 
+// trd 10.1 envelope: every tool response is
+//   { ok: true, data: T, warnings? } | { ok: false, error: { code, message, details?, hint? } }
+// structuredContent and the text block both carry the same object;
+// failures set the MCP isError flag.
+type Envelope =
+  | { ok: true; data: unknown; warnings?: unknown[] }
+  | { ok: false; error: { code: string; message: string; details?: unknown; hint?: string } };
+
+const okEnvelope = (data: unknown): Envelope => ({ ok: true, data });
+const errEnvelope = (code: string, message: string, details?: unknown, hint?: string): Envelope => ({
+  ok: false,
+  error: { code, message, ...(details !== undefined ? { details } : {}), ...(hint !== undefined ? { hint } : {}) },
+});
+
+/** Human-readable lines for the structured tool failures this repo emits
+ *  (apply_patch reports E_LOCKED / E_CONFLICT as { success: false, error, ... }). */
+const STRUCTURED_FAILURE_MESSAGES: Record<string, string> = {
+  E_LOCKED: "The object is locked by another writer.",
+  E_CONFLICT: "The scene changed since the patch was drafted (baseRevision mismatch).",
+};
+
+/** A tool returning { success: false, error: <code> } is a failed operation —
+ *  map it to the error envelope instead of leaking it as if it were data. */
+function structuredFailureOf(result: unknown): { code: string; details: Record<string, unknown> } | null {
+  if (typeof result !== "object" || result === null) return null;
+  const r = result as Record<string, unknown>;
+  if (r["success"] === false && typeof r["error"] === "string") {
+    const details = { ...r };
+    delete details["success"];
+    const code = details["error"] as string;
+    delete details["error"];
+    return { code, details };
+  }
+  return null;
+}
+
 interface JsonRpcMessage {
   jsonrpc?: unknown;
   id?: number | string | null;
@@ -81,20 +117,36 @@ export async function runMcpStdio(projectRoot: string): Promise<void> {
             sendError(-32602, `Unknown tool: ${name}`);
             return;
           }
+          const sendEnvelope = (id: number | string | null, envelope: Envelope, isError: boolean) => {
+            const body = JSON.stringify(envelope);
+            reply(id, {
+              content: [{ type: "text", text: body }],
+              structuredContent: envelope,
+              ...(isError ? { isError: true } : {}),
+            });
+          };
           try {
             const result = await handleMCPRequest(name, params.arguments ?? {}, context);
-            // trd 10.1: the JSON body is the response; agents that only show text see it there.
-            reply(m.id ?? null, { content: [{ type: "text", text: JSON.stringify(result) }] });
+            const structured = structuredFailureOf(result);
+            if (structured) {
+              sendEnvelope(
+                m.id ?? null,
+                errEnvelope(
+                  structured.code,
+                  STRUCTURED_FAILURE_MESSAGES[structured.code] ?? `Tool failed: ${structured.code}`,
+                  structured.details,
+                ),
+                true,
+              );
+            } else {
+              sendEnvelope(m.id ?? null, okEnvelope(result), false);
+            }
           } catch (err) {
-            const e = err as { code?: unknown; message?: unknown; details?: unknown; issues?: unknown };
+            const e = err as { code?: unknown; message?: unknown; details?: unknown };
             const code = typeof e?.code === "string" ? e.code : "E_INTERNAL";
             const message = typeof e?.message === "string" ? e.message : String(err);
-            const data = { code, ...(e?.issues !== undefined ? { details: e.issues } : e?.details !== undefined ? { details: e.details } : {}) };
-            // trd 10.1: failures set the MCP isError flag as well.
-            reply(m.id ?? null, {
-              content: [{ type: "text", text: JSON.stringify({ error: { code, message }, ...(data.details !== undefined ? { details: data.details } : {}) }) }],
-              isError: true,
-            });
+            // trd 10.1 + trd 18.2: the issue path travels in details.
+            sendEnvelope(m.id ?? null, errEnvelope(code, message, e?.details), true);
           }
           return;
         }
@@ -111,6 +163,10 @@ export async function runMcpStdio(projectRoot: string): Promise<void> {
 
   await new Promise<void>((done) => {
     let buffer = "";
+    // Hard cap on a single JSON-RPC line (trd caps responses at 200 KB; agent
+    // requests get no looser bound). A line beyond the cap is dropped and
+    // reported — it can never reach zod as an oversized collection.
+    const MAX_LINE = 1024 * 1024;
     // Serialize message handling so responses are written in request order
     // (JSON-RPC ids match, but ordered output keeps clients simple).
     let pending: Promise<void> = Promise.resolve();
@@ -124,6 +180,10 @@ export async function runMcpStdio(projectRoot: string): Promise<void> {
         idx = buffer.indexOf("\n");
         const trimmed = line.trim();
         if (!trimmed) continue;
+        if (line.length > MAX_LINE) {
+          fail(null, -32600, "Invalid Request: line exceeds 1 MiB");
+          continue;
+        }
         let msg: unknown;
         try {
           msg = JSON.parse(trimmed);
@@ -134,6 +194,10 @@ export async function runMcpStdio(projectRoot: string): Promise<void> {
         pending = pending.then(() => handleMessage(msg)).catch(() => {
           fail(null, -32603, "Internal error while handling message");
         });
+      }
+      if (buffer.length > MAX_LINE) {
+        fail(null, -32600, "Invalid Request: line exceeds 1 MiB");
+        buffer = "";
       }
     });
     process.stdin.on("end", () => { void pending.then(done); });

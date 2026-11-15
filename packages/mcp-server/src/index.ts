@@ -438,7 +438,7 @@ function zodToIntentError(err: unknown): IntentError | null {
     const issues = (err as unknown as { issues: ZodIssueLike[] }).issues;
     const first = issues[0];
     const where = first?.path?.length ? ` at ${first.path.join(".")}` : "";
-    return new IntentError(ErrorCodes.E_SCHEMA, `Invalid input${where}: ${first?.message ?? "schema validation failed"}`);
+    return new IntentError(ErrorCodes.E_SCHEMA, `Invalid input${where}: ${first?.message ?? "schema validation failed"}`, { issues });
   }
   return null;
 }
