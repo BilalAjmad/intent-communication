@@ -93,6 +93,9 @@ importers:
       '@intent/engine':
         specifier: workspace:*
         version: link:../engine
+      '@intent/mcp-server':
+        specifier: workspace:^
+        version: link:../mcp-server
       '@intent/schema':
         specifier: workspace:*
         version: link:../schema
@@ -293,6 +296,9 @@ importers:
       '@vitest/coverage-v8':
         specifier: ^2.0.5
         version: 2.1.9(vitest@2.1.9(@types/node@20.19.43))
+      ajv:
+        specifier: 8.20.0
+        version: 8.20.0
       eslint:
         specifier: ^9.39.5
         version: 9.39.5
