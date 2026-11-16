@@ -371,6 +371,7 @@ export {
 
 export { renderIconMarkup } from "./icons.js";
 export { renderModelNodeHtml } from "./render-html.js";
+export { renderModelNodeJsx } from "./render-react.js";
 export { normalizeSceneToModel, type RenderNode, type RenderModel, type RenderModelOptions } from "./model.js";
 
 export { SCHEMA_VERSION, SCENE_SCHEMA_VERSION } from "@intent/schema";

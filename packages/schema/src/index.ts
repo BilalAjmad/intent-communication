@@ -311,7 +311,7 @@ export const GetSceneOutputSchema = z.object({
   scene: SceneSchema.optional(),
   summary: SceneSummarySchema.optional(),
   objects: z.record(ObjectIdSchema, SceneObjectSchema).optional(),
-  locks: z.array(LockSchema).max(2000).default([]),
+  locks: z.array(ObjectIdSchema).max(2000).default([]),
   truncated: z.boolean().default(false),
   revision: RevisionSchema,
 });
