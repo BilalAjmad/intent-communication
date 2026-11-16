@@ -367,6 +367,77 @@
     if (!state.selectedId) clearOverlay();
   }
 
+  async function renderVersionsSection(body) {
+    var wrap = document.createElement("div");
+    wrap.className = "versions-section";
+    var title = document.createElement("span");
+    title.className = "panel-title";
+    title.textContent = "Snapshots";
+    wrap.appendChild(title);
+    var list = document.createElement("ul");
+    list.className = "versions-list";
+    var loading = document.createElement("li");
+    loading.className = "muted";
+    loading.textContent = "Loading…";
+    list.appendChild(loading);
+    wrap.appendChild(list);
+    body.appendChild(wrap);
+    try {
+      var data = await fetchJson("/api/versions?sceneId=" + encodeURIComponent(state.sceneId));
+      var versions = Array.isArray(data && data.versions) ? data.versions : [];
+      list.innerHTML = "";
+      if (versions.length === 0) {
+        var empty = document.createElement("li");
+        empty.className = "muted";
+        empty.textContent = "No snapshots yet — they appear after the first Send.";
+        list.appendChild(empty);
+        return;
+      }
+      versions.slice(0, 5).forEach(function (v) {
+        var li = document.createElement("li");
+        li.className = "version-item";
+        var label = document.createElement("span");
+        var when = new Date(v.createdAt);
+        var whenText = isNaN(when.getTime()) ? String(v.createdAt) : when.toLocaleString();
+        label.textContent = "r" + v.revision + " — " + whenText;
+        label.title = v.file;
+        var restore = document.createElement("button");
+        restore.className = "icon-button";
+        restore.type = "button";
+        restore.textContent = "Restore";
+        restore.setAttribute("aria-label", "Restore snapshot " + v.file);
+        restore.addEventListener("click", function () {
+          void restoreVersion(v.file);
+        });
+        li.appendChild(label);
+        li.appendChild(restore);
+        list.appendChild(li);
+      });
+    } catch (err) {
+      list.innerHTML = "";
+      var errItem = document.createElement("li");
+      errItem.className = "muted";
+      errItem.textContent = "Could not load snapshots.";
+      list.appendChild(errItem);
+    }
+  }
+
+  async function restoreVersion(file) {
+    if (!window.confirm("Restore this snapshot? The current scene will be replaced, and its revision will be bumped.")) return;
+    try {
+      await fetchJson(
+        "/api/versions/" + encodeURIComponent(file) + "/restore?sceneId=" + encodeURIComponent(state.sceneId),
+        { method: "POST" },
+      );
+      showToast("Snapshot restored.");
+      await loadScene();
+      await loadAnnotations();
+      renderInspector();
+    } catch (err) {
+      showToast(err && err.message ? err.message : "Could not restore the snapshot.");
+    }
+  }
+
   // ---------- inspector ----------
 
   function statesForType(type) {
@@ -419,6 +490,7 @@
     body.innerHTML = "";
     if (!state.selectedId) {
       body.innerHTML = '<p class="muted">Select an object on the canvas or in Layers to see its details.</p>';
+      renderVersionsSection(body);
       return;
     }
     var id = state.selectedId;
@@ -459,6 +531,7 @@
     }
     body.appendChild(dl);
     if (obj) renderForceStateRow(body, obj, id);
+    renderVersionsSection(body);
   }
 
   // ---------- annotations (trd 9.7) ----------
@@ -1705,6 +1778,7 @@
 
     try {
       await loadScene();
+      renderInspector();
       await loadPatches();
       await loadAnnotations();
       await loadInterview();

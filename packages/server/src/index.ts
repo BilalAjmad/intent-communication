@@ -27,6 +27,7 @@ import {
   handleApiInterviewAnswer,
 } from "./api-routes.js";
 import { registerAnnotationRoutes } from "./annotations-api.js";
+import { registerVersionRoutes } from "./versions-api.js";
 import { handleSSE, serveStatic, writeRuntimeFile } from "./runtime.js";
 import { SseEventBus, type SSEClient } from "./event-bus.js";
 export type { SSEClient } from "./event-bus.js";
@@ -402,7 +403,10 @@ export class IntentServer {
     if (await registerAnnotationRoutes(this.apiCtx, req, res, pathname, url)) {
       return;
     }
-
+    // Named versions (trd 6.x)
+    if (await registerVersionRoutes(this.apiCtx, req, res, pathname, url)) {
+      return;
+    }
     // Interview (trd 11.3)
     if (pathname === "/api/interview" && req.method === "GET") {
       await handleApiInterviewGet(this.apiCtx, req, res, url);
@@ -427,14 +431,12 @@ export class IntentServer {
       await handleApiPatchResolve(this.apiCtx, req, res, patchId);
       return;
     }
-
     // Unknown /api routes: JSON 404, never the SPA HTML
     if (pathname.startsWith("/api/")) {
       res.writeHead(404, { "Content-Type": "application/json" });
       res.end(JSON.stringify({ error: "Not found" }));
       return;
     }
-
     // Static file serving
     await serveStatic(this.runtimeCtx(), req, res, pathname);
   }
@@ -490,10 +492,8 @@ export class IntentServer {
     });
   }
 }
-
 export function createServer(config: ServerConfig): IntentServer {
   return new IntentServer(config);
 }
-
 export { createServerFromConfig } from "./from-config.js";
 
