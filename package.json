@@ -17,17 +17,23 @@
     "@playwright/test": "^1.65.0",
     "@typescript-eslint/eslint-plugin": "^8.1.0",
     "@typescript-eslint/parser": "^8.1.0",
-    "@vitest/coverage-v8": "^2.0.5",
+    "@vitest/coverage-v8": "^5.1.0",
     "axe-core": "^4.14.0",
     "eslint": "^9.9.0",
     "fast-check": "^3.20.0",
     "prettier": "^3.3.3",
     "typescript": "^5.5.4",
-    "vitest": "^2.0.5",
+    "vite": "^8.3.8",
+    "vitest": "^5.1.0",
     "zod": "^4.6.7"
   },
   "engines": {
     "node": ">=20.17.0"
   },
-  "packageManager": "pnpm@9.7.1"
+  "packageManager": "pnpm@9.7.1",
+  "pnpm": {
+    "overrides": {
+      "minimatch@>=7.0.0 <11.0.1": "^11.0.1"
+    }
+  }
 }
