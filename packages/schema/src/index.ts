@@ -6,8 +6,8 @@ import { SceneValueSchema, BaseObjectSchema } from "./base-object.js";
 import { CheckboxSchema, RadioSchema, SwitchSchema, LinkSchema, ListSchema, ModalSchema, IconSchema, DividerSchema } from "./object-types.js";
 export { CrockfordULIDSchema, ISODateTimeSchema, RevisionSchema, ObjectIdSchema, ScreenIdSchema, SafeIdSchema, ChipSchema, CreatePatchInputSchema, UpdatePatchInputSchema, SendPatchesInputSchema, ResolvePatchInputSchema, PatchListQuerySchema, InterviewAnswerInputSchema };
 export { InterviewQuestionCoreSchema, PendingInterviewQuestionSchema, InterviewAnswerSchema, AskUserInputSchema };
-export { PrimitiveValueSchema, TokenValueSchema, SceneValueSchema, BaseObjectSchema, StateNameSchema, StateOverrideSchema, STATE_NAMES } from "./base-object.js";
-export type { StateName, StateOverride } from "./base-object.js";
+export { PrimitiveValueSchema, TokenValueSchema, SceneValueSchema, BaseObjectSchema, StateNameSchema, StateOverrideSchema, STATE_NAMES, ResponsiveOverrideSchema, ResponsiveSchema } from "./base-object.js";
+export type { StateName, StateOverride, ResponsiveOverride, Responsive } from "./base-object.js";
 export { CheckboxSchema, RadioSchema, SwitchSchema, LinkSchema, ListSchema, ModalSchema, IconSchema, DividerSchema } from "./object-types.js";
 export type { Chip } from "./primitives.js";
 export type { InterviewQuestionCore, PendingInterviewQuestion, InterviewAnswer, AskUserInput } from "./interview.js";
@@ -158,6 +158,13 @@ export const LocksFileSchema = z.object({
 
 export type LocksFile = z.infer<typeof LocksFileSchema>;
 
+export const BreakpointsSchema = z.object({
+  sm: z.number().int().positive().default(640),
+  md: z.number().int().positive().default(1024),
+  lg: z.number().int().positive().default(1440),
+});
+export type Breakpoints = z.infer<typeof BreakpointsSchema>;
+
 export const ConfigSchema = z.object({
   version: z.literal(1),
   projectName: z.string().default("Intent Project"),
@@ -168,6 +175,7 @@ export const ConfigSchema = z.object({
   autoSave: z.boolean().default(true),
   lockTTL: z.number().int().positive().default(30000),
   designProfile: z.string().optional(),
+  breakpoints: BreakpointsSchema.default({ sm: 640, md: 1024, lg: 1440 }),
 });
 
 export type Config = z.infer<typeof ConfigSchema>;

@@ -52,6 +52,46 @@ export const StateOverrideSchema = z.strictObject({
 });
 export type StateOverride = z.infer<typeof StateOverrideSchema>;
 
+/**
+ * trd 4.4 Responsive overrides: mobile-first. Base values apply to all
+ * widths; these apply at and above each breakpoint (640/1024/1440 default,
+ * configurable via config.json `breakpoints`).
+ */
+export const ResponsiveOverrideSchema = z.strictObject({
+  style: z.record(z.string(), SceneValueSchema).optional(),
+  layout: z
+    .strictObject({
+      layout: z.enum(["flex", "grid", "absolute"]).optional(),
+      direction: z.enum(["row", "column"]).optional(),
+      gap: z.number().nonnegative().optional(),
+      padding: z.number().nonnegative().optional(),
+      align: z.enum(["start", "center", "end", "stretch"]).optional(),
+      justify: z.enum(["start", "center", "end", "space-between", "space-around"]).optional(),
+    })
+    .optional(),
+  size: z
+    .strictObject({
+      width: z.union([z.number(), z.string().max(64)]).optional(),
+      height: z.union([z.number(), z.string().max(64)]).optional(),
+    })
+    .optional(),
+  position: z
+    .strictObject({
+      x: z.number().optional(),
+      y: z.number().optional(),
+    })
+    .optional(),
+  visible: z.boolean().optional(),
+});
+export type ResponsiveOverride = z.infer<typeof ResponsiveOverrideSchema>;
+
+export const ResponsiveSchema = z.strictObject({
+  sm: ResponsiveOverrideSchema.optional(),
+  md: ResponsiveOverrideSchema.optional(),
+  lg: ResponsiveOverrideSchema.optional(),
+});
+export type Responsive = z.infer<typeof ResponsiveSchema>;
+
 export const BaseObjectSchema = z.object({
   id: ObjectIdSchema,
   type: z.string().min(1),
@@ -62,4 +102,5 @@ export const BaseObjectSchema = z.object({
   meta: z.record(z.string(), z.unknown()).default({}),
   rev: z.number().int().nonnegative().optional(),
   states: z.partialRecord(StateNameSchema, StateOverrideSchema).default({}),
+  responsive: ResponsiveSchema.default({}),
 });

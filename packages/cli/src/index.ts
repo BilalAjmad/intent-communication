@@ -9,6 +9,7 @@ import {
   createNodeCryptoPort,
 } from "@intent/adapters-node";
 import { exportSceneToFile, exportToReact } from "@intent/engine";
+import { BreakpointsSchema, type Breakpoints } from "@intent/schema";
 import { mergeAgentMcpConfigs } from "./mcp-config.js";
 import { ensureAgentsIntentBlock } from "./agents-block.js";
 
@@ -83,6 +84,7 @@ async function initCommand(projectRoot: string, options?: { dryRun?: boolean }):
     maxBytes: 32768,
     autoSave: true,
     lockTTL: 30000,
+    breakpoints: { sm: 640, md: 1024, lg: 1440 },
   };
   await fs.writeFile(configPath, JSON.stringify(defaultConfig, null, 2));
 
@@ -232,6 +234,21 @@ function printResults(issues: string[], warnings: string[]): void {
   }
 }
 
+/** Reads .intent/config.json `breakpoints` if present and valid; defaults otherwise. */
+async function readProjectBreakpoints(projectRoot: string): Promise<Breakpoints | undefined> {
+  try {
+    const raw = await fs.readFile(resolve(projectRoot, ".intent", "config.json"), "utf8");
+    const config: unknown = JSON.parse(raw);
+    const rawBreakpoints =
+      config && typeof config === "object" && "breakpoints" in config ? (config as { breakpoints: unknown }).breakpoints : undefined;
+    if (rawBreakpoints === undefined) return undefined;
+    const parsed = BreakpointsSchema.safeParse(rawBreakpoints);
+    return parsed.success ? parsed.data : undefined;
+  } catch {
+    return undefined; // unreadable or absent config — engine defaults apply
+  }
+}
+
 async function exportCommand(projectRoot: string, options: { scene?: string; output?: string; format?: string }): Promise<void> {
   const spinner = ora("Exporting scene...").start();
   const sceneId = options.scene || "default";
@@ -247,12 +264,15 @@ async function exportCommand(projectRoot: string, options: { scene?: string; out
       return;
     }
 
+    const breakpoints = await readProjectBreakpoints(projectRoot);
+
     if (format === "html") {
       const outputPath = options.output || resolve(projectRoot, `export-${sceneId}.html`);
       await exportSceneToFile(scene, outputPath, {
         includeStyles: true,
         includeScripts: true,
         inlineAssets: true,
+        breakpoints,
       });
       spinner.succeed(chalk.green(`Exported to ${outputPath}`));
       return;
@@ -260,7 +280,7 @@ async function exportCommand(projectRoot: string, options: { scene?: string; out
 
     if (format === "react") {
       const outDir = options.output || resolve(projectRoot, `export-${sceneId}-react`);
-      const files = exportToReact(scene);
+      const files = exportToReact(scene, { breakpoints });
       let written = 0;
       for (const [relative, content] of Object.entries(files)) {
         // FileMap keys come from the generator; validate them anyway — this

@@ -150,6 +150,7 @@ export function createStoragePort(testDir: string): StoragePort {
           maxBytes: 32768,
           autoSave: true,
           lockTTL: 30000,
+          breakpoints: { sm: 640, md: 1024, lg: 1440 },
         };
         }
         if (err instanceof IntentError) throw err;

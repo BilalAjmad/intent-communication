@@ -9,7 +9,10 @@ import {
   buildStyleString,
   renderIconMarkup,
   renderStateCss,
+  renderResponsiveCss,
+  DEFAULT_BREAKPOINTS,
 } from "@intent/engine";
+import type { Breakpoints } from "@intent/schema";
 
 // S-1-11 / AC-M1-07: the Studio preview renderer.
 //
@@ -264,7 +267,8 @@ function renderNode(obj: SceneObject, all: Record<string, SceneObject>, depth = 
 
 /** Builds the sandboxed preview document for an iframe srcdoc.
  *  The CSP meta allows exactly the two constant inline scripts (sha256 sources) plus inline styles. */
-export function buildPreviewDocument(scene: Scene): string {
+export function buildPreviewDocument(scene: Scene, options: { breakpoints?: Breakpoints } = {}): string {
+  const breakpoints = options.breakpoints ?? DEFAULT_BREAKPOINTS;
   const csp =
     `default-src 'none'; script-src ${PREVIEW_SCRIPT_HASHES}; style-src 'unsafe-inline'; img-src data:; font-src 'none'; connect-src 'none'; frame-src 'none'; base-uri 'none'; form-action 'none'`;
   const screenIds = Object.keys(scene.screens);
@@ -274,6 +278,7 @@ export function buildPreviewDocument(scene: Scene): string {
   const all = scene.objects;
 
   const stateCss = renderStateCss(scene);
+  const responsiveCss = renderResponsiveCss(scene, breakpoints);
   const body = ids
     .map((id) => {
       const screen = scene.screens[id];
@@ -291,7 +296,7 @@ export function buildPreviewDocument(scene: Scene): string {
 <title>${escapeHtml(scene.metadata.name ?? "Preview")}</title>
 <style>${renderExportCss()}</style>
 <style>${PREVIEW_EXTRAS}</style>
-${stateCss ? `<style>${stateCss}</style>` : ""}
+${stateCss ? `<style>${stateCss}</style>` : ""}${responsiveCss ? `<style>${responsiveCss}</style>` : ""}
 </head>
 <body>
 <main class="preview-root" id="preview-root">

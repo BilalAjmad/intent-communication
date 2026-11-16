@@ -124,6 +124,7 @@ function applyDefaults(obj: SceneObject, changes: string[]): SceneObject {
         style: { ...o.style },
         meta: o.meta,
         states: o.states ?? {},
+        responsive: o.responsive ?? {},
       };
       if (o.props.title === undefined) changes.push(`screen.${o.id}: set default title`);
       if (o.props.width === undefined) changes.push(`screen.${o.id}: set default width 1280`);
@@ -148,6 +149,7 @@ function applyDefaults(obj: SceneObject, changes: string[]): SceneObject {
         style: { ...o.style },
         meta: o.meta,
         states: o.states ?? {},
+        responsive: o.responsive ?? {},
       };
       if (o.props.layout === undefined) changes.push(`container.${o.id}: set default layout flex`);
       return updated;
@@ -160,6 +162,7 @@ function applyDefaults(obj: SceneObject, changes: string[]): SceneObject {
         style: { ...o.style },
         meta: o.meta,
         states: o.states ?? {},
+        responsive: o.responsive ?? {},
       };
     }
     case "radio": {
@@ -208,6 +211,7 @@ function applyDefaults(obj: SceneObject, changes: string[]): SceneObject {
         style: { ...o.style },
         meta: o.meta,
         states: o.states ?? {},
+        responsive: o.responsive ?? {},
       };
       if (o.props.fontSize === undefined) changes.push(`text.${o.id}: set default fontSize 16`);
       return updated;
@@ -233,6 +237,7 @@ function applyDefaults(obj: SceneObject, changes: string[]): SceneObject {
         } as Record<string, SceneValue>,
         meta: o.meta,
         states: o.states ?? {},
+        responsive: o.responsive ?? {},
       };
       return updated;
     }
@@ -254,6 +259,7 @@ function applyDefaults(obj: SceneObject, changes: string[]): SceneObject {
         style: { ...o.style },
         meta: o.meta,
         states: o.states ?? {},
+        responsive: o.responsive ?? {},
       };
       return updated;
     }
@@ -274,6 +280,7 @@ function applyDefaults(obj: SceneObject, changes: string[]): SceneObject {
         style: { ...o.style },
         meta: o.meta,
         states: o.states ?? {},
+        responsive: o.responsive ?? {},
       };
       if (!o.props.alt) changes.push(`image.${o.id}: set empty alt`);
       return updated;
@@ -340,6 +347,7 @@ export {
 export { exportToReact } from "./export-react.js";
 export type { FileMap, ReactExportOptions } from "./export-react.js";
 export { renderStateCss } from "./state-css.js";
+export { renderResponsiveCss, DEFAULT_BREAKPOINTS } from "./responsive-css.js";
 
 export type { HtmlExportOptions } from "./html.js";
 

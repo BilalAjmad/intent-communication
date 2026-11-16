@@ -111,6 +111,25 @@ describe("states (trd 5.3) in preview", () => {
     expect(html).toContain('msg.t === "forceState"');
     expect(html).toContain("data-state");
   });
+
+  it("embeds responsive @media blocks (trd 4.4)", () => {
+    const html = buildPreviewDocument(
+      baseScene(
+        {
+          [BTN]: {
+            id: BTN, type: "button", parentId: SCREEN, children: [],
+            props: { label: "Go", variant: "primary" },
+            style: {}, meta: {},
+            states: {},
+            responsive: { sm: { style: { padding: "8px" } } },
+          },
+        },
+        [BTN]
+      )
+    );
+    expect(html).toContain("@media (min-width: 640px)");
+    expect(html).toContain("padding: 8px");
+  });
 });
 
 describe("new object types (M2.A) in preview", () => {

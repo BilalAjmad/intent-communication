@@ -110,6 +110,7 @@ describe("CLI package", () => {
 
   describe("exportCommand", () => {
     const SCREEN_ID = "s_01ARZ3NDEKTSV4RRFFQ69G5FAV";
+    const TEXT_ID = "o_01ARZ3NDEKTSV4RRFFQ69G5FAV";
     const scene = {
       version: 1,
       revision: 0,
@@ -117,16 +118,22 @@ describe("CLI package", () => {
       updatedAt: "2026-11-16T00:00:00.000Z",
       screens: {
         [SCREEN_ID]: {
-          id: SCREEN_ID, type: "screen", parentId: null, children: [],
+          id: SCREEN_ID, type: "screen", parentId: null, children: [TEXT_ID],
           props: { title: "Home", width: 1280, height: 720 },
           style: {}, meta: {},
         },
       },
       objects: {
         [SCREEN_ID]: {
-          id: SCREEN_ID, type: "screen", parentId: null, children: [],
+          id: SCREEN_ID, type: "screen", parentId: null, children: [TEXT_ID],
           props: { title: "Home", width: 1280, height: 720 },
           style: {}, meta: {},
+        },
+        [TEXT_ID]: {
+          id: TEXT_ID, type: "text", parentId: SCREEN_ID, children: [],
+          props: { content: "Hello", fontSize: 16 },
+          style: {}, meta: {},
+          responsive: { sm: { style: { padding: "8px" } } },
         },
       },
       screenOrder: [SCREEN_ID],
@@ -183,6 +190,22 @@ describe("CLI package", () => {
       process.exitCode = 0;
       await exportCommand(testDir, { scene: "nope" });
       expect(process.exitCode).toBe(1);
+      process.exitCode = prevExit;
+    });
+
+    it("passes config.json breakpoints into the exported CSS (trd 4.4)", async () => {
+      await seedScene(testDir);
+      await fs.writeFile(
+        resolve(testDir, ".intent", "config.json"),
+        JSON.stringify({ version: 1, breakpoints: { sm: 700, md: 1100, lg: 1500 } }),
+        "utf8",
+      );
+      const out = resolve(testDir, "out.html");
+      const prevExit = process.exitCode;
+      await exportCommand(testDir, { scene: "default", output: out, format: "html" });
+      const html = await fs.readFile(out, "utf8");
+      expect(html).toContain("@media (min-width: 700px)");
+      expect(html).not.toContain("@media (min-width: 640px)");
       process.exitCode = prevExit;
     });
   });

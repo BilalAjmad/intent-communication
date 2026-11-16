@@ -7,6 +7,8 @@ import {
 import type { SceneValue } from "./index.js";
 import { renderIconMarkup } from "./icons.js";
 import { renderStateCss } from "./state-css.js";
+import { renderResponsiveCss, DEFAULT_BREAKPOINTS } from "./responsive-css.js";
+import type { Breakpoints } from "@intent/schema";
 import {
   escapeJsonForScript,
   sanitizeCssValue,
@@ -34,6 +36,7 @@ export interface HtmlExportOptions {
   inlineAssets?: boolean;
   basePath?: string;
   cspNonce?: string;
+  breakpoints?: Breakpoints;
 }
 
 function escapeHtml(str: unknown): string {
@@ -349,12 +352,14 @@ const DEFAULT_HTML_OPTIONS: Required<HtmlExportOptions> = {
   inlineAssets: true,
   basePath: "/",
   cspNonce: "",
+  breakpoints: DEFAULT_BREAKPOINTS,
 };
 
 export function exportToHtml(scene: Scene, options: HtmlExportOptions = {}): string {
   const opts = { ...DEFAULT_HTML_OPTIONS, ...options };
   const validated = validateScene(scene);
   const stateCss = opts.includeStyles ? renderStateCss(validated) : "";
+  const responsiveCss = opts.includeStyles ? renderResponsiveCss(validated, opts.breakpoints) : "";
 
   const screens = Object.values(validated.screens).sort((a, b) => {
     const idxA = validated.screenOrder.indexOf(a.id);
@@ -376,6 +381,7 @@ export function exportToHtml(scene: Scene, options: HtmlExportOptions = {}): str
   const safeNonce = sanitizeNonce(opts.cspNonce);
   const cspAttr = safeNonce ? ` nonce="${escapeHtml(safeNonce)}"` : "";
   const stateStyle = stateCss ? `\n  <style${cspAttr}>\n${stateCss}\n  </style>` : "";
+  const responsiveStyle = responsiveCss ? `\n  <style${cspAttr}>\n${responsiveCss}\n  </style>` : "";
   const csp = buildCsp(safeNonce);
 
   return `<!DOCTYPE html>
@@ -386,7 +392,7 @@ export function exportToHtml(scene: Scene, options: HtmlExportOptions = {}): str
   <meta http-equiv="Content-Security-Policy" content="${escapeHtml(csp)}">
   <title>${escapeHtml(validated.metadata.name ?? "Intent Export")}</title>
   ${cssVars ? `<style${cspAttr}>${cssVars}</style>` : ""}
-  ${baseStyles ? `<style${cspAttr}>${baseStyles}</style>` : ""}${stateStyle}
+  ${baseStyles ? `<style${cspAttr}>${baseStyles}</style>` : ""}${stateStyle}${responsiveStyle}
   ${opts.includeScripts ? `<script${cspAttr}>
     (function() {
       window.__INTENT_SCENE__ = ${escapeJsonForScript(JSON.stringify(validated))};
