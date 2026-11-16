@@ -287,9 +287,9 @@ const SCREENS: ReadonlyArray<{ id: string; name: string; Component: ComponentTyp
 
 export default function App() {
   return (
-    <main className="intent-app">
+    <div className="intent-app">
       <p>This design has no screens yet.</p>
-    </main>
+    </div>
   );
 }
 `;
@@ -325,14 +325,14 @@ export default function App() {
   }, []);
   const current = SCREENS.find((screen) => screen.id === active) ?? SCREENS[0];
   return (
-    <main className="intent-app">
+    <div className="intent-app">
       <nav aria-label="Screens">
         {SCREENS.map((screen) => (
           <a key={screen.id} href={\`#\${screen.id}\`} aria-current={screen.id === current.id ? "page" : undefined}>{screen.name}</a>
         ))}
       </nav>
       <current.Component />
-    </main>
+    </div>
   );
 }
 `;

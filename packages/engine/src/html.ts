@@ -113,6 +113,13 @@ function generateBaseStyles(): string {
   .intent-divider-horizontal { width: 100%; height: 1px; }
   .intent-divider-vertical { width: 1px; height: 100%; align-self: stretch; }
 
+  /* React export's app wrapper (trd 13.7): the height chain html/body 100% breaks at
+     #root and .intent-app, so give it the same fill behavior as a bare screen. */
+  .intent-app { display: flex; flex-direction: column; height: 100%; }
+  .intent-app > nav { display: flex; gap: 12px; align-items: center; padding: 4px 12px; font-size: 12px; }
+  .intent-app > .intent-screen { flex: 1 1 auto; min-height: 0; }
+  .intent-app > nav a[aria-current="page"] { font-weight: 600; }
+
   /* Focus visible polyfill */
   :focus:not(:focus-visible) { outline: none; }
   :focus-visible { outline: 2px solid var(--intent-color-focus); outline-offset: 2px; }
