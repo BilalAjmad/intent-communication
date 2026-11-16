@@ -4,6 +4,7 @@ import {
   SCENE_SCHEMA_VERSION,
 } from "@intent/schema";
 import { renderModelNodeHtml, RENDER_MAX_NODES } from "./render-html.js";
+import { renderAnimationCss } from "./animation-css.js";
 import { styleBlock } from "./style-decl.js";
 import { lightRootBlock, darkMediaBlock } from "./vars.js";
 import { normalizeSceneToModel } from "./model.js";
@@ -153,6 +154,7 @@ export function exportToHtml(scene: Scene, options: HtmlExportOptions = {}): str
   const screenHtml = model.screens
     .map((screen) => renderModelNodeHtml(screen.root, 0, { remaining: RENDER_MAX_NODES }, includeDataIds))
     .join("\n\n");
+  const animationCss = opts.includeStyles ? renderAnimationCss(model, { includeDataIds }) : "";
 
   const cssVars = opts.includeStyles ? generateCssVariables() : "";
   const baseStyles = opts.includeStyles ? generateBaseStyles() : "";
@@ -160,6 +162,7 @@ export function exportToHtml(scene: Scene, options: HtmlExportOptions = {}): str
   const cspAttr = safeNonce ? ` nonce="${escapeHtml(safeNonce)}"` : "";
   const stateStyle = stateCss ? `\n  <style${cspAttr}>\n${stateCss}\n  </style>` : "";
   const responsiveStyle = responsiveCss ? `\n  <style${cspAttr}>\n${responsiveCss}\n  </style>` : "";
+  const animationStyle = animationCss ? `\n  <style${cspAttr}>\n${animationCss}\n  </style>` : "";
   const csp = buildCsp(safeNonce);
 
   return `<!DOCTYPE html>
@@ -170,7 +173,7 @@ export function exportToHtml(scene: Scene, options: HtmlExportOptions = {}): str
   <meta http-equiv="Content-Security-Policy" content="${escapeHtml(csp)}">
   <title>${escapeHtml(validated.metadata.name ?? "Intent Export")}</title>
   ${cssVars ? `<style${cspAttr}>${cssVars}</style>` : ""}
-  ${baseStyles ? `<style${cspAttr}>${baseStyles}</style>` : ""}${stateStyle}${responsiveStyle}
+  ${baseStyles ? `<style${cspAttr}>${baseStyles}</style>` : ""}${stateStyle}${responsiveStyle}${animationStyle}
   ${opts.includeScripts ? `<script${cspAttr}>
     (function() {
       window.__INTENT_SCENE__ = ${escapeJsonForScript(JSON.stringify(validated))};

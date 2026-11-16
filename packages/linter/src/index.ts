@@ -227,8 +227,11 @@ function checkTouch(scene: Scene, violations: LintViolation[]): void {
 function checkContrast(scene: Scene, violations: LintViolation[]): void {
   for (const [id, obj] of Object.entries(scene.objects)) {
     if (obj.type !== "text") continue;
-    const colorVal = (obj.props ?? {})["color"];
-    const bgVal = (obj.style ?? {})["background"];
+    const style = obj.style ?? {};
+    const props = obj.props ?? {};
+    // Text color may be authored in style (common) or props; background in style.
+    const colorVal = style["color"] ?? props["color"];
+    const bgVal = style["background"] ?? style["backgroundColor"] ?? props["background"];
     if (!colorVal || !bgVal) continue;
     const color = resolveColor(colorVal);
     const bg = resolveColor(bgVal);

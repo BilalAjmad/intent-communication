@@ -381,6 +381,7 @@
 
   function renderOverlay(rects) {
     el.overlay.innerHTML = "";
+    state.lastRects = rects;
     Object.keys(rects).forEach(function (id) {
       var r = rects[id];
       if (!r) return;
@@ -1285,6 +1286,63 @@
     });
     document.addEventListener("keydown", function (event) {
       if (event.key === "Escape") setLintPanelOpen(false);
+    });
+    wireNudgeKeys();
+  }
+
+  // design.md 4.2: Arrow keys move the selected object by 4 px (Shift = 8 px).
+  // Bursts coalesce: one atomic style op per ~300 ms of quiet, through the same
+  // /api/object-style path as canvas drags.
+  function wireNudgeKeys() {
+    var nudge = { id: null, dx: 0, dy: 0, timer: 0, base: null };
+
+    function isTypingTarget(target) {
+      return !!(target && target.closest && target.closest('input, textarea, select, [contenteditable="true"], [role="textbox"]'));
+    }
+
+    function commitNudge() {
+      var id = nudge.id;
+      var dx = nudge.dx;
+      var dy = nudge.dy;
+      var base = nudge.base;
+      nudge = { id: null, dx: 0, dy: 0, timer: 0, base: null };
+      if (!id || !base || (!dx && !dy)) return;
+      if (state.scene && lockedObjectIds().indexOf(id) !== -1) return;
+      var left = Math.max(0, Math.round(base.x + dx));
+      var top = Math.max(0, Math.round(base.y + dy));
+      var obj = state.scene && state.scene.objects ? state.scene.objects[id] : null;
+      var alreadyAbsolute = obj && obj.style && String(obj.style.position || "") === "absolute";
+      var additions = { left: left + "px", top: top + "px" };
+      if (!alreadyAbsolute) additions.position = "absolute";
+      void commitStyleEdit(id, additions, function () {
+        postToPreview({ t: "select", channel: state.channel, ids: [id] });
+      });
+    }
+
+    document.addEventListener("keydown", function (event) {
+      if (isTypingTarget(event.target)) return;
+      if (state.pinMode || state.annotating) return;
+      var deltas = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] };
+      var delta = deltas[event.key];
+      if (!delta) return;
+      var id = state.selectedId;
+      if (!id || lockedObjectIds().indexOf(id) !== -1) return;
+      var rects = state.lastRects;
+      var base = rects && rects[id];
+      if (!base) return;
+      event.preventDefault();
+      var step = event.shiftKey ? 8 : 4;
+      if (nudge.id !== id) {
+        nudge = { id: id, dx: 0, dy: 0, timer: nudge.timer, base: base };
+        if (nudge.timer) {
+          clearTimeout(nudge.timer);
+          nudge.timer = 0;
+        }
+      }
+      nudge.dx += delta[0] * step;
+      nudge.dy += delta[1] * step;
+      if (nudge.timer) clearTimeout(nudge.timer);
+      nudge.timer = setTimeout(commitNudge, 300);
     });
   }
 

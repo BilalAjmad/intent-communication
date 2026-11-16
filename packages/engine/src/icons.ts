@@ -22,14 +22,15 @@ const ICONS: Record<string, string> = {
 const FALLBACK_ICON = '<circle cx="12" cy="12" r="9" /><circle cx="12" cy="12" r="1" fill="currentColor" stroke="none" />';
 
 function tokenToCssVar(token: string): string {
+  const toVarSuffix = (raw: string): string => raw.replace(/[^A-Za-z0-9_-]+/g, "-").replace(/^-+|-+$/g, "");
   if (token.startsWith("token.color.")) {
-    return `var(--intent-color-${token.slice("token.color.".length)})`;
+    return `var(--intent-color-${toVarSuffix(token.slice("token.color.".length))})`;
   }
   if (token.startsWith("token.spacing.")) {
-    return `var(--intent-spacing-${token.slice("token.spacing.".length)})`;
+    return `var(--intent-spacing-${toVarSuffix(token.slice("token.spacing.".length))})`;
   }
   if (token.startsWith("token.typography.")) {
-    return `var(--intent-typography-${token.slice("token.typography.".length)})`;
+    return `var(--intent-typography-${toVarSuffix(token.slice("token.typography.".length))})`;
   }
   return token;
 }

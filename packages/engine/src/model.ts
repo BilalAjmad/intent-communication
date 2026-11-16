@@ -24,6 +24,8 @@ export interface RenderNode {
   attrs: Record<string, string>;
   text?: string;
   style: Record<string, string>;
+  /** Animation/transition declarations (trd 13.6) — emitted inside @media (prefers-reduced-motion: no-preference), never inline. */
+  anim?: Record<string, string>;
   bp: { sm?: Record<string, string>; md?: Record<string, string>; lg?: Record<string, string> };
   states: Record<string, Record<string, string>>;
   interactions: { event: "click" | "change" | "submit"; action: string }[];
@@ -98,6 +100,24 @@ function styleRecord(style: Record<string, unknown> | undefined): Record<string,
   return out;
 }
 
+/** Animation/transition keys (trd 13.6) that must never render inline. */
+const ANIMATION_PROPS = new Set([
+  "transition", "transition-property", "transition-duration", "transition-timing-function", "transition-delay",
+  "animation", "animation-name", "animation-duration", "animation-timing-function", "animation-delay",
+  "animation-iteration-count", "animation-fill-mode", "animation-direction", "animation-play-state",
+]);
+
+/** Splits off animation declarations (they render inside prefers-reduced-motion rules). */
+function splitAnim(style: Record<string, string>): { anim: Record<string, string> | undefined; rest: Record<string, string> } {
+  const anim: Record<string, string> = {};
+  const rest: Record<string, string> = {};
+  for (const [key, value] of Object.entries(style)) {
+    if (ANIMATION_PROPS.has(key)) anim[key] = value;
+    else rest[key] = value;
+  }
+  return { anim: Object.keys(anim).length > 0 ? anim : undefined, rest };
+}
+
 /** Parses a declaration block ("a: b; c: d;") into a record. Splits only on "; " and the first ": ". */
 function declsToRecord(decls: string[]): Record<string, string> {
   const out: Record<string, string> = {};
@@ -143,11 +163,15 @@ function nodeFor(
   const classAttr: Record<string, string> = { class: classFor(obj) };
   const attrs: Record<string, string> = assertNodeAttrs(classAttr);
 
+  const baseRecord = styleRecord(obj.style);
+  const { anim, rest } = splitAnim(baseRecord);
+
   const node: RenderNode = {
     id: obj.id,
     tag,
     attrs,
-    style: styleRecord(obj.style),
+    style: rest,
+    ...(anim ? { anim } : {}),
     bp: {},
     states: {},
     interactions: collectInteractions(props),

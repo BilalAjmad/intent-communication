@@ -43,7 +43,10 @@ export function renderModelNodeHtml(
   budget.remaining -= 1;
   const indent = "  ".repeat(depth);
   const oid = includeDataIds ? ` data-object-id="${escapeHtml(node.id)}"` : "";
-  const styleStr = styleBlock(node.style);
+  // trd 13.6: anim declarations live in the @media block when ids are emitted;
+  // without ids they can't be selected, so keep them inline (documented fallback).
+  const effectiveStyle = includeDataIds ? node.style : { ...node.style, ...(node.anim ?? {}) };
+  const styleStr = styleBlock(effectiveStyle);
   const styleAttr = styleStr ? ` style="${escapeHtml(styleStr)}"` : "";
 
   // The icon's SVG is engine-generated from the allowlisted glyph table; the

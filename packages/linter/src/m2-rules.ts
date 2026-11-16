@@ -146,7 +146,9 @@ function checkAlign(scene: Scene, violations: LintViolation[]): void {
     for (const childId of obj.children) {
       const child = scene.objects[childId];
       const left = (child?.style ?? {})["left"];
-      if (typeof left === "number") lefts.push({ childId, left });
+      // Scene values may be numbers or numeric strings ("100px"); parseFloat handles both.
+      const n = typeof left === "number" ? left : typeof left === "string" ? Number.parseFloat(left) : Number.NaN;
+      if (Number.isFinite(n)) lefts.push({ childId, left: n });
     }
     for (let i = 0; i < lefts.length; i++) {
       for (let j = i + 1; j < lefts.length; j++) {

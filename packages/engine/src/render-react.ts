@@ -77,7 +77,8 @@ export function renderModelNodeJsx(
   budget.remaining -= 1;
   const pad = "  ".repeat(depth);
   const oid = includeDataIds && node.id ? ` data-object-id={${JSON.stringify(node.id)}}` : "";
-  const style = Object.keys(node.style).length > 0 ? ` style={${styleLiteral(node.style)}}` : "";
+  const animStyle = includeDataIds ? node.style : { ...node.style, ...(node.anim ?? {}) };
+  const style = Object.keys(animStyle).length > 0 ? ` style={${styleLiteral(animStyle)}}` : "";
 
   // The icon's SVG is engine-generated from the allowlisted glyph table.
   if (node.tag === "span" && node.attrs["data-icon"]) {

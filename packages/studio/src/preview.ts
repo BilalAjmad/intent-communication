@@ -7,6 +7,7 @@ import {
   renderStateCss,
   renderResponsiveCss,
   renderModelNodeHtml,
+  renderAnimationCss,
   normalizeSceneToModel,
   expandComponentInstances,
   DEFAULT_BREAKPOINTS,
@@ -152,6 +153,7 @@ export function buildPreviewDocument(scene: Scene, options: { breakpoints?: Brea
 
   const stateCss = renderStateCss(renderScene);
   const responsiveCss = renderResponsiveCss(renderScene, breakpoints);
+  const animationCss = renderAnimationCss(model, { includeDataIds: true });
   const body = model.screens
     .map((screen) => renderModelNodeHtml(screen.root, 0, { remaining: 5000 }, true))
     .join("\n");
@@ -160,6 +162,7 @@ export function buildPreviewDocument(scene: Scene, options: { breakpoints?: Brea
   const styles = [renderExportCss(), PREVIEW_EXTRAS];
   if (stateCss) styles.push(stateCss);
   if (responsiveCss) styles.push(responsiveCss);
+  if (animationCss) styles.push(animationCss);
   const stylesBlock = styles.map((s) => `<style>${s}</style>`).join("\n");
 
   return `<!DOCTYPE html>

@@ -147,6 +147,7 @@ export function createLockPort(storage: StoragePort, tmpDir?: string): LockPort 
       // owner's fresh lock is renamed back instead of deleted.
       const backoff = (d: number) => Math.min(d * (0.8 + Math.random() * 0.4), 250);
       let delay = 10;
+      let transientFailures = 0;
       for (let attempt = 0; attempt < 24; attempt++) {
         try {
           const content = JSON.stringify({ pid: process.pid, createdAt: Date.now(), ownerToken });
@@ -157,8 +158,16 @@ export function createLockPort(storage: StoragePort, tmpDir?: string): LockPort 
         } catch (err) {
           const nodeErr = err as NodeJS.ErrnoException;
           if (nodeErr.code !== "EEXIST") {
-            debugLog(`acquireSceneLock write error ${sceneId} ${nodeErr.code}`);
-            return false;
+            // Windows: transient EPERM/ENOENT/UNKNOWN under AV/indexer load. A few
+            // retries with a short wait beat an immediate failure — the caller retries
+            // 50 times anyway, but an instant false poisons the whole burst.
+            transientFailures += 1;
+            if (transientFailures >= 3) {
+              debugLog(`acquireSceneLock write error ${sceneId} ${nodeErr.code}`);
+              return false;
+            }
+            await new Promise((r) => setTimeout(r, 25 * transientFailures));
+            continue;
           }
         }
 

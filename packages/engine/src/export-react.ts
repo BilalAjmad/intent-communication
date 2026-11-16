@@ -8,6 +8,7 @@ import { renderModelNodeJsx } from "./render-react.js";
 import { expandComponentInstances } from "./components.js";
 import { renderStateCss } from "./state-css.js";
 import { renderResponsiveCss, DEFAULT_BREAKPOINTS } from "./responsive-css.js";
+import { renderAnimationCss } from "./animation-css.js";
 import type { Breakpoints } from "@intent/schema";
 
 /**
@@ -168,7 +169,8 @@ export function exportToReact(scene: Scene, options: ReactExportOptions = {}): F
   const { entries, screens } = buildScreenFiles(model, includeDataIds);
   const stateCss = renderStateCss(renderScene);
   const responsiveCss = renderResponsiveCss(renderScene, options.breakpoints ?? DEFAULT_BREAKPOINTS);
-  const tokens = `${GENERATOR_BANNER}\n${renderExportCss()}${stateCss ? `\n${stateCss}\n` : ""}${responsiveCss ? `\n${responsiveCss}\n` : ""}`;
+  const animationCss = renderAnimationCss(model, { includeDataIds });
+  const tokens = `${GENERATOR_BANNER}\n${renderExportCss()}${stateCss ? `\n${stateCss}\n` : ""}${responsiveCss ? `\n${responsiveCss}\n` : ""}${animationCss ? `\n${animationCss}\n` : ""}`;
   const files: Record<string, string> = {
     "intent-export/tokens.css": tokens,
     ...screens,

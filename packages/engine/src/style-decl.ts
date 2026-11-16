@@ -18,14 +18,17 @@ export type SceneStyle = Record<string, unknown>;
 
 /** Maps a token reference ("token.color.primary") to its CSS custom property. */
 export function tokenToCssVar(token: string): string {
+  // Token paths are dot-separated; CSS var names are hyphenated. "token.color.text.primary"
+  // must become var(--intent-color-text-primary), not var(--intent-color-text.primary).
+  const toVarSuffix = (raw: string): string => raw.replace(/[^A-Za-z0-9_-]+/g, "-").replace(/^-+|-+$/g, "");
   if (token.startsWith("token.color.")) {
-    return `var(--intent-color-${token.slice("token.color.".length)})`;
+    return `var(--intent-color-${toVarSuffix(token.slice("token.color.".length))})`;
   }
   if (token.startsWith("token.spacing.")) {
-    return `var(--intent-spacing-${token.slice("token.spacing.".length)})`;
+    return `var(--intent-spacing-${toVarSuffix(token.slice("token.spacing.".length))})`;
   }
   if (token.startsWith("token.typography.")) {
-    return `var(--intent-typography-${token.slice("token.typography.".length)})`;
+    return `var(--intent-typography-${toVarSuffix(token.slice("token.typography.".length))})`;
   }
   return token;
 }
