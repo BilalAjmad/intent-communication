@@ -19,6 +19,7 @@ import {
 } from "@intent/schema";
 import { createFileStoragePort, createFileLockPort, createNodeCryptoPort } from "@intent/adapters-node";
 import { z } from "zod";
+import { saveFirstRenderVersion } from "./first-render.js";
 import { lockedWithDescendantsLocal, freshInterviewState, dedupe, renderPlainTextCard, applyMeterUpdate, meterWithRequiredTopicCap } from "./helpers.js";
 import { validateTool } from "./validate-tool.js";
 
@@ -154,6 +155,10 @@ export const applyPatchTool: MCPTool = {
     // pass a feedback id, so the target is the patched object, sent first.
     if (result && typeof result === "object" && "success" in result) {
       const r = result as { success: boolean; error?: string };
+      if (r.success) {
+        // trd 17.2: the first successful agent write is the acceptance-metric baseline.
+        await saveFirstRenderVersion(context, patch.sceneId);
+      }
       if (r.success || r.error === ErrorCodes.E_CONFLICT) {
         const newStatus = r.success ? ("applied" as const) : ("conflict" as const);
         await withProjectLock(context.lockPort, `feedback-${patch.sceneId}`, async () => {

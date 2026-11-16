@@ -7,7 +7,9 @@ import {
   createFileStoragePort,
   createFileLockPort,
   createNodeCryptoPort,
+  findFirstRenderBaseline,
 } from "@intent/adapters-node";
+import { computeAcceptanceRate, type AppliedPatchRef } from "@intent/core";
 import { exportSceneToFile, exportToReact } from "@intent/engine";
 import { BreakpointsSchema, type Breakpoints } from "@intent/schema";
 import { mergeAgentMcpConfigs } from "./mcp-config.js";
@@ -249,6 +251,49 @@ async function readProjectBreakpoints(projectRoot: string): Promise<Breakpoints 
   }
 }
 
+async function printAcceptanceRate(projectRoot: string, sceneId: string, scene: { objects: Record<string, { type: string }> }): Promise<void> {
+  // trd 17.2: the acceptance-rate metric is export *output metadata* — printed
+  // to the console, never embedded in the exported artifact.
+  try {
+    const baseline = await findFirstRenderBaseline(projectRoot);
+    if (!baseline) {
+      console.log(chalk.dim("acceptance rate: not enough data yet — no first-render baseline in .intent/versions/"));
+      return;
+    }
+    const nonScreen = (objects: Record<string, { type: string }>) => {
+      const out: Record<string, { type: string }> = {};
+      for (const [id, obj] of Object.entries(objects)) {
+        if (obj.type === "screen") continue;
+        out[id] = obj;
+      }
+      return out;
+    };
+    const storage = createFileStoragePort(projectRoot);
+    const feedback = await storage.readFeedback(sceneId);
+    const appliedPatches: AppliedPatchRef[] = feedback
+      .filter((f) => f.status === "applied" && typeof f.appliedAt === "string" && (f.appliedAt as string) >= baseline.createdAt)
+      .map((f) => ({ objectId: f.objectId as string | null, appliedAt: f.appliedAt }));
+    const metrics = computeAcceptanceRate({
+      baselineObjects: nonScreen(baseline.scene.objects as Record<string, { type: string }>),
+      currentObjects: nonScreen(scene.objects),
+      appliedPatches,
+    });
+    if (!metrics.available) {
+      console.log(chalk.dim(`acceptance rate: not enough data — ${metrics.reason ?? "unavailable"}`));
+      return;
+    }
+    const pct = ((metrics.acceptanceRate ?? 0) * 100).toFixed(1);
+    console.log(
+      chalk.dim(
+        `acceptance rate: ${pct}% (${metrics.unchanged}/${metrics.baselineObjectsStillPresent} baseline objects unchanged; ${metrics.removedAfterBaseline} removed, ${metrics.addedAfterBaseline} added, baseline ${baseline.createdAt})`,
+      ),
+    );
+  } catch {
+    // Metric is best-effort output metadata — never block the export on it.
+    console.log(chalk.dim("acceptance rate: unavailable (see .intent/versions and feedback files)"));
+  }
+}
+
 async function exportCommand(projectRoot: string, options: { scene?: string; output?: string; format?: string }): Promise<void> {
   const spinner = ora("Exporting scene...").start();
   const sceneId = options.scene || "default";
@@ -275,6 +320,7 @@ async function exportCommand(projectRoot: string, options: { scene?: string; out
         breakpoints,
       });
       spinner.succeed(chalk.green(`Exported to ${outputPath}`));
+      await printAcceptanceRate(projectRoot, sceneId, scene);
       return;
     }
 
@@ -298,6 +344,7 @@ async function exportCommand(projectRoot: string, options: { scene?: string; out
         written += 1;
       }
       spinner.succeed(chalk.green(`Exported ${written} files to ${outDir}`));
+      await printAcceptanceRate(projectRoot, sceneId, scene);
       return;
     }
 

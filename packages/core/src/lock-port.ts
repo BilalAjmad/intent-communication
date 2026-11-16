@@ -18,12 +18,15 @@ export function createLockPort(storage: StoragePort, tmpDir?: string): LockPort 
   // In-memory map of sceneId -> ownerToken for scene locks acquired by this process.
   const sceneOwnerTokens = new Map<string, string>();
 
-  // Liveness tiebreaker for stale reclamation: if the recorded owner's pid is
-  // alive, the lock is held — never reclaim it, however old the entry is. The
-  // only fallback for "alive but possibly pid-recycled" is a long (60 s) age cap.
-  // A shorter age cap caused live-but-starved owners to have their locks stolen
-  // under load, admitting two writers into the critical section.
-  const STALE_AFTER_MS = 60_000;
+  // trd 9.2: a lock entry is stale when its owner's pid is not alive (same
+  // machine) or when it is older than 10 s. Pid liveness is the primary check:
+  // a live-but-starved owner is never reclaimed (the pre-cf5a988 bug — an
+  // age-only 10 s rule let two processes into the critical section). The age
+  // cap only covers pid REUSE: a dead owner whose pid was recycled to an
+  // unrelated process can never be detected by liveness, so the entry must
+  // expire by age. 10 s matches trd 9.2's stale rule and keeps the acceptance
+  // window small for short-lived worker processes (Windows reuses pids fast).
+  const STALE_AFTER_MS = 10_000;
   function isStale(timestamp: number): boolean {
     return Date.now() - timestamp > STALE_AFTER_MS;
   }

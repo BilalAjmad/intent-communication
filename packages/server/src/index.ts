@@ -28,11 +28,11 @@ import {
 } from "./api-routes.js";
 import { registerAnnotationRoutes } from "./annotations-api.js";
 import { registerVersionRoutes } from "./versions-api.js";
+import { registerMetricsRoutes } from "./metrics-api.js";
 import { registerLintRoutes } from "./lint-api.js";
 import { handleSSE, serveStatic, writeRuntimeFile } from "./runtime.js";
 import { SseEventBus, type SSEClient } from "./event-bus.js";
 export type { SSEClient } from "./event-bus.js";
-
 export interface ServerConfig {
   projectRoot: string;
   previewPort: number;
@@ -53,7 +53,6 @@ export interface ServerConfig {
 export class IntentServer {
   /** Default SPA directory: INTENT_SPA_DIR override, else walk up from cwd to the workspace root. */
   private readonly defaultStaticDir = this.resolveDefaultSpaDir();
-
   /** import.meta is unusable here — some ESM loaders transpile this file to CJS. */
   private resolveDefaultSpaDir(): string {
     const fromEnv = process.env["INTENT_SPA_DIR"];
@@ -87,7 +86,6 @@ export class IntentServer {
   /** Known live session ids -> createdAt (ms). */
   private sessions: Map<string, number> = new Map();
   private readonly apiCtx: ApiContext;
-
   constructor(config: ServerConfig) {
     this.config = config;
     this.storage = createFileStoragePort(config.projectRoot);
@@ -137,7 +135,6 @@ export class IntentServer {
   addressOf(): ReturnType<ReturnType<typeof createHttpServer>["address"]> {
     return this.httpServer.address();
   }
-
   private setSecurityHeaders(res: ServerResponse) {
     res.setHeader("X-Content-Type-Options", "nosniff");
     res.setHeader("X-Frame-Options", "DENY");
@@ -355,7 +352,6 @@ export class IntentServer {
     if (pathname.startsWith("/api/")) {
       if (!this.requireSession(req, res)) return;
     }
-
     if (pathname === "/api/protected") {
       res.writeHead(200, { "Content-Type": "application/json" });
       res.end(JSON.stringify({ success: true }));
@@ -401,6 +397,10 @@ export class IntentServer {
     }
     // Named versions (trd 6.x)
     if (await registerVersionRoutes(this.apiCtx, req, res, pathname, url)) {
+      return;
+    }
+    // Acceptance-rate metric (trd 17.2)
+    if (await registerMetricsRoutes(this.apiCtx, req, res, pathname, url)) {
       return;
     }
     // Lint the scene (trd 11.3)
@@ -472,7 +472,6 @@ export class IntentServer {
       });
     });
   }
-
   stop(): Promise<void> {
     return new Promise((resolvePromise, reject) => {
       if (!this.httpServer.listening) {
@@ -496,4 +495,3 @@ export function createServer(config: ServerConfig): IntentServer {
   return new IntentServer(config);
 }
 export { createServerFromConfig } from "./from-config.js";
-

@@ -424,6 +424,45 @@
     }
   }
 
+  async function renderMetricsSection(body) {
+    var wrap = document.createElement("div");
+    wrap.className = "versions-section";
+    var title = document.createElement("span");
+    title.className = "panel-title";
+    title.textContent = "Acceptance";
+    wrap.appendChild(title);
+    var line = document.createElement("p");
+    line.className = "muted";
+    line.textContent = "Loading…";
+    wrap.appendChild(line);
+    body.appendChild(wrap);
+    try {
+      var data = await fetchJson("/api/metrics?sceneId=" + encodeURIComponent(state.sceneId));
+      var metrics = data && data.metrics ? data.metrics : null;
+      if (!metrics || !metrics.available) {
+        var reason = metrics && typeof metrics.reason === "string" ? metrics.reason : "Not enough data yet";
+        line.textContent = "Not enough data yet — the baseline appears after the agent's first applied change. " +
+          (reason ? "(" + reason + ")" : "");
+        return;
+      }
+      var pct = typeof metrics.acceptanceRate === "number" ? (metrics.acceptanceRate * 100).toFixed(1) : "—";
+      wrap.innerHTML = "";
+      wrap.appendChild(title);
+      var big = document.createElement("p");
+      big.className = "metric-value";
+      big.textContent = pct + "%";
+      wrap.appendChild(big);
+      var detail = document.createElement("p");
+      detail.className = "muted";
+      detail.textContent = metrics.unchanged + " of " + metrics.baselineObjectsStillPresent +
+        " baseline objects unchanged by the agent · " + metrics.removedAfterBaseline + " removed · " +
+        metrics.addedAfterBaseline + " added";
+      wrap.appendChild(detail);
+    } catch (err) {
+      line.textContent = "Could not load the acceptance metric.";
+    }
+  }
+
   async function restoreVersion(file) {
     if (!window.confirm("Restore this snapshot? The current scene will be replaced, and its revision will be bumped.")) return;
     try {
@@ -494,6 +533,7 @@
     if (!state.selectedId) {
       body.innerHTML = '<p class="muted">Select an object on the canvas or in Layers to see its details.</p>';
       renderVersionsSection(body);
+      renderMetricsSection(body);
       return;
     }
     var id = state.selectedId;
@@ -535,6 +575,7 @@
     body.appendChild(dl);
     if (obj) renderForceStateRow(body, obj, id);
     renderVersionsSection(body);
+    renderMetricsSection(body);
   }
 
   // ---------- annotations (trd 9.7) ----------
