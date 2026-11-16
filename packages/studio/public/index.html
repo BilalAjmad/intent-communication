@@ -19,6 +19,7 @@
       <span class="mode" id="mode-label" aria-live="polite">Edit mode</span>
       <span class="spacer"></span>
       <button id="annotate-toggle" class="ghost" type="button" aria-pressed="false" title="Draw on the preview (pencil annotations)">Annotate</button>
+      <button id="pin-toggle" class="ghost" type="button" aria-pressed="false" title="Place numbered pins with notes on the preview">Pin</button>
       <button id="send-btn" class="primary" disabled>Send changes</button>
     </header>
 
@@ -38,6 +39,7 @@
             sandbox="allow-scripts"
           ></iframe>
           <div id="overlay" class="overlay" aria-hidden="true"></div>
+          <div id="pins-layer" class="pins-layer" role="group" aria-label="Annotation pins"></div>
           <canvas id="annotation-canvas" class="annotation-canvas" aria-label="Annotation drawing area"></canvas>
           <p id="canvas-error" class="canvas-error" hidden role="alert"></p>
         </div>

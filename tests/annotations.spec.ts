@@ -140,3 +140,42 @@ test("Inspector Preview state buttons set data-state on the object in the previe
   await expect(loadingBtn).toHaveAttribute("aria-pressed", "false");
   await expect.poll(async () => frame.locator(`[data-object-id="${BUTTON}"]`).getAttribute("data-state")).toBeNull();
 });
+
+test("Pin flow: place a numbered pin, it lands in the annotations list, and deletes via the marker", async ({ page }) => {
+  page.on("dialog", (dialog) => void dialog.accept());
+
+  await page.goto(`http://127.0.0.1:${port}/#t=${server.getSessionToken()}`);
+  await expect(page.locator("#project-name")).toHaveText("Annotations", { timeout: 8000 });
+  await page.locator(".layer-item", { hasText: "text" }).first().click();
+
+  // Enter pin mode and drop a pin on the preview.
+  await page.click("#pin-toggle");
+  await expect(page.locator("#pin-toggle")).toHaveAttribute("aria-pressed", "true");
+  await page.locator("#pins-layer").click({ position: { x: 120, y: 140 } });
+
+  // Inline editor appears; type a note and save with Enter.
+  const note = page.locator(".pin-draft textarea");
+  await expect(note).toBeVisible();
+  await note.fill("This headline needs to be bigger");
+  await note.press("Enter");
+
+  // Pin marker appears with the number 1.
+  const marker = page.locator(".pin", { hasText: "1" });
+  await expect(marker).toBeVisible({ timeout: 8000 });
+
+  // The pin landed in the Annotations list.
+  await page.click("#tab-feedback");
+  await expect(page.locator(".annotation-item", { hasText: "bigger" })).toBeVisible({ timeout: 8000 });
+
+  // The annotation is stored as kind=pin in .intent/annotations/default.json.
+  const stored = JSON.parse(
+    await fs.readFile(resolve(tmpDir, ".intent", "annotations", "default.json"), "utf-8"),
+  ) as Array<{ kind: string; text?: string; status: string }>;
+  const pin = stored.find((a) => a.kind === "pin");
+  expect(pin?.text).toBe("This headline needs to be bigger");
+  expect(pin?.status).toBe("open");
+
+  // Delete via the marker; the list empties.
+  await marker.click();
+  await expect(page.locator(".annotation-item")).toHaveCount(0, { timeout: 8000 });
+});

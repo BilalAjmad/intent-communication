@@ -76,6 +76,8 @@
     el.interviewBody = $("interview-body");
     el.addToQueue = $("add-to-queue");
     el.annotateToggle = $("annotate-toggle");
+    el.pinToggle = $("pin-toggle");
+    el.pinsLayer = $("pins-layer");
     el.annotationCanvas = $("annotation-canvas");
     el.annotationsFieldset = $("annotations-fieldset");
     el.annotationsList = $("annotations-list");
@@ -298,6 +300,7 @@
       // Annotations belong to a screen; repaint the ones for the new preview.
       clearAnnotationCanvas();
       redrawAnnotations();
+      renderPins();
     } catch (err) {
       showCanvasError(err && err.message ? err.message : "The preview could not be loaded.");
     }
@@ -476,6 +479,7 @@
     }
     renderAnnotations();
     redrawAnnotations();
+    renderPins();
   }
 
   function renderAnnotations() {
@@ -483,6 +487,7 @@
     var open = state.annotations.filter(function (a) { return a.status === "open" && a.screenId === screenId; });
     if (open.length === 0) {
       el.annotationsFieldset.hidden = true;
+      el.annotationsList.innerHTML = "";
       return;
     }
     el.annotationsFieldset.hidden = false;
@@ -653,21 +658,155 @@
     }
   }
 
-  function toggleAnnotate() {
-    state.annotating = !state.annotating;
+  function setAnnotateMode(on) {
+    state.annotating = on;
+    if (on) state.pinMode = false;
+    syncMarkupMode();
+  }
+
+  function setPinMode(on) {
+    state.pinMode = on;
+    if (on) state.annotating = false;
+    syncMarkupMode();
+  }
+
+  function syncMarkupMode() {
     document.body.classList.toggle("annotating", state.annotating);
+    document.body.classList.toggle("pin-mode", state.pinMode);
     el.annotateToggle.setAttribute("aria-pressed", String(state.annotating));
+    el.pinToggle.setAttribute("aria-pressed", String(state.pinMode));
     if (state.annotating) {
       syncAnnotationCanvas();
       redrawAnnotations();
     }
   }
 
+  function wirePinsLayer() {
+    el.pinsLayer.addEventListener("click", function (event) {
+      if (!state.pinMode) return;
+      var rect = el.pinsLayer.getBoundingClientRect();
+      var x = Math.round((event.clientX - rect.left) * 10) / 10;
+      var y = Math.round((event.clientY - rect.top) * 10) / 10;
+      openPinDraft(x, y);
+      event.preventDefault();
+    });
+  }
+
+  function closePinDraft() {
+    var draft = el.pinsLayer.querySelector(".pin-draft");
+    if (draft) draft.remove();
+  }
+
+  function openPinDraft(x, y) {
+    closePinDraft();
+    var draft = document.createElement("div");
+    draft.className = "pin-draft";
+    draft.style.left = x + "px";
+    draft.style.top = y + "px";
+    var ta = document.createElement("textarea");
+    ta.rows = 3;
+    ta.maxLength = 1000;
+    ta.placeholder = "What is this pin about?";
+    ta.setAttribute("aria-label", "Pin note");
+    var row = document.createElement("div");
+    row.className = "pin-draft-row";
+    var cancel = document.createElement("button");
+    cancel.className = "icon-button";
+    cancel.type = "button";
+    cancel.textContent = "Cancel";
+    var save = document.createElement("button");
+    save.className = "primary";
+    save.type = "button";
+    save.textContent = "Add pin";
+    row.appendChild(cancel);
+    row.appendChild(save);
+    draft.appendChild(ta);
+    draft.appendChild(row);
+    el.pinsLayer.appendChild(draft);
+    ta.focus();
+    cancel.addEventListener("click", closePinDraft);
+    save.addEventListener("click", function () {
+      void savePin(x, y, ta.value.trim());
+    });
+    ta.addEventListener("keydown", function (event) {
+      if (event.key === "Enter" && !event.shiftKey) {
+        event.preventDefault();
+        void savePin(x, y, ta.value.trim());
+      } else if (event.key === "Escape") {
+        event.preventDefault();
+        closePinDraft();
+      }
+    });
+  }
+
+  async function savePin(x, y, text) {
+    if (!text) {
+      showToast("Write a note for the pin first.");
+      return;
+    }
+    try {
+      await fetchJson("/api/annotations?sceneId=" + encodeURIComponent(state.sceneId), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          kind: "pin",
+          objectId: state.selectedId,
+          screenId: currentScreenIdSafe(),
+          anchor: { x: x, y: y },
+          text: text,
+        }),
+      });
+      closePinDraft();
+      await loadAnnotations();
+      showToast("Pin added.");
+    } catch (err) {
+      showToast(err && err.message ? err.message : "Could not save the pin.");
+    }
+  }
+
+  function renderPins() {
+    var existing = el.pinsLayer.querySelectorAll(".pin");
+    existing.forEach(function (n) {
+      n.remove();
+    });
+    var screenId = currentScreenIdSafe();
+    var pins = state.annotations.filter(function (a) {
+      return a.status === "open" && a.screenId === screenId && a.kind === "pin";
+    });
+    pins.forEach(function (pin, i) {
+      var marker = document.createElement("button");
+      marker.className = "pin";
+      marker.type = "button";
+      marker.textContent = String(i + 1);
+      marker.style.left = pin.anchor.x + "px";
+      marker.style.top = pin.anchor.y + "px";
+      marker.title = pin.text || "Pin";
+      marker.setAttribute("aria-label", "Pin " + (i + 1) + ": " + (pin.text || ""));
+      marker.addEventListener("click", function (event) {
+        event.stopPropagation();
+        if (window.confirm("Delete this pin?")) {
+          void deleteAnnotation(pin.id);
+        }
+      });
+      el.pinsLayer.appendChild(marker);
+    });
+  }
+
+  function toggleAnnotate() {
+    setAnnotateMode(!state.annotating);
+  }
+
+  function togglePin() {
+    setPinMode(!state.pinMode);
+  }
+
   function wireAnnotate() {
     el.annotateToggle.addEventListener("click", toggleAnnotate);
+    el.pinToggle.addEventListener("click", togglePin);
     wireAnnotationCanvas();
+    wirePinsLayer();
     window.addEventListener("resize", function () {
-      if (!state.annotating) return;
+      if (!state.annotating && !state.pinMode) return;
       syncAnnotationCanvas();
       redrawAnnotations();
     });
