@@ -717,6 +717,69 @@ textarea:focus {
   font-variant-numeric: tabular-nums;
 }
 
+.profile-intro {
+  margin: 0 0 10px;
+}
+
+.profile-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.profile-item {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 10px 10px 8px;
+  background: var(--bg-canvas);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.profile-text {
+  margin: 0;
+  font-size: 13px;
+  color: var(--text);
+}
+
+.profile-meta {
+  margin: 0;
+  font-size: 11px;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.profile-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.profile-edit-form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.profile-edit-input {
+  width: 100%;
+  background: var(--bg-canvas);
+  color: var(--text);
+  border: 1px solid var(--line-strong);
+  border-radius: 6px;
+  padding: 8px 10px;
+  font: inherit;
+  font-size: 13px;
+}
+
+.profile-edit-input:focus {
+  border-color: var(--accent);
+  outline: none;
+}
+
 .version-item {
   display: flex;
   align-items: center;

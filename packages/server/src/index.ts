@@ -29,6 +29,7 @@ import {
 import { registerAnnotationRoutes } from "./annotations-api.js";
 import { registerVersionRoutes } from "./versions-api.js";
 import { registerMetricsRoutes } from "./metrics-api.js";
+import { registerProfileRoutes } from "./profile-api.js";
 import { registerLintRoutes } from "./lint-api.js";
 import { handleSSE, serveStatic, writeRuntimeFile } from "./runtime.js";
 import { SseEventBus, type SSEClient } from "./event-bus.js";
@@ -233,7 +234,6 @@ export class IntentServer {
     res.end(JSON.stringify({ error: "Forbidden" }));
     return false;
   }
-
   /** Outer safety net (trd 18.2): a handler bug must never kill the process. */
   private async handleRequest(req: IncomingMessage, res: ServerResponse) {
     try {
@@ -269,7 +269,6 @@ export class IntentServer {
     const rawUrl = req.url || "";
     const url = new URL(rawUrl, `http://127.0.0.1:${this.config.previewPort}`);
     const pathname = url.pathname;
-
     // Early path traversal check on raw URL (before URL normalization)
     if (rawUrl.includes("..")) {
       res.writeHead(403, { "Content-Type": "application/json" });
@@ -337,7 +336,6 @@ export class IntentServer {
       }
       return;
     }
-
     // Health: Host and Origin are already checked above; reveals only
     // "the server is up".
     if (pathname === "/health") {
@@ -403,6 +401,10 @@ export class IntentServer {
     if (await registerMetricsRoutes(this.apiCtx, req, res, pathname, url)) {
       return;
     }
+    // Intent profile settings (trd 17.1)
+    if (await registerProfileRoutes(this.apiCtx, req, res, pathname, url)) {
+      return;
+    }
     // Lint the scene (trd 11.3)
     if (await registerLintRoutes(this.apiCtx, req, res, pathname, url)) {
       return;
@@ -449,7 +451,6 @@ export class IntentServer {
   broadcastPatch(sceneId: string, patch: Patch) {
     this.events.send(sceneId, "patch", { patch });
   }
-
   broadcastPatchChanged(sceneId: string, id: string, status: string) {
     this.events.send(sceneId, "patch.changed", { id, status, sceneId });
   }

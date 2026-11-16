@@ -1,5 +1,5 @@
 import type {
-  Scene, LocksFile, Config, Profile, InterviewState, Brief, Feedback, Annotation,
+  Scene, LocksFile, Config, Profile, InterviewState, Brief, Feedback, Annotation, IntentProfile,
 } from "@intent/schema";
 
 export interface StoragePort {
@@ -17,6 +17,9 @@ export interface StoragePort {
   writeConfig(config: Config): Promise<void>;
   readProfile(): Promise<Profile | null>;
   writeProfile(profile: Profile): Promise<void>;
+  /** trd 17.1 Intent Profile (learned preferences); kept separate from the M1 Profile file. */
+  readIntentProfile(): Promise<IntentProfile>;
+  writeIntentProfile(profile: IntentProfile): Promise<void>;
   readInterviewState(): Promise<InterviewState | null>;
   writeInterviewState(state: InterviewState): Promise<void>;
   readBrief(briefId: string): Promise<Brief | null>;

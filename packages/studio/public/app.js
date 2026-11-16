@@ -74,6 +74,9 @@
     el.interviewTab = $("tab-interview");
     el.interviewPanel = $("interview-panel");
     el.interviewBody = $("interview-body");
+    el.profileTab = $("tab-profile");
+    el.profilePanel = $("profile-panel");
+    el.profileBody = $("profile-body");
     el.addToQueue = $("add-to-queue");
     el.lintChip = $("lint-chip");
     el.lintPanel = $("lint-panel");
@@ -460,6 +463,124 @@
       wrap.appendChild(detail);
     } catch (err) {
       line.textContent = "Could not load the acceptance metric.";
+    }
+  }
+
+  // ---------- profile (trd 17.1) ----------
+
+  async function renderProfilePanel() {
+    var body = el.profileBody;
+    body.innerHTML = '<p class="muted">Loading…</p>';
+    var data;
+    try {
+      data = await fetchJson("/api/profile-intent");
+    } catch (err) {
+      body.innerHTML = '<p class="muted">Could not load the profile.</p>';
+      return;
+    }
+    var entries = Array.isArray(data && data.entries) ? data.entries : [];
+    body.innerHTML = "";
+    var intro = document.createElement("p");
+    intro.className = "muted profile-intro";
+    intro.textContent = "Remembered preferences from your interview answers. Agents see a short summary, never your scene. Values are normalized choices only.";
+    body.appendChild(intro);
+    if (entries.length === 0) {
+      var empty = document.createElement("p");
+      empty.className = "muted";
+      empty.textContent = "Nothing learned yet — answer a few interview questions (or give explicit answers with a value) and the profile builds itself.";
+      body.appendChild(empty);
+      return;
+    }
+    var list = document.createElement("ul");
+    list.className = "profile-list";
+    entries.slice(0, 100).forEach(function (entry) {
+      var li = document.createElement("li");
+      li.className = "profile-item";
+      var main = document.createElement("p");
+      main.className = "profile-text";
+      main.textContent = String(entry.text || "");
+      li.appendChild(main);
+      var meta = document.createElement("p");
+      meta.className = "profile-meta";
+      var confidence = typeof entry.confidence === "number" ? Math.round(entry.confidence * 100) : 0;
+      var when = entry.updatedAt ? new Date(entry.updatedAt) : null;
+      meta.textContent = confidence + "% confidence · " + (entry.count || 1) + " signal" + ((entry.count || 1) === 1 ? "" : "s") +
+        (when && !isNaN(when.getTime()) ? " · " + when.toLocaleDateString() : "");
+      li.appendChild(meta);
+      var actions = document.createElement("div");
+      actions.className = "profile-actions";
+      var edit = document.createElement("button");
+      edit.type = "button";
+      edit.className = "icon-button";
+      edit.textContent = "Edit";
+      edit.setAttribute("aria-label", "Edit profile entry: " + String(entry.text));
+      edit.addEventListener("click", function () { beginProfileEdit(li, entry); });
+      var del = document.createElement("button");
+      del.type = "button";
+      del.className = "icon-button";
+      del.textContent = "Delete";
+      del.setAttribute("aria-label", "Delete profile entry: " + String(entry.text));
+      del.addEventListener("click", function () { void deleteProfileEntry(entry.id); });
+      actions.appendChild(edit);
+      actions.appendChild(del);
+      li.appendChild(actions);
+      list.appendChild(li);
+    });
+    body.appendChild(list);
+  }
+
+  function beginProfileEdit(li, entry) {
+    li.innerHTML = "";
+    var form = document.createElement("form");
+    form.className = "profile-edit-form";
+    var input = document.createElement("input");
+    input.type = "text";
+    input.value = String(entry.text || "");
+    input.maxLength = 200;
+    input.className = "profile-edit-input";
+    input.setAttribute("aria-label", "Edit remembered preference");
+    var save = document.createElement("button");
+    save.type = "submit";
+    save.className = "icon-button";
+    save.textContent = "Save";
+    var cancel = document.createElement("button");
+    cancel.type = "button";
+    cancel.className = "icon-button";
+    cancel.textContent = "Cancel";
+    cancel.addEventListener("click", function () { void renderProfilePanel(); });
+    form.appendChild(input);
+    form.appendChild(save);
+    form.appendChild(cancel);
+    form.addEventListener("submit", function (event) {
+      event.preventDefault();
+      void saveProfileEntry(entry.id, String(input.value));
+    });
+    li.appendChild(form);
+    input.focus();
+    input.select();
+  }
+
+  async function saveProfileEntry(id, text) {
+    var trimmed = text.trim();
+    if (!trimmed || trimmed.length > 200) {
+      showToast("Text must be 1–200 characters.");
+      return;
+    }
+    try {
+      await fetchJson("/api/profile-intent/" + encodeURIComponent(id), { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text: trimmed }) });
+      await renderProfilePanel();
+    } catch (err) {
+      showToast("Could not save the entry.");
+    }
+  }
+
+  async function deleteProfileEntry(id) {
+    if (!window.confirm("Delete this remembered preference? It will not be re-learned automatically.")) return;
+    try {
+      await fetchJson("/api/profile-intent/" + encodeURIComponent(id), { method: "DELETE" });
+      await renderProfilePanel();
+    } catch (err) {
+      showToast("Could not delete the entry.");
     }
   }
 
@@ -1778,14 +1899,18 @@
     el.interviewTab.addEventListener("click", function () {
       activateTab("interview");
     });
+    el.profileTab.addEventListener("click", function () {
+      activateTab("profile");
+    });
     // Roving tabindex: one tab is tabbable at a time; arrows/Home/End move between tabs.
     el.inspectorTab.setAttribute("tabindex", "0");
     el.feedbackTab.setAttribute("tabindex", "-1");
     el.interviewTab.setAttribute("tabindex", "-1");
+    el.profileTab.setAttribute("tabindex", "-1");
     var tablist = el.inspectorTab.parentElement;
     if (tablist) {
       tablist.addEventListener("keydown", function (event) {
-        var tabs = [el.inspectorTab, el.feedbackTab, el.interviewTab];
+        var tabs = [el.inspectorTab, el.feedbackTab, el.interviewTab, el.profileTab];
         var current = tabs.indexOf(document.activeElement);
         if (current === -1) return;
         var next = null;
@@ -1796,7 +1921,8 @@
         if (next === null) return;
         event.preventDefault();
         tabs[next].focus();
-        activateTab(tabs[next] === el.interviewTab ? "interview" : tabs[next] === el.feedbackTab ? "feedback" : "inspector");
+        var which = tabs[next] === el.interviewTab ? "interview" : tabs[next] === el.feedbackTab ? "feedback" : tabs[next] === el.profileTab ? "profile" : "inspector";
+        activateTab(which);
       });
     }
   }
@@ -1804,19 +1930,26 @@
   function activateTab(which) {
     var showFeedback = which === "feedback";
     var showInterview = which === "interview";
+    var showProfile = which === "profile";
     el.feedbackTab.setAttribute("aria-selected", String(showFeedback));
-    el.inspectorTab.setAttribute("aria-selected", String(!showFeedback && !showInterview));
+    el.inspectorTab.setAttribute("aria-selected", String(!showFeedback && !showInterview && !showProfile));
     el.interviewTab.setAttribute("aria-selected", String(showInterview));
+    el.profileTab.setAttribute("aria-selected", String(showProfile));
     el.feedbackTab.setAttribute("tabindex", showFeedback ? "0" : "-1");
-    el.inspectorTab.setAttribute("tabindex", showFeedback || showInterview ? "-1" : "0");
+    el.inspectorTab.setAttribute("tabindex", showFeedback || showInterview || showProfile ? "-1" : "0");
     el.interviewTab.setAttribute("tabindex", showInterview ? "0" : "-1");
+    el.profileTab.setAttribute("tabindex", showProfile ? "0" : "-1");
     el.feedbackPanel.hidden = !showFeedback;
-    el.inspectorPanel.hidden = showFeedback || showInterview;
+    el.inspectorPanel.hidden = showFeedback || showInterview || showProfile;
     el.interviewPanel.hidden = !showInterview;
+    el.profilePanel.hidden = !showProfile;
     if (showFeedback) el.feedbackText.focus();
     if (showInterview) {
       var target = el.interviewBody.querySelector(".interview-question, .interview-option, .summary-title");
       if (target) target.focus();
+    }
+    if (showProfile) {
+      renderProfilePanel();
     }
   }
 

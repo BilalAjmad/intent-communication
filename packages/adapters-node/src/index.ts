@@ -9,6 +9,7 @@ import {
   Brief,
   Feedback,
   Annotation,
+  IntentProfileSchema,
   validateScene,
   validateConfig,
   validateProfile,
@@ -16,6 +17,7 @@ import {
   validateBrief,
   validateFeedback,
   validateAnnotation,
+  type IntentProfile,
 } from "@intent/schema";
 import {
   StoragePort,
@@ -35,6 +37,7 @@ export function createFileStoragePort(projectRoot: string): StoragePort {
   const locksDir = resolve(intentDir, "locks");
   const configPath = resolve(intentDir, "config.json");
   const profilePath = resolve(intentDir, "profile.json");
+  const intentProfilePath = resolve(intentDir, "intent-profile.json");
   const interviewPath = resolve(intentDir, "interview", "state.json");
   const briefsDir = resolve(intentDir, "briefs");
   const feedbackDir = resolve(intentDir, "feedback");
@@ -199,6 +202,26 @@ export function createFileStoragePort(projectRoot: string): StoragePort {
           `Profile file .intent/profile.json is unreadable or invalid: ${(err as Error).message}`
         );
       }
+    },
+
+    async readIntentProfile(): Promise<IntentProfile> {
+      try {
+        const content = await fs.readFile(intentProfilePath, "utf-8");
+        return IntentProfileSchema.parse(JSON.parse(content));
+      } catch (err) {
+        if (isNotFound(err)) return { schemaVersion: 1, entries: [] };
+        if (isIntentError(err)) throw err;
+        throw new IntentError(
+          ErrorCodes.E_SCHEMA,
+          `Intent profile .intent/intent-profile.json is unreadable or invalid: ${(err as Error).message}`
+        );
+      }
+    },
+
+    async writeIntentProfile(profile: IntentProfile): Promise<void> {
+      await ensureDirs();
+      await checkPathSafety(intentProfilePath, intentDir);
+      await writeAtomic(intentProfilePath, JSON.stringify(IntentProfileSchema.parse(profile), null, 0));
     },
 
     async writeProfile(profile: Profile): Promise<void> {

@@ -6,6 +6,9 @@ import {
   ErrorCodes,
   writePipeline,
   withProjectLock,
+  summarizeProfile,
+  preFilledForTopic,
+  recordAnswerLearning,
 } from "@intent/core";
 import {
   Feedback,
@@ -81,6 +84,8 @@ export const getSceneTool: MCPTool = {
     // pendingPatches: patches in "sent" state on the feedback queue, waiting to be applied.
     const queue = await context.storage.readFeedback(validated.sceneId);
     const pendingPatches = queue.filter((f) => f.status === "sent").length;
+    // trd 17.1: agents read the learned profile through get_scene metadata.
+    const profileSummary = summarizeProfile(await context.storage.readIntentProfile());
 
     if (validated.objectIds && validated.objectIds.length > 0) {
       // Subset request: do NOT echo the whole scene; return the selected objects.
@@ -90,7 +95,7 @@ export const getSceneTool: MCPTool = {
           objects[id] = fullScene.objects[id];
         }
       }
-      const body = { objects, locks, pendingPatches, revision: fullScene.revision, truncated: false };
+      const body = { objects, locks, pendingPatches, revision: fullScene.revision, truncated: false, metadata: { profileSummary } };
       const { data, truncated } = truncateToBytes(body, validated.maxBytes ?? 32768);
       return { ...(data as Record<string, unknown>), truncated };
     }
@@ -114,6 +119,7 @@ export const getSceneTool: MCPTool = {
       locks,
       truncated: false,
       revision: fullScene.revision,
+      metadata: { profileSummary },
     };
     const { data, truncated } = truncateToBytes(result, validated.maxBytes ?? 32768);
     return { ...(data as Record<string, unknown>), truncated };
@@ -308,6 +314,8 @@ export const askUserTool: MCPTool = {
         state.status = "in_progress";
         state.answeredTopics = dedupe([...state.answeredTopics, ...(validated.requiredTopics ?? [])]);
         state.updatedAt = now;
+        // trd 17.1: learn from the answer (best effort; never blocks the question).
+        await recordAnswerLearning(context.storage, paAnswer, paId, now);
       }
     }
 
@@ -336,6 +344,7 @@ export const askUserTool: MCPTool = {
     state.updatedAt = now;
     await context.storage.writeInterviewState(state);
 
+    const preFilled = preFilledForTopic(await context.storage.readIntentProfile(), validated.topic);
     const config = await context.storage.readConfig();
     const renderedText = renderPlainTextCard(validated, state.meter);
     context.notify?.("interview.changed", { status: state.status });
@@ -348,6 +357,7 @@ export const askUserTool: MCPTool = {
       delegated: state.delegated,
       ...(note ? { note } : {}),
       ...(recordedQuestionId ? { recorded: { previousQuestionId: recordedQuestionId } } : {}),
+      ...(preFilled ? { preFilled } : {}),
     };
     });
   },

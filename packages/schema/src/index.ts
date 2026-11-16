@@ -6,6 +6,7 @@ import { SceneValueSchema, BaseObjectSchema } from "./base-object.js";
 import { CheckboxSchema, RadioSchema, SwitchSchema, LinkSchema, ListSchema, ModalSchema, IconSchema, DividerSchema } from "./object-types.js";
 import { ComponentDefSchema } from "./components.js";
 import { AnnotationIdSchema, AnnotationSummarySchema, AnnotationSchema, type Annotation } from "./annotations.js";
+
 export { CrockfordULIDSchema, ISODateTimeSchema, RevisionSchema, ObjectIdSchema, ScreenIdSchema, SafeIdSchema, ChipSchema, CreatePatchInputSchema, UpdatePatchInputSchema, SendPatchesInputSchema, ResolvePatchInputSchema, PatchListQuerySchema, InterviewAnswerInputSchema };
 export { InterviewQuestionCoreSchema, PendingInterviewQuestionSchema, InterviewAnswerSchema, AskUserInputSchema };
 export { PrimitiveValueSchema, TokenValueSchema, SceneValueSchema, BaseObjectSchema, StateNameSchema, StateOverrideSchema, STATE_NAMES, ResponsiveOverrideSchema, ResponsiveSchema, ComponentRefSchema } from "./base-object.js";
@@ -14,6 +15,8 @@ export { ComponentDefSchema, ExposedPropSchema } from "./components.js";
 export type { ComponentDef } from "./components.js";
 export { AnnotationIdSchema, AnnotationStrokeSchema, AnnotationPointSchema, AnnotationImageSchema, AnnotationSchema, CreateAnnotationInputSchema, AnnotationSummarySchema } from "./annotations.js";
 export type { Annotation, AnnotationStroke, AnnotationImage, AnnotationSummary, CreateAnnotationInput } from "./annotations.js";
+export { IntentProfileSchema, IntentProfileEntrySchema, IntentProfileEntrySourceSchema, INTENT_PROFILE_KEYS } from "./intent-profile.js";
+export type { IntentProfile, IntentProfileEntry, IntentProfileKey, IntentProfileEntrySource } from "./intent-profile.js";
 export { CheckboxSchema, RadioSchema, SwitchSchema, LinkSchema, ListSchema, ModalSchema, IconSchema, DividerSchema } from "./object-types.js";
 export type { Chip } from "./primitives.js";
 export type { InterviewQuestionCore, PendingInterviewQuestion, InterviewAnswer, AskUserInput } from "./interview.js";

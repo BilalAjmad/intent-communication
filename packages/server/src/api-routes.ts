@@ -1,5 +1,5 @@
 import { handleMCPRequest } from "@intent/mcp-server";
-import { withProjectLock } from "@intent/core";
+import { withProjectLock, recordAnswerLearning } from "@intent/core";
 import { IncomingMessage, ServerResponse } from "node:http";
 import {
   CreatePatchInputSchema,
@@ -449,6 +449,8 @@ export async function handleApiInterviewAnswer(ctx: ApiContext, req: IncomingMes
   if (state.pendingQuestion?.questionId === input.questionId) {
     state.pendingQuestion = null;
   }
+  // trd 17.1: learn from the Studio answer too (best effort; never blocks recording).
+  await recordAnswerLearning(ctx.storage, input.answer, input.questionId, now);
   // Summary "Exactly right" marks the interview complete (trd 10.2); anything else stays in progress.
   const answer = input.answer as { summaryChoice?: string } | null;
   if (answer && answer.summaryChoice === "exactly-right") {

@@ -26,6 +26,8 @@ export type { Seed, ControlSeed } from "./interview/bank.js";
 export { applyPatch } from "./patch.js";
 export { computeAcceptanceRate } from "./metrics.js";
 export type { AcceptanceMetricsInput, AcceptanceMetrics, AppliedPatchRef } from "./metrics.js";
+export { detectSignals, mergeSignals, summarizeProfile, preFilledForTopic, answerText, recordAnswerLearning } from "./intent-profile.js";
+export type { PreferenceSignal } from "./intent-profile.js";
 
 export { writePipeline } from "./pipeline.js";
 export { writeAtomic } from "./atomic.js";

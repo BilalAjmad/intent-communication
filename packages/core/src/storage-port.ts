@@ -3,6 +3,7 @@ import { resolve, dirname, relative, isAbsolute } from "node:path";
 import {
   Scene, LocksFile, Config, Profile, InterviewState, Brief, Feedback, Annotation,
   validateScene, validateConfig, validateProfile, validateInterviewState, validateBrief, validateFeedback, validateAnnotation,
+  IntentProfileSchema, type IntentProfile,
 } from "@intent/schema";
 import { IntentError, ErrorCodes } from "./error.js";
 import { assertSafeId } from "./paths.js";
@@ -15,6 +16,7 @@ export function createStoragePort(testDir: string): StoragePort {
   const locksDir = resolve(intentDir, "locks");
   const configPath = resolve(intentDir, "config.json");
   const profilePath = resolve(intentDir, "profile.json");
+  const intentProfilePath = resolve(intentDir, "intent-profile.json");
   const interviewPath = resolve(intentDir, "interview", "state.json");
   const briefsDir = resolve(intentDir, "briefs");
   const feedbackDir = resolve(intentDir, "feedback");
@@ -179,6 +181,23 @@ export function createStoragePort(testDir: string): StoragePort {
     async writeProfile(profile: Profile): Promise<void> {
       await ensureDirs();
       await writeAtomic(profilePath, JSON.stringify(profile, null, 0));
+    },
+
+    async readIntentProfile(): Promise<IntentProfile> {
+      try {
+        const content = await fs.readFile(intentProfilePath, "utf-8");
+        return IntentProfileSchema.parse(JSON.parse(content));
+      } catch (err) {
+        if ((err as NodeJS.ErrnoException)?.code === "ENOENT") return { schemaVersion: 1, entries: [] };
+        if (err instanceof IntentError) throw err;
+        throw new IntentError(ErrorCodes.E_SCHEMA, `Intent profile .intent/intent-profile.json is unreadable or invalid: ${(err as Error).message}`);
+      }
+    },
+
+    async writeIntentProfile(profile: IntentProfile): Promise<void> {
+      await ensureDirs();
+      await checkPathSafety(intentProfilePath, intentDir);
+      await writeAtomic(intentProfilePath, JSON.stringify(IntentProfileSchema.parse(profile), null, 0));
     },
 
     async readInterviewState(): Promise<InterviewState | null> {
