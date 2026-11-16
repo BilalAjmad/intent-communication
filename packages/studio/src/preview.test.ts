@@ -90,6 +90,29 @@ describe("buildPreviewDocument (S-1-11)", () => {
   });
 });
 
+describe("states (trd 5.3) in preview", () => {
+  const BTN = "o_12ARZ3NDEKTSV4RRFFQ69G5FAV";
+
+  it("embeds state CSS and the forceState runtime handler", () => {
+    const html = buildPreviewDocument(
+      baseScene(
+        {
+          [BTN]: {
+            id: BTN, type: "button", parentId: SCREEN, children: [],
+            props: { label: "Go", variant: "primary" },
+            style: {}, meta: {},
+            states: { hover: { style: { background: "#ff0000" } } },
+          },
+        },
+        [BTN]
+      )
+    );
+    expect(html).toContain(`[data-object-id="${BTN}"]:hover { background: #ff0000 }`);
+    expect(html).toContain('msg.t === "forceState"');
+    expect(html).toContain("data-state");
+  });
+});
+
 describe("new object types (M2.A) in preview", () => {
   const CB = "o_04ARZ3NDEKTSV4RRFFQ69G5FAV";
   const SW = "o_05ARZ3NDEKTSV4RRFFQ69G5FAV";

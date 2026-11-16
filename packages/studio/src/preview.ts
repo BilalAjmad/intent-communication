@@ -8,6 +8,7 @@ import {
   renderExportCss,
   buildStyleString,
   renderIconMarkup,
+  renderStateCss,
 } from "@intent/engine";
 
 // S-1-11 / AC-M1-07: the Studio preview renderer.
@@ -77,6 +78,22 @@ const RUNTIME_SCRIPT = `
       post({ t: "bounds", rects: rects });
     } else if (msg.t === "mode") {
       document.documentElement.setAttribute("data-mode", msg.mode === "preview" ? "preview" : "edit");
+    } else if (msg.t === "forceState") {
+      // Inspector "force state" (trd 5.3): toggle data-state on the target.
+      var forcedId = typeof msg.id === "string" ? msg.id : "";
+      var state = typeof msg.state === "string" && /^[a-z]+$/.test(msg.state) ? msg.state : "";
+      var nodes = document.querySelectorAll("[data-object-id]");
+      for (var i = 0; i < nodes.length; i++) {
+        var el = nodes[i];
+        if (el.getAttribute("data-object-id") === forcedId) {
+          if (state) {
+            el.setAttribute("data-state", state);
+          } else {
+            el.removeAttribute("data-state");
+          }
+        }
+      }
+      post({ t: "stateForced", id: forcedId, state: state });
     }
   });
 
@@ -256,6 +273,7 @@ export function buildPreviewDocument(scene: Scene): string {
   const ids = [...ordered, ...rest];
   const all = scene.objects;
 
+  const stateCss = renderStateCss(scene);
   const body = ids
     .map((id) => {
       const screen = scene.screens[id];
@@ -273,6 +291,7 @@ export function buildPreviewDocument(scene: Scene): string {
 <title>${escapeHtml(scene.metadata.name ?? "Preview")}</title>
 <style>${renderExportCss()}</style>
 <style>${PREVIEW_EXTRAS}</style>
+${stateCss ? `<style>${stateCss}</style>` : ""}
 </head>
 <body>
 <main class="preview-root" id="preview-root">

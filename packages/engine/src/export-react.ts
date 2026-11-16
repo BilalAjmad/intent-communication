@@ -4,6 +4,7 @@ import {
   validateScene,
 } from "@intent/schema";
 import { buildStyleString, renderExportCss } from "./html.js";
+import { renderStateCss } from "./state-css.js";
 import { renderIconJsx } from "./icons.js";
 import { sanitizeUrl, safeClassToken } from "./sanitize.js";
 import { IntentError, ErrorCodes } from "@intent/core";
@@ -354,8 +355,10 @@ export function exportToReact(scene: Scene, options: ReactExportOptions = {}): F
   const validated = validateScene(scene);
   const includeDataIds = options.includeDataIds === true;
   const { entries, screens } = buildScreenFiles(validated, includeDataIds);
+  const stateCss = renderStateCss(validated);
+  const tokens = `${GENERATOR_BANNER}\n${renderExportCss()}${stateCss ? `\n${stateCss}\n` : ""}`;
   const files: Record<string, string> = {
-    "intent-export/tokens.css": `${GENERATOR_BANNER}\n${renderExportCss()}`,
+    "intent-export/tokens.css": tokens,
     ...screens,
     "intent-export/App.tsx": buildApp(entries),
     "intent-export/index.ts": buildIndex(entries),
