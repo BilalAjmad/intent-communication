@@ -280,6 +280,9 @@ importers:
       '@intent/core':
         specifier: workspace:*
         version: link:../core
+      '@intent/linter':
+        specifier: workspace:^
+        version: link:../linter
       '@intent/schema':
         specifier: workspace:*
         version: link:../schema
@@ -357,6 +360,9 @@ importers:
       '@intent/core':
         specifier: workspace:*
         version: link:../core
+      '@intent/linter':
+        specifier: workspace:^
+        version: link:../linter
       '@intent/mcp-server':
         specifier: workspace:*
         version: link:../mcp-server

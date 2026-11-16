@@ -18,9 +18,11 @@
       </label>
       <span class="mode" id="mode-label" aria-live="polite">Edit mode</span>
       <span class="spacer"></span>
+      <button id="lint-chip" class="ghost lint-chip" type="button" aria-expanded="false" aria-controls="lint-panel" hidden title="Lint this scene (trd 11.3)">Lint</button>
       <button id="annotate-toggle" class="ghost" type="button" aria-pressed="false" title="Draw on the preview (pencil annotations)">Annotate</button>
       <button id="pin-toggle" class="ghost" type="button" aria-pressed="false" title="Place numbered pins with notes on the preview">Pin</button>
       <button id="send-btn" class="primary" disabled>Send changes</button>
+      <div id="lint-panel" class="lint-panel" role="region" aria-label="Lint violations" hidden></div>
     </header>
 
     <main class="layout" role="main">

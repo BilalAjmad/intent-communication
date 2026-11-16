@@ -28,6 +28,7 @@ import {
 } from "./api-routes.js";
 import { registerAnnotationRoutes } from "./annotations-api.js";
 import { registerVersionRoutes } from "./versions-api.js";
+import { registerLintRoutes } from "./lint-api.js";
 import { handleSSE, serveStatic, writeRuntimeFile } from "./runtime.js";
 import { SseEventBus, type SSEClient } from "./event-bus.js";
 export type { SSEClient } from "./event-bus.js";
@@ -366,25 +367,21 @@ export class IntentServer {
       await handleSSE(this.runtimeCtx(), req, res, url);
       return;
     }
-
     // MCP endpoint (trd 11.3)
     if (pathname === "/api/mcp" && req.method === "POST") {
       await handleMcp(this.apiCtx, req, res);
       return;
     }
-
     // Full scene for the Studio shell (trd 11.3)
     if (pathname === "/api/scene" && req.method === "GET") {
       await handleApiScene(this.apiCtx, req, res, url);
       return;
     }
-
     // Preview srcdoc (trd 12.1; hash-pinned constant scripts)
     if (pathname === "/api/preview" && req.method === "GET") {
       await handleApiPreview(this.apiCtx, req, res, url);
       return;
     }
-
     // Feedback patch queue (trd 11.3 / design.md 4.8)
     if (pathname === "/api/patches" && req.method === "GET") {
       await handleApiPatchList(this.apiCtx, req, res, url);
@@ -398,13 +395,16 @@ export class IntentServer {
       await handleApiPatchSend(this.apiCtx, req, res);
       return;
     }
-
     // Annotations (trd 9.7)
     if (await registerAnnotationRoutes(this.apiCtx, req, res, pathname, url)) {
       return;
     }
     // Named versions (trd 6.x)
     if (await registerVersionRoutes(this.apiCtx, req, res, pathname, url)) {
+      return;
+    }
+    // Lint the scene (trd 11.3)
+    if (await registerLintRoutes(this.apiCtx, req, res, pathname, url)) {
       return;
     }
     // Interview (trd 11.3)

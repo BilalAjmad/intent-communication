@@ -75,6 +75,8 @@
     el.interviewPanel = $("interview-panel");
     el.interviewBody = $("interview-body");
     el.addToQueue = $("add-to-queue");
+    el.lintChip = $("lint-chip");
+    el.lintPanel = $("lint-panel");
     el.annotateToggle = $("annotate-toggle");
     el.pinToggle = $("pin-toggle");
     el.pinsLayer = $("pins-layer");
@@ -432,6 +434,7 @@
       showToast("Snapshot restored.");
       await loadScene();
       await loadAnnotations();
+      await loadLint();
       renderInspector();
     } catch (err) {
       showToast(err && err.message ? err.message : "Could not restore the snapshot.");
@@ -885,6 +888,91 @@
     });
   }
 
+  // ---------- lint badge (trd 11.3) ----------
+
+  async function loadLint() {
+    try {
+      var data = await fetchJson("/api/lint?sceneId=" + encodeURIComponent(state.sceneId));
+      renderLintChip(data);
+    } catch (err) {
+      el.lintChip.hidden = true;
+    }
+  }
+
+  function renderLintChip(data) {
+    var violations = data && Array.isArray(data.violations) ? data.violations : [];
+    var errors = violations.filter(function (v) { return v.severity === "error"; }).length;
+    var warnings = violations.filter(function (v) { return v.severity === "warning"; }).length;
+    var chip = el.lintChip;
+    chip.hidden = false;
+    chip.classList.remove("ok", "warn", "error");
+    if (violations.length === 0) {
+      chip.classList.add("ok");
+      chip.textContent = "✓ Lint clean";
+      chip.title = "No lint violations (trd 11.3)";
+    } else if (errors > 0) {
+      chip.classList.add("error");
+      chip.textContent = "✗ " + errors + " error" + (errors === 1 ? "" : "s") + (warnings > 0 ? " · " + warnings + " warn" : "");
+      chip.title = errors + " lint error" + (errors === 1 ? "" : "s");
+    } else {
+      chip.classList.add("warn");
+      chip.textContent = "⚠ " + warnings + " warning" + (warnings === 1 ? "" : "s");
+      chip.title = warnings + " lint warning" + (warnings === 1 ? "" : "s");
+    }
+    renderLintPanel(violations);
+  }
+
+  function renderLintPanel(violations) {
+    var panel = el.lintPanel;
+    panel.innerHTML = "";
+    var title = document.createElement("div");
+    title.className = "lint-panel-title";
+    title.textContent = "Lint violations (" + violations.length + ")";
+    panel.appendChild(title);
+    if (violations.length === 0) {
+      var empty = document.createElement("p");
+      empty.className = "lint-empty";
+      empty.textContent = "No violations — the scene passes the full M1+M2 ruleset.";
+      panel.appendChild(empty);
+      return;
+    }
+    var ul = document.createElement("ul");
+    violations.slice(0, 50).forEach(function (v) {
+      var li = document.createElement("li");
+      li.className = "lint-item " + (v.severity === "error" ? "error" : "warning");
+      var rule = document.createElement("span");
+      rule.className = "lint-rule";
+      rule.textContent = v.ruleId || "?";
+      var msg = document.createElement("span");
+      msg.textContent = (v.message || "") + (v.path ? " (" + v.path + ")" : "");
+      if (v.suggestion) msg.title = "Fix: " + v.suggestion;
+      li.appendChild(rule);
+      li.appendChild(msg);
+      ul.appendChild(li);
+    });
+    panel.appendChild(ul);
+  }
+
+  function setLintPanelOpen(open) {
+    el.lintPanel.hidden = !open;
+    el.lintChip.setAttribute("aria-expanded", String(open));
+  }
+
+  function wireLintChip() {
+    el.lintChip.addEventListener("click", function (event) {
+      event.stopPropagation();
+      setLintPanelOpen(el.lintPanel.hidden);
+    });
+    document.addEventListener("click", function (event) {
+      if (!event.target.closest("#lint-panel") && !event.target.closest("#lint-chip")) {
+        setLintPanelOpen(false);
+      }
+    });
+    document.addEventListener("keydown", function (event) {
+      if (event.key === "Escape") setLintPanelOpen(false);
+    });
+  }
+
   // ---------- feedback queue ----------
 
   function wireChips() {
@@ -1123,6 +1211,7 @@
         setTrayNotice("");
         loadPatches();
         loadSceneSoft();
+        loadLint();
       } else if (data.type === "patch.changed") {
         loadPatches();
       } else if (data.type === "interview.changed") {
@@ -1775,10 +1864,12 @@
     wireTray();
     wireCopyPrompt();
     wireAnnotate();
+    wireLintChip();
 
     try {
       await loadScene();
       renderInspector();
+      await loadLint();
       await loadPatches();
       await loadAnnotations();
       await loadInterview();
