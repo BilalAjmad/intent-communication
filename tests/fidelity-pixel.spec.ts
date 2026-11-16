@@ -179,10 +179,10 @@ test.describe("Fidelity (AC-M1-07 / TC-VIS): preview vs export, per fixture, the
 
     const mutations: Array<{ name: string; fixture: string; apply: (html: string) => string }> = [
       {
-        // margin shift is visible regardless of button width
+        // insert a rule before </head> — independent of which styles exist
         name: "M1 move main button by 1 px",
         fixture: "fx-02-salon",
-        apply: (html) => html.replace("</style>\n</head>", ".intent-button{margin-left:1px}\n</style>\n</head>"),
+        apply: (html) => html.replace("</head>", "<style>.intent-button{margin-left:1px}</style>\n</head>"),
       },
       {
         name: "M2 change button color by 1 level",

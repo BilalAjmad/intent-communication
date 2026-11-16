@@ -281,6 +281,10 @@ export function buildPreviewDocument(scene: Scene, options: { breakpoints?: Brea
 
   const stateCss = renderStateCss(renderScene);
   const responsiveCss = renderResponsiveCss(renderScene, breakpoints);
+  const styles = [renderExportCss(), PREVIEW_EXTRAS];
+  if (stateCss) styles.push(stateCss);
+  if (responsiveCss) styles.push(responsiveCss);
+  const stylesBlock = styles.map((s) => `<style>${s}</style>`).join("\n");
   const body = ids
     .map((id) => {
       const screen = renderScene.screens[id];
@@ -296,9 +300,7 @@ export function buildPreviewDocument(scene: Scene, options: { breakpoints?: Brea
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta http-equiv="Content-Security-Policy" content="${escapeHtml(csp)}">
 <title>${escapeHtml(scene.metadata.name ?? "Preview")}</title>
-<style>${renderExportCss()}</style>
-<style>${PREVIEW_EXTRAS}</style>
-${stateCss ? `<style>${stateCss}</style>` : ""}${responsiveCss ? `<style>${responsiveCss}</style>` : ""}
+${stylesBlock}
 </head>
 <body>
 <main class="preview-root" id="preview-root">

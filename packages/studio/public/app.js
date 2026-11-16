@@ -32,6 +32,9 @@
     patches: [],
     channel: randomChannel(),
     trayOpen: false,
+    annotating: false,
+    annotations: [],
+    stroke: null,
   };
 
   var el = {};
@@ -72,6 +75,11 @@
     el.interviewPanel = $("interview-panel");
     el.interviewBody = $("interview-body");
     el.addToQueue = $("add-to-queue");
+    el.annotateToggle = $("annotate-toggle");
+    el.annotationCanvas = $("annotation-canvas");
+    el.annotationsFieldset = $("annotations-fieldset");
+    el.annotationsList = $("annotations-list");
+    el.attachAnnotations = $("attach-annotations");
     el.trayToggle = $("tray-toggle");
     el.trayCaret = $("tray-caret");
     el.trayBody = $("tray-body");
@@ -287,6 +295,9 @@
         throw new Error("The preview could not be loaded (" + res.status + ").");
       }
       el.frame.srcdoc = await res.text();
+      // Annotations belong to a screen; repaint the ones for the new preview.
+      clearAnnotationCanvas();
+      redrawAnnotations();
     } catch (err) {
       showCanvasError(err && err.message ? err.message : "The preview could not be loaded.");
     }
@@ -355,6 +366,51 @@
 
   // ---------- inspector ----------
 
+  function statesForType(type) {
+    switch (type) {
+      case "button": return ["hover", "pressed", "focus", "loading", "error"];
+      case "input": return ["focus", "filled", "error"];
+      case "checkbox":
+      case "radio":
+      case "switch": return ["checked", "focus", "disabled"];
+      case "link": return ["visited", "hover"];
+      case "list": return ["empty", "loading"];
+      case "modal": return ["open"];
+      default: return [];
+    }
+  }
+
+  function toggleForceState(id, stateName, btn) {
+    // Pressing the active state again clears it.
+    var isActive = btn.getAttribute("aria-pressed") === "true";
+    var next = isActive ? "" : stateName;
+    var siblings = btn.parentElement ? btn.parentElement.querySelectorAll("button[aria-pressed]") : [];
+    siblings.forEach(function (sib) { sib.setAttribute("aria-pressed", "false"); });
+    if (!isActive) btn.setAttribute("aria-pressed", "true");
+    postToPreview({ t: "forceState", channel: state.channel, id: id, state: next });
+  }
+
+  function renderForceStateRow(body, obj, id) {
+    var states = statesForType(obj.type);
+    if (states.length === 0) return;
+    var wrap = document.createElement("div");
+    wrap.className = "force-state-row";
+    var title = document.createElement("span");
+    title.className = "panel-title";
+    title.textContent = "Preview state";
+    wrap.appendChild(title);
+    states.forEach(function (s) {
+      var btn = document.createElement("button");
+      btn.className = "chip";
+      btn.type = "button";
+      btn.textContent = s;
+      btn.setAttribute("aria-pressed", "false");
+      btn.addEventListener("click", function () { toggleForceState(id, s, btn); });
+      wrap.appendChild(btn);
+    });
+    body.appendChild(wrap);
+  }
+
   function renderInspector() {
     var body = el.inspectorBody;
     body.innerHTML = "";
@@ -399,6 +455,222 @@
       row("Note", "Not in the current scene.");
     }
     body.appendChild(dl);
+    if (obj) renderForceStateRow(body, obj, id);
+  }
+
+  // ---------- annotations (trd 9.7) ----------
+
+  function currentScreenIdSafe() {
+    var id = orderedScreenIds()[state.screenIndex];
+    return typeof id === "string" ? id : null;
+  }
+
+  var STROKE_HEX = { red: "#dc2626", blue: "#2563eb", green: "#16a34a", black: "#111827" };
+
+  async function loadAnnotations() {
+    try {
+      var data = await fetchJson("/api/annotations?sceneId=" + encodeURIComponent(state.sceneId));
+      state.annotations = Array.isArray(data && data.annotations) ? data.annotations : [];
+    } catch (err) {
+      state.annotations = [];
+    }
+    renderAnnotations();
+    redrawAnnotations();
+  }
+
+  function renderAnnotations() {
+    var screenId = currentScreenIdSafe();
+    var open = state.annotations.filter(function (a) { return a.status === "open" && a.screenId === screenId; });
+    if (open.length === 0) {
+      el.annotationsFieldset.hidden = true;
+      return;
+    }
+    el.annotationsFieldset.hidden = false;
+    el.annotationsList.innerHTML = "";
+    open.forEach(function (a) {
+      var li = document.createElement("li");
+      li.className = "annotation-item";
+      var strokeCount = Array.isArray(a.strokes) ? a.strokes.length : 0;
+      var summary = a.kind === "pencil"
+        ? "Pencil stroke (" + strokeCount + ")"
+        : "Pin: " + (typeof a.text === "string" ? a.text.slice(0, 80) : "(no text)");
+      var text = document.createElement("span");
+      text.textContent = summary;
+      text.title = summary;
+      var del = document.createElement("button");
+      del.className = "icon-button";
+      del.type = "button";
+      del.textContent = "Discard";
+      del.setAttribute("aria-label", "Discard annotation");
+      del.addEventListener("click", function () {
+        void deleteAnnotation(a.id);
+      });
+      li.appendChild(text);
+      li.appendChild(del);
+      el.annotationsList.appendChild(li);
+    });
+  }
+
+  async function deleteAnnotation(id) {
+    try {
+      await fetchJson(
+        "/api/annotations/" + encodeURIComponent(id) + "?sceneId=" + encodeURIComponent(state.sceneId),
+        { method: "DELETE" },
+      );
+      await loadAnnotations();
+      showToast("Annotation discarded.");
+    } catch (err) {
+      showToast(err && err.message ? err.message : "Could not discard the annotation.");
+    }
+  }
+
+  function openAnnotationIds() {
+    var screenId = currentScreenIdSafe();
+    return state.annotations
+      .filter(function (a) { return a.status === "open" && a.screenId === screenId; })
+      .map(function (a) { return a.id; });
+  }
+
+  function syncAnnotationCanvas() {
+    var canvas = el.annotationCanvas;
+    var rect = canvas.getBoundingClientRect();
+    var dpr = window.devicePixelRatio || 1;
+    var w = Math.max(1, Math.floor(rect.width));
+    var h = Math.max(1, Math.floor(rect.height));
+    if (canvas.width !== Math.floor(w * dpr) || canvas.height !== Math.floor(h * dpr)) {
+      canvas.width = Math.floor(w * dpr);
+      canvas.height = Math.floor(h * dpr);
+    }
+    var ctx = canvas.getContext("2d");
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    return ctx;
+  }
+
+  function annotationCtx() {
+    return el.annotationCanvas.getContext("2d");
+  }
+
+  function clearAnnotationCanvas() {
+    var ctx = annotationCtx();
+    var canvas = el.annotationCanvas;
+    ctx.save();
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.restore();
+  }
+
+  function redrawAnnotations() {
+    var canvas = el.annotationCanvas;
+    if (!canvas) return;
+    var ctx = annotationCtx();
+    var screenId = currentScreenIdSafe();
+    clearAnnotationCanvas();
+    state.annotations.forEach(function (a) {
+      if (a.screenId !== screenId || !Array.isArray(a.strokes)) return;
+      a.strokes.forEach(function (stroke) {
+        if (!stroke || !Array.isArray(stroke.points) || stroke.points.length < 2) return;
+        ctx.strokeStyle = STROKE_HEX[stroke.color] || STROKE_HEX.red;
+        ctx.lineWidth = typeof stroke.width === "number" ? stroke.width : 4;
+        ctx.lineCap = "round";
+        ctx.lineJoin = "round";
+        ctx.beginPath();
+        ctx.moveTo(stroke.points[0][0], stroke.points[0][1]);
+        for (var i = 1; i < stroke.points.length; i++) {
+          ctx.lineTo(stroke.points[i][0], stroke.points[i][1]);
+        }
+        ctx.stroke();
+      });
+    });
+  }
+
+  function canvasPoint(event) {
+    var rect = el.annotationCanvas.getBoundingClientRect();
+    return [event.clientX - rect.left, event.clientY - rect.top];
+  }
+
+  function snap(value) {
+    return Math.round(value * 10) / 10;
+  }
+
+  function wireAnnotationCanvas() {
+    var canvas = el.annotationCanvas;
+    canvas.addEventListener("pointerdown", function (event) {
+      if (!state.annotating) return;
+      canvas.setPointerCapture(event.pointerId);
+      syncAnnotationCanvas();
+      var p = canvasPoint(event);
+      state.stroke = { color: "red", width: 4, points: [[snap(p[0]), snap(p[1])]] };
+      var ctx = annotationCtx();
+      ctx.strokeStyle = STROKE_HEX.red;
+      ctx.lineWidth = 4;
+      ctx.lineCap = "round";
+      ctx.lineJoin = "round";
+      ctx.beginPath();
+      ctx.moveTo(snap(p[0]), snap(p[1]));
+      event.preventDefault();
+    });
+    canvas.addEventListener("pointermove", function (event) {
+      if (!state.annotating || !state.stroke) return;
+      var p = canvasPoint(event);
+      var ctx = annotationCtx();
+      state.stroke.points.push([snap(p[0]), snap(p[1])]);
+      var n = state.stroke.points.length;
+      var last = state.stroke.points[n - 1];
+      ctx.lineTo(last[0], last[1]);
+      ctx.stroke();
+      event.preventDefault();
+    });
+    var finish = function (event) {
+      if (!state.annotating || !state.stroke) return;
+      var stroke = state.stroke;
+      state.stroke = null;
+      if (stroke.points.length >= 2) {
+        void saveStroke(stroke);
+      }
+      if (event && typeof event.preventDefault === "function") event.preventDefault();
+    };
+    canvas.addEventListener("pointerup", finish);
+    canvas.addEventListener("pointercancel", finish);
+  }
+
+  async function saveStroke(stroke) {
+    try {
+      await fetchJson("/api/annotations?sceneId=" + encodeURIComponent(state.sceneId), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          kind: "pencil",
+          objectId: state.selectedId,
+          screenId: currentScreenIdSafe(),
+          anchor: { x: stroke.points[0][0], y: stroke.points[0][1] },
+          strokes: [stroke],
+        }),
+      });
+      await loadAnnotations();
+      showToast("Annotation saved.");
+    } catch (err) {
+      showToast(err && err.message ? err.message : "Could not save the annotation.");
+    }
+  }
+
+  function toggleAnnotate() {
+    state.annotating = !state.annotating;
+    document.body.classList.toggle("annotating", state.annotating);
+    el.annotateToggle.setAttribute("aria-pressed", String(state.annotating));
+    if (state.annotating) {
+      syncAnnotationCanvas();
+      redrawAnnotations();
+    }
+  }
+
+  function wireAnnotate() {
+    el.annotateToggle.addEventListener("click", toggleAnnotate);
+    wireAnnotationCanvas();
+    window.addEventListener("resize", function () {
+      if (!state.annotating) return;
+      syncAnnotationCanvas();
+      redrawAnnotations();
+    });
   }
 
   // ---------- feedback queue ----------
@@ -454,7 +726,13 @@
           sceneId: state.sceneId,
           objectId: state.selectedId,
           baseRevision: state.scene ? state.scene.revision : 0,
-          feedback: { text: text || undefined, chips: chips },
+          feedback: {
+            text: text || undefined,
+            chips: chips,
+            annotationIds: el.attachAnnotations && el.attachAnnotations.checked && !el.annotationsFieldset.hidden
+              ? openAnnotationIds()
+              : [],
+          },
         }),
       });
       resetFeedbackForm();
@@ -583,6 +861,7 @@
       el.trayBody.hidden = false;
       el.trayCaret.textContent = "▾";
       await loadPatches();
+      await loadAnnotations();
       showToast(sent > 0 ? "Sent " + sent + " change" + (sent === 1 ? "" : "s") + " to the agent." : "Nothing to send.");
     } catch (err) {
       showToast(err && err.message ? err.message : "Could not send drafts.");
@@ -1283,10 +1562,12 @@
     wireSendButton();
     wireTray();
     wireCopyPrompt();
+    wireAnnotate();
 
     try {
       await loadScene();
       await loadPatches();
+      await loadAnnotations();
       await loadInterview();
       connectEvents();
     } catch (err) {

@@ -18,6 +18,7 @@
       </label>
       <span class="mode" id="mode-label" aria-live="polite">Edit mode</span>
       <span class="spacer"></span>
+      <button id="annotate-toggle" class="ghost" type="button" aria-pressed="false" title="Draw on the preview (pencil annotations)">Annotate</button>
       <button id="send-btn" class="primary" disabled>Send changes</button>
     </header>
 
@@ -37,6 +38,7 @@
             sandbox="allow-scripts"
           ></iframe>
           <div id="overlay" class="overlay" aria-hidden="true"></div>
+          <canvas id="annotation-canvas" class="annotation-canvas" aria-label="Annotation drawing area"></canvas>
           <p id="canvas-error" class="canvas-error" hidden role="alert"></p>
         </div>
       </section>
@@ -63,6 +65,14 @@
           <fieldset class="chips-fieldset">
             <legend class="panel-title">Quick feedback</legend>
             <div class="chips" id="chips" role="group" aria-label="Quick feedback"></div>
+          </fieldset>
+          <fieldset class="chips-fieldset" id="annotations-fieldset" hidden>
+            <legend class="panel-title">Annotations</legend>
+            <ul id="annotations-list" class="annotations-list"></ul>
+            <label class="attach-row" id="attach-annotations-row">
+              <input type="checkbox" id="attach-annotations" checked />
+              Attach open annotations to this feedback
+            </label>
           </fieldset>
           <button id="add-to-queue" class="primary block-button">Add to queue</button>
         </div>
