@@ -1,5 +1,6 @@
 import type { RenderNode } from "./model.js";
 import { renderIconJsx } from "./icons.js";
+import { mapStyleToClasses, type DesignProfileLike } from "./tailwind-map.js";
 import { IntentError, ErrorCodes } from "@intent/core";
 
 /**
@@ -70,6 +71,7 @@ export function renderModelNodeJsx(
   depth: number = 0,
   budget: { remaining: number } = { remaining: REACT_MAX_NODES },
   includeDataIds: boolean = false,
+  designProfile?: DesignProfileLike,
 ): string {
   if (depth > MAX_DEPTH || budget.remaining <= 0) {
     throw new IntentError(ErrorCodes.E_LIMIT, "Scene exceeds render depth/size budget");
@@ -77,8 +79,11 @@ export function renderModelNodeJsx(
   budget.remaining -= 1;
   const pad = "  ".repeat(depth);
   const oid = includeDataIds && node.id ? ` data-object-id={${JSON.stringify(node.id)}}` : "";
-  const animStyle = includeDataIds ? node.style : { ...node.style, ...(node.anim ?? {}) };
+  const { classes: mappedClasses, rest: mappedRest } = mapStyleToClasses(node.style, designProfile);
+  const animStyle = includeDataIds ? mappedRest : { ...mappedRest, ...(node.anim ?? {}) };
   const style = Object.keys(animStyle).length > 0 ? ` style={${styleLiteral(animStyle)}}` : "";
+  const mergedClass = [node.attrs["class"] ?? "", ...mappedClasses].filter(Boolean).join(" ");
+  const attrsForRender = mergedClass ? { ...node.attrs, class: mergedClass } : node.attrs;
 
   // The icon's SVG is engine-generated from the allowlisted glyph table.
   if (node.tag === "span" && node.attrs["data-icon"]) {
@@ -96,14 +101,14 @@ export function renderModelNodeJsx(
     })}`;
   }
 
-  const attrs = jsxAttrs(node.attrs, node.tag);
+  const attrs = jsxAttrs(attrsForRender, node.tag);
 
   if (VOID_TAGS.has(node.tag)) {
     return `${pad}<${node.tag}${attrs}${oid}${style} />`;
   }
 
   const children = node.children
-    .map((child) => renderModelNodeJsx(child, depth + 1, budget, includeDataIds))
+    .map((child) => renderModelNodeJsx(child, depth + 1, budget, includeDataIds, designProfile))
     .join("\n");
 
   const text = node.text !== undefined ? `{${JSON.stringify(node.text)}}` : "";

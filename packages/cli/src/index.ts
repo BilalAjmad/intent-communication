@@ -10,7 +10,7 @@ import {
   findFirstRenderBaseline,
 } from "@intent/adapters-node";
 import { computeAcceptanceRate, type AppliedPatchRef } from "@intent/core";
-import { exportSceneToFile, exportToReact } from "@intent/engine";
+import { exportSceneToFile, exportToReact, type DesignProfileLike } from "@intent/engine";
 import { BreakpointsSchema, type Breakpoints } from "@intent/schema";
 import { mergeAgentMcpConfigs } from "./mcp-config.js";
 import { ensureAgentsIntentBlock } from "./agents-block.js";
@@ -252,6 +252,29 @@ async function readProjectBreakpoints(projectRoot: string): Promise<Breakpoints 
   }
 }
 
+async function readDesignProfile(projectRoot: string): Promise<DesignProfileLike | undefined> {
+  try {
+    const raw = await fs.readFile(resolve(projectRoot, ".intent", "design-profile.json"), "utf8");
+    const parsed: unknown = JSON.parse(raw);
+    if (!parsed || typeof parsed !== "object" || !("tokens" in parsed)) return undefined;
+    const tokens = (parsed as { tokens: unknown }).tokens;
+    if (!tokens || typeof tokens !== "object") return undefined;
+    const colors = (tokens as { colors?: unknown }).colors;
+    const spacing = (tokens as { spacing?: unknown }).spacing;
+    const radii = (tokens as { radii?: unknown }).radii;
+    if (!colors || !spacing || !radii) return undefined;
+    return {
+      tokens: {
+        colors: colors as Record<string, string>,
+        spacing: spacing as Record<string, string>,
+        radii: radii as Record<string, string>,
+      },
+    };
+  } catch {
+    return undefined; // no profile yet — Tailwind mapping stays off, CSS vars keep working
+  }
+}
+
 async function printAcceptanceRate(projectRoot: string, sceneId: string, scene: { objects: Record<string, { type: string }> }): Promise<void> {
   // trd 17.2: the acceptance-rate metric is export *output metadata* — printed
   // to the console, never embedded in the exported artifact.
@@ -327,7 +350,8 @@ async function exportCommand(projectRoot: string, options: { scene?: string; out
 
     if (format === "react") {
       const outDir = options.output || resolve(projectRoot, `export-${sceneId}-react`);
-      const files = exportToReact(scene, { breakpoints });
+      const designProfile = await readDesignProfile(projectRoot);
+      const files = exportToReact(scene, { breakpoints, ...(designProfile ? { designProfile } : {}) });
       let written = 0;
       for (const [relative, content] of Object.entries(files)) {
         // FileMap keys come from the generator; validate them anyway — this
