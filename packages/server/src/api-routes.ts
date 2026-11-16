@@ -1,4 +1,5 @@
 import { handleMCPRequest } from "@intent/mcp-server";
+import { withProjectLock } from "@intent/core";
 import { IncomingMessage, ServerResponse } from "node:http";
 import {
   CreatePatchInputSchema,
@@ -21,6 +22,7 @@ import {
   readQueue,
   saveBeforeSendVersion,
   CHIP_LABELS,
+  sendBodyError,
 } from "./api-helpers.js";
 
 /** GET /api/scene â€” full scene + locks for the Studio shell (trd 11.3). */
@@ -103,11 +105,12 @@ export async function handleApiPatchList(ctx: ApiContext, req: IncomingMessage, 
 
 /** POST /api/patches â€” create a draft feedback patch for one object (design.md 4.3). */
 export async function handleApiPatchCreate(ctx: ApiContext, req: IncomingMessage, res: ServerResponse): Promise<void> {
+  return withProjectLock(ctx.lockPort, "feedback", async () => {
   let body: unknown;
   try {
     body = await readJsonBody(req, 2 * 1024 * 1024);
-  } catch {
-    sendJson(res, 413, { error: { code: "E_LIMIT", message: "Payload too large" } });
+  } catch (err) {
+    sendBodyError(res, err);
     return;
   }
   let input;
@@ -149,15 +152,18 @@ export async function handleApiPatchCreate(ctx: ApiContext, req: IncomingMessage
   await ctx.storage.writeFeedback(input.sceneId, queue);
   ctx.broadcastPatchChanged(input.sceneId, item.id, "draft");
   sendJson(res, 201, { patch: item });
+
+  });
 }
 
 /** PATCH /api/patches/:id â€” edit a draft (text and/or chips). */
 export async function handleApiPatchUpdate(ctx: ApiContext, req: IncomingMessage, res: ServerResponse, id: string): Promise<void> {
+  return withProjectLock(ctx.lockPort, "feedback", async () => {
   let body: unknown;
   try {
     body = await readJsonBody(req, 2 * 1024 * 1024);
-  } catch {
-    sendJson(res, 413, { error: { code: "E_LIMIT", message: "Payload too large" } });
+  } catch (err) {
+    sendBodyError(res, err);
     return;
   }
   let input;
@@ -192,10 +198,13 @@ export async function handleApiPatchUpdate(ctx: ApiContext, req: IncomingMessage
   await ctx.storage.writeFeedback(input.sceneId, queue);
   ctx.broadcastPatchChanged(input.sceneId, item.id, "draft");
   sendJson(res, 200, { patch: item });
+
+  });
 }
 
 /** DELETE /api/patches/:id â€” discard a draft. */
 export async function handleApiPatchDelete(ctx: ApiContext, req: IncomingMessage, res: ServerResponse, id: string): Promise<void> {
+  return withProjectLock(ctx.lockPort, "feedback", async () => {
   const url = new URL(req.url ?? "", "http://127.0.0.1/");
   const sceneId = url.searchParams.get("scene") || "default";
   const queue = await readQueue(ctx.storage, sceneId);
@@ -213,15 +222,18 @@ export async function handleApiPatchDelete(ctx: ApiContext, req: IncomingMessage
   ctx.broadcastPatchChanged(sceneId, id, "discarded");
   res.writeHead(204);
   res.end();
+
+  });
 }
 
 /** POST /api/patches/send â€” mark drafts as sent + save a before-send version (trd 6.4, 9.6). */
 export async function handleApiPatchSend(ctx: ApiContext, req: IncomingMessage, res: ServerResponse): Promise<void> {
+  return withProjectLock(ctx.lockPort, "feedback", async () => {
   let body: unknown;
   try {
     body = await readJsonBody(req, 2 * 1024 * 1024);
-  } catch {
-    sendJson(res, 413, { error: { code: "E_LIMIT", message: "Payload too large" } });
+  } catch (err) {
+    sendBodyError(res, err);
     return;
   }
   let input;
@@ -253,15 +265,18 @@ export async function handleApiPatchSend(ctx: ApiContext, req: IncomingMessage, 
     ctx.broadcastPatchChanged(input.sceneId, item.id, "sent");
   }
   sendJson(res, 200, { patches: sent });
+
+  });
 }
 
 /** POST /api/patches/:id/resolve â€” resolve a conflict: keep-mine (re-draft) or take-agents (applied). */
 export async function handleApiPatchResolve(ctx: ApiContext, req: IncomingMessage, res: ServerResponse, id: string): Promise<void> {
+  return withProjectLock(ctx.lockPort, "feedback", async () => {
   let body: unknown;
   try {
     body = await readJsonBody(req, 2 * 1024 * 1024);
-  } catch {
-    sendJson(res, 413, { error: { code: "E_LIMIT", message: "Payload too large" } });
+  } catch (err) {
+    sendBodyError(res, err);
     return;
   }
   let input;
@@ -289,6 +304,8 @@ export async function handleApiPatchResolve(ctx: ApiContext, req: IncomingMessag
   await ctx.storage.writeFeedback(input.sceneId, queue);
   ctx.broadcastPatchChanged(input.sceneId, item.id, item.status);
   sendJson(res, 200, { patch: item });
+
+  });
 }
 
 
@@ -297,9 +314,8 @@ export async function handleMcp(ctx: ApiContext, req: IncomingMessage, res: Serv
   let body: unknown;
   try {
     body = await readJsonBody(req, 2 * 1024 * 1024);
-  } catch {
-    res.writeHead(413, { "Content-Type": "application/json" });
-    res.end(JSON.stringify({ success: false, error: "Payload too large" }));
+  } catch (err) {
+    sendBodyError(res, err);
     return;
   }
   try {
@@ -385,11 +401,12 @@ export async function handleApiInterviewGet(ctx: ApiContext, req: IncomingMessag
 
 /** POST /api/interview/answer — record a Studio-side answer; consumed by get_feedback exactly once. */
 export async function handleApiInterviewAnswer(ctx: ApiContext, req: IncomingMessage, res: ServerResponse): Promise<void> {
+  return withProjectLock(ctx.lockPort, "interview-state", async () => {
   let body: unknown;
   try {
     body = await readJsonBody(req, 2 * 1024 * 1024);
-  } catch {
-    sendJson(res, 413, { error: { code: "E_LIMIT", message: "Payload too large" } });
+  } catch (err) {
+    sendBodyError(res, err);
     return;
   }
   let input;
@@ -422,4 +439,6 @@ export async function handleApiInterviewAnswer(ctx: ApiContext, req: IncomingMes
   await ctx.storage.writeInterviewState(state);
   ctx.broadcastInterviewChanged(state.status);
   sendJson(res, 201, { state });
+
+  });
 }

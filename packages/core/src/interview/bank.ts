@@ -66,6 +66,23 @@ export const INTERVIEW_SEEDS: Seed[] = [
   { seedId: "C7", tier: "P3", since: "M3", slot: "content.data", question: "Offline support? No / Read-only / Full sync", options: [{ id: "no", label: "No" }, { id: "readonly", label: "Read-only" }, { id: "full", label: "Full sync" }], default: "no", whyAsked: "Offline adds complexity", profileKey: "content.data" },
   { seedId: "C8", tier: "P3", since: "M3", slot: "content.tone", question: "Microcopy style? Functional / Playful / Minimal", options: [{ id: "functional", label: "Functional" }, { id: "playful", label: "Playful" }, { id: "minimal", label: "Minimal" }], default: "functional", whyAsked: "Microcopy affects perceived quality", profileKey: "content.tone" },
   { seedId: "C9", tier: "P3", since: "M3", slot: "content.legal", question: "Accessibility statement? None / Basic / Detailed", options: [{ id: "none", label: "None" }, { id: "basic", label: "Basic" }, { id: "detailed", label: "Detailed" }], default: "basic", whyAsked: "Legal requirement in some regions", profileKey: "content.legal" },
+
+  { seedId: "G1", tier: "P1", since: "M1", slot: "goal.platform", question: "Where will people use it most? Phone / Desktop / Both equally", options: [{ id: "phone", label: "Phone" }, { id: "desktop", label: "Desktop" }, { id: "both", label: "Both equally" }], default: "both", whyAsked: "Platform decides the responsive strategy", profileKey: "goal.platform" },
+  { seedId: "G2", tier: "P2", since: "M1", slot: "goal.success", question: "How will you know it worked? More sign-ups / Fewer support requests / A number you track / Just looks right", options: [{ id: "signups", label: "More sign-ups" }, { id: "fewer-requests", label: "Fewer support requests" }, { id: "metric", label: "A number you track" }, { id: "looks-right", label: "Just looks right" }], default: "metric", whyAsked: "Success defines the acceptance bar", profileKey: "goal.success" },
+  { seedId: "G3", tier: "P2", since: "M1", slot: "goal.protoUse", question: "What is this prototype for? Show a client / Collect feedback / Build the real thing from it / Pitch investors", options: [{ id: "client", label: "Show a client" }, { id: "feedback", label: "Collect feedback" }, { id: "build", label: "Build the real thing from it" }, { id: "pitch", label: "Pitch investors" }], default: "client", whyAsked: "The audience shapes fidelity and content", profileKey: "goal.protoUse" },
+  { seedId: "U6", tier: "P2", since: "M1", slot: "users.skill", question: "How tech-savvy are your users? Not really / Some are / Mostly yes", options: [{ id: "nope", label: "Not really" }, { id: "some", label: "Some are" }, { id: "mostly", label: "Mostly yes" }], default: "some", whyAsked: "Skill decides how much hand-holding the UI needs", profileKey: "users.skill" },
+  { seedId: "U7", tier: "P2", since: "M1", slot: "users.a11y", question: "Any accessibility needs? Larger text / Keyboard-friendly / Screen reader friendly / None in particular", options: [{ id: "text", label: "Larger text" }, { id: "keyboard", label: "Keyboard-friendly" }, { id: "screen-reader", label: "Screen reader friendly" }, { id: "none", label: "None in particular" }], default: "none", whyAsked: "Accessibility is cheapest to bake in now", profileKey: "users.a11y" },
+  { seedId: "U8", tier: "P3", since: "M2", slot: "users.context", question: "Where do people use it? At work / On the go / At home / Mixed", options: [{ id: "work", label: "At work" }, { id: "go", label: "On the go" }, { id: "home", label: "At home" }, { id: "mixed", label: "Mixed" }], default: "mixed", whyAsked: "Context decides density and interruptions", profileKey: "users.context" },
+  { seedId: "S7", tier: "P2", since: "M1", slot: "screens.auth", question: "Do users need to sign in? No accounts at all / Sign in with email / Sign in with social / Both", options: [{ id: "none", label: "No accounts at all" }, { id: "email", label: "Email sign in" }, { id: "social", label: "Social sign in" }, { id: "both", label: "Both" }], default: "none", whyAsked: "Auth decides screen count and data boundaries", profileKey: "screens.auth" },
+  { seedId: "C10", tier: "P2", since: "M1", slot: "content.lang", question: "Languages? English only / English plus one other / Multiple languages", options: [{ id: "english", label: "English only" }, { id: "one-other", label: "English + one other" }, { id: "multi", label: "Multiple languages" }], default: "english", whyAsked: "Language decides copy strategy and overflow", profileKey: "content.lang" },
+  { seedId: "C11", tier: "P3", since: "M2", slot: "content.images", question: "Images in the app? None / A few / Many (gallery-style)", options: [{ id: "none", label: "None" }, { id: "few", label: "A few" }, { id: "many", label: "Many (gallery-style)" }], default: "few", whyAsked: "Media decides layout and loading states", profileKey: "content.images" },
+  { seedId: "BH1", tier: "P2", since: "M1", slot: "behavior.states", question: "States needed? Loading and error / Loading only / None", options: [{ id: "loading-error", label: "Loading and error" }, { id: "loading-only", label: "Loading only" }, { id: "none", label: "None" }], default: "loading-error", whyAsked: "States are the difference between demo and product", profileKey: "behavior.states" },
+  { seedId: "BH2", tier: "P2", since: "M1", slot: "behavior.forms", question: "Will there be forms? Yes, one main form / Several forms / No forms", options: [{ id: "one", label: "Yes, one main form" }, { id: "several", label: "Several forms" }, { id: "none", label: "No forms" }], default: "one", whyAsked: "Forms decide validation, layout and flow", profileKey: "behavior.forms" },
+  { seedId: "BH3", tier: "P2", since: "M1", slot: "behavior.responsive", question: "Phone and desktop both? Both / Phone only / Desktop only", options: [{ id: "both", label: "Both" }, { id: "phone", label: "Phone only" }, { id: "desktop", label: "Desktop only" }], default: "both", whyAsked: "Responsive decides component strategy", profileKey: "behavior.responsive" },
+  { seedId: "BH4", tier: "P3", since: "M2", slot: "behavior.motion", question: "Motion and transitions? None / Subtle only / A full experience", options: [{ id: "none", label: "None" }, { id: "subtle", label: "Subtle only" }, { id: "full", label: "A full experience" }], default: "subtle", whyAsked: "Motion decides animation scope", profileKey: "behavior.motion" },
+  { seedId: "E1", tier: "P3", since: "M2", slot: "edge.empty", question: "When a list is empty? A friendly message / Hide the area entirely / Sample content", options: [{ id: "message", label: "A friendly message" }, { id: "hide", label: "Hide the area entirely" }, { id: "samples", label: "Sample content" }], default: "message", whyAsked: "Empty states are where real users land first", profileKey: "edge.empty" },
+  { seedId: "E2", tier: "P3", since: "M2", slot: "edge.long", question: "Long content? Wrap it / Truncate with show more / Scroll", options: [{ id: "wrap", label: "Wrap it" }, { id: "truncate", label: "Truncate with show more" }, { id: "scroll", label: "Scroll" }], default: "wrap", whyAsked: "Overflow decides every card and list", profileKey: "edge.long" },
+  { seedId: "E3", tier: "P3", since: "M2", slot: "edge.fail", question: "If something fails? Friendly message with retry / Silently retry / Last-known cached view", options: [{ id: "friendly", label: "Friendly message with retry" }, { id: "silent", label: "Silently retry" }, { id: "cached", label: "Last-known cached view" }], default: "friendly", whyAsked: "Failure paths are the least designed and most seen", profileKey: "edge.fail" },
 ];
 
 export const DEEP_DIVE_SEEDS: Seed[] = [
@@ -87,6 +104,12 @@ export const CONTROL_SEEDS: Array<{ seedId: string; label: string; when: string;
 
 export const ALL_SEEDS = [...INTERVIEW_SEEDS, ...DEEP_DIVE_SEEDS];
 
+function checkDefaultInOptions(seed: { seedId: string; options: ReadonlyArray<{ id: string }>; default: string }, errors: string[]) {
+  if (!seed.options.some((o) => o.id === seed.default)) {
+    errors.push(`${seed.seedId}: default "${seed.default}" is not one of the option ids`);
+  }
+}
+
 export function validateBank(): { valid: boolean; errors: string[] } {
   const errors: string[] = [];
   for (const seed of INTERVIEW_SEEDS) {
@@ -94,12 +117,23 @@ export function validateBank(): { valid: boolean; errors: string[] } {
     if (!result.success) {
       errors.push(`${seed.seedId}: ${result.error.message}`);
     }
+    checkDefaultInOptions(seed, errors);
   }
   for (const seed of DEEP_DIVE_SEEDS) {
     const result = SeedSchema.safeParse(seed);
     if (!result.success) {
       errors.push(`${seed.seedId}: ${result.error.message}`);
     }
+    if (!seed.options.some((o) => o.id === seed.default)) {
+      errors.push(`${seed.seedId}: default "${seed.default}" is not one of the option ids`);
+    }
+  }
+  for (const control of CONTROL_SEEDS) {
+    const result = ControlSeedSchema.safeParse(control);
+    if (!result.success) {
+      errors.push(`${control.seedId}: ${result.error.message}`);
+    }
+    // Control seeds have no default choice — nothing to cross-check here.
   }
   return { valid: errors.length === 0, errors };
 }

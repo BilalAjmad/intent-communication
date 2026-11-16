@@ -248,7 +248,8 @@ describe("Engine package", () => {
       const html = exportToHtml(scene, { includeScripts: true });
       expect(html).toContain("__INTENT_SCENE__");
       expect(html).toContain("Test Project");
-      expect(html).toContain("INTENT_CLICK");
+      // the standalone export must not broadcast INTENT_CLICK messages to any embedding origin
+      expect(html).not.toContain("INTENT_CLICK");
     });
 
     it("escapes HTML in text content", () => {

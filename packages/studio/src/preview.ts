@@ -1,5 +1,6 @@
 import { Scene, SceneObject } from "@intent/schema";
 import { createHash } from "node:crypto";
+import { IntentError, ErrorCodes } from "@intent/core";
 import {
   escapeHtml,
   safeClassToken,
@@ -123,12 +124,21 @@ export function previewScriptHashes(): string[] {
 
 const PREVIEW_SCRIPT_HASHES = previewScriptHashes().join(" ");
 
-function renderNode(obj: SceneObject, all: Record<string, SceneObject>, depth = 0): string {
+// Renders are bounded: a corrupt/hostile scene graph can never blow the stack or
+// the output (a cyclic scene would otherwise recurse forever).
+const MAX_DEPTH = 200;
+const MAX_NODES = 5000;
+
+function renderNode(obj: SceneObject, all: Record<string, SceneObject>, depth = 0, budget = { remaining: MAX_NODES }): string {
+  if (depth > MAX_DEPTH || budget.remaining <= 0) {
+    throw new IntentError(ErrorCodes.E_LIMIT, "Scene exceeds preview render depth/size budget");
+  }
+  budget.remaining -= 1;
   const pad = "  ".repeat(depth);
   const children = obj.children
     .map((id) => all[id])
     .filter((c): c is SceneObject => Boolean(c))
-    .map((c) => renderNode(c, all, depth + 1))
+    .map((c) => renderNode(c, all, depth + 1, budget))
     .join("\n");
 
   const style = buildStyleString(obj.style);
@@ -168,8 +178,6 @@ function renderNode(obj: SceneObject, all: Record<string, SceneObject>, depth = 
   }
 }
 
-/** Builds the sandboxed preview document for an iframe srcdoc.
- *  Pass `nonce` to emit `script-src 'nonce-<n>'` and carry the nonce on every inline script (trd 12.1). */
 /** Builds the sandboxed preview document for an iframe srcdoc.
  *  The CSP meta allows exactly the two constant inline scripts (sha256 sources) plus inline styles. */
 export function buildPreviewDocument(scene: Scene): string {

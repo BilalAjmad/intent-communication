@@ -94,9 +94,12 @@ test("Change something: items become editable, Save changes posts summaryChoice=
   await expect(page.locator(".tag-user")).toHaveCount(2);
   await expect(page.locator(".tag-chosen")).toHaveCount(1);
 
-  // Click "Change something" — the editable mode engages
+  // Click "Change something" — the editable mode engages (only the text span of [you said] items)
   await page.getByRole("button", { name: "Change something" }).click();
-  await expect(page.locator(".summary-item").first()).toHaveAttribute("contenteditable", "true");
+  await expect(page.locator(".summary-item span:last-child").first()).toHaveAttribute("contenteditable", "true");
+  // [chosen by me] items and the tag spans are NOT editable
+  await expect(page.locator(".summary-delegated .summary-item span:last-child").first()).not.toHaveAttribute("contenteditable", "true");
+  await expect(page.locator(".summary-item .tag").first()).not.toHaveAttribute("contenteditable", "true");
   const saveBtn = page.locator(".save-summary-changes");
   await expect(saveBtn).toBeVisible();
 

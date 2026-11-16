@@ -221,12 +221,12 @@ describe("Linter - M1 Rules", () => {
       expect(result.pass).toBe(true);
     });
 
-    it("passes large text (18px+) with 3:1 ratio", () => {
+    it("passes large text per WCAG (>=24px, or >=18.66px bold) with 3:1 ratio", () => {
       const scene = createBaseScene({
         objects: {
           "o_01ARZ3NDEKTSV4RRFFQ69G5FAV": {
             ...createText("o_01ARZ3NDEKTSV4RRFFQ69G5FAV", "s_01ARZ3NDEKTSV4RRFFQ69G5FAV", "Hello"),
-            props: { content: "Hello", fontSize: 18, color: "#888888" },
+            props: { content: "Hello", fontSize: 24, color: "#888888" },
             style: { background: "#ffffff" },
             meta: {},
           },
@@ -237,6 +237,24 @@ describe("Linter - M1 Rules", () => {
       });
       const result = lintSceneWithRules(scene, ["L-CONTRAST"]);
       expect(result.pass).toBe(true);
+    });
+
+    it("18px regular text is NOT large text (3:1 fails, 4.5:1 required)", () => {
+      const scene = createBaseScene({
+        objects: {
+          "o_01ARZ3NDEKTSV4RRFFQ69G5FAV": {
+            ...createText("o_01ARZ3NDEKTSV4RRFFQ69G5FAV", "s_01ARZ3NDEKTSV4RRFFQ69G5FAV", "Hello"),
+            props: { content: "Hello", fontSize: 18, fontWeight: 400, color: "#888888" },
+            style: { background: "#ffffff" },
+            meta: {},
+          },
+        },
+        screens: {
+          "s_01ARZ3NDEKTSV4RRFFQ69G5FAV": createScreen("s_01ARZ3NDEKTSV4RRFFQ69G5FAV"),
+        },
+      });
+      const result = lintSceneWithRules(scene, ["L-CONTRAST"]);
+      expect(result.pass).toBe(false);
     });
 
     it("fails non-token color or background", () => {

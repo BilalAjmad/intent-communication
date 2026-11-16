@@ -294,6 +294,7 @@ export {
   sanitizeUrl,
   safeClassToken,
   buildCsp,
+  sanitizeNonce,
 } from "./sanitize.js";
 
 export { SCHEMA_VERSION, SCENE_SCHEMA_VERSION } from "@intent/schema";

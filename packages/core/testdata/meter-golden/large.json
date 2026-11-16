@@ -1,116 +1,254 @@
 [
   {
+    "slot": "deep.buttonStyle",
+    "question": "D5",
+    "value": 1,
+    "expectedPercent": 1
+  },
+  {
+    "slot": "deep.imageShape",
+    "question": "D6",
+    "value": 1,
+    "expectedPercent": 3
+  },
+  {
+    "slot": "edge.empty",
+    "question": "E1",
+    "value": 1,
+    "expectedPercent": 4
+  },
+  {
+    "slot": "edge.long",
+    "question": "E2",
+    "value": 1,
+    "expectedPercent": 5
+  },
+  {
+    "slot": "edge.fail",
+    "question": "E3",
+    "value": 1,
+    "expectedPercent": 6
+  },
+  {
     "slot": "goal.purpose",
     "question": "F1",
     "value": 1,
-    "expectedPercent": 5
+    "expectedPercent": 11
+  },
+  {
+    "slot": "goal.platform",
+    "question": "G1",
+    "value": 1,
+    "expectedPercent": 16
+  },
+  {
+    "slot": "goal.success",
+    "question": "G2",
+    "value": 1,
+    "expectedPercent": 21
+  },
+  {
+    "slot": "goal.protoUse",
+    "question": "G3",
+    "value": 1,
+    "expectedPercent": 26
   },
   {
     "slot": "users.primary",
     "question": "U1",
     "value": 1,
-    "expectedPercent": 7
+    "expectedPercent": 28
+  },
+  {
+    "slot": "users.access",
+    "question": "U2",
+    "value": 1,
+    "expectedPercent": 29
+  },
+  {
+    "slot": "users.skill",
+    "question": "U6",
+    "value": 1,
+    "expectedPercent": 31
+  },
+  {
+    "slot": "users.a11y",
+    "question": "U7",
+    "value": 1,
+    "expectedPercent": 33
+  },
+  {
+    "slot": "users.intl",
+    "question": "U3",
+    "value": 1,
+    "expectedPercent": 34
+  },
+  {
+    "slot": "users.context",
+    "question": "U8",
+    "value": 1,
+    "expectedPercent": 36
   },
   {
     "slot": "screens.start",
     "question": "S1",
     "value": 1,
-    "expectedPercent": 12
+    "expectedPercent": 40
   },
   {
     "slot": "screens.list",
     "question": "S2",
     "value": 1,
-    "expectedPercent": 17
+    "expectedPercent": 44
+  },
+  {
+    "slot": "screens.auth",
+    "question": "S7",
+    "value": 1,
+    "expectedPercent": 48
   },
   {
     "slot": "screens.nav",
     "question": "F5",
     "value": 1,
-    "expectedPercent": 22
+    "expectedPercent": 52
+  },
+  {
+    "slot": "screens.roles",
+    "question": "S3",
+    "value": 1,
+    "expectedPercent": 56
   },
   {
     "slot": "flow.after",
     "question": "F2",
     "value": 1,
-    "expectedPercent": 26
+    "expectedPercent": 60
   },
   {
     "slot": "flow.links",
     "question": "F3",
     "value": 1,
-    "expectedPercent": 30
+    "expectedPercent": 63
   },
   {
     "slot": "flow.back",
     "question": "F4",
     "value": 1,
-    "expectedPercent": 33
+    "expectedPercent": 67
   },
   {
     "slot": "flow.main",
     "question": "F6",
     "value": 1,
-    "expectedPercent": 37
+    "expectedPercent": 71
   },
   {
     "slot": "style.mood",
     "question": "ST1",
     "value": 1,
-    "expectedPercent": 39
+    "expectedPercent": 73
   },
   {
     "slot": "style.palette",
     "question": "ST2",
     "value": 1,
-    "expectedPercent": 41
+    "expectedPercent": 74
   },
   {
     "slot": "style.theme",
     "question": "ST3",
     "value": 1,
-    "expectedPercent": 43
+    "expectedPercent": 76
   },
   {
     "slot": "style.density",
     "question": "ST4",
     "value": 1,
-    "expectedPercent": 46
+    "expectedPercent": 78
   },
   {
     "slot": "style.corner",
     "question": "ST5",
     "value": 1,
-    "expectedPercent": 48
+    "expectedPercent": 79
   },
   {
     "slot": "style.brand",
     "question": "ST6",
     "value": 1,
-    "expectedPercent": 50
+    "expectedPercent": 81
   },
   {
     "slot": "style.heading",
     "question": "ST7",
     "value": 1,
-    "expectedPercent": 52
+    "expectedPercent": 83
   },
   {
     "slot": "content.data",
     "question": "C2",
     "value": 1,
-    "expectedPercent": 54
+    "expectedPercent": 84
   },
   {
     "slot": "content.tone",
     "question": "C1",
     "value": 1,
-    "expectedPercent": 56
+    "expectedPercent": 85
+  },
+  {
+    "slot": "content.media",
+    "question": "C3",
+    "value": 1,
+    "expectedPercent": 87
+  },
+  {
+    "slot": "content.lang",
+    "question": "C10",
+    "value": 1,
+    "expectedPercent": 88
   },
   {
     "slot": "content.name",
     "question": "C4",
     "value": 1,
-    "expectedPercent": 58
+    "expectedPercent": 90
+  },
+  {
+    "slot": "content.legal",
+    "question": "C5",
+    "value": 1,
+    "expectedPercent": 91
+  },
+  {
+    "slot": "content.images",
+    "question": "C11",
+    "value": 1,
+    "expectedPercent": 93
+  },
+  {
+    "slot": "behavior.states",
+    "question": "BH1",
+    "value": 1,
+    "expectedPercent": 94
+  },
+  {
+    "slot": "behavior.forms",
+    "question": "BH2",
+    "value": 1,
+    "expectedPercent": 96
+  },
+  {
+    "slot": "behavior.responsive",
+    "question": "BH3",
+    "value": 1,
+    "expectedPercent": 98
+  },
+  {
+    "slot": "behavior.motion",
+    "question": "BH4",
+    "value": 1,
+    "expectedPercent": 100
   }
 ]

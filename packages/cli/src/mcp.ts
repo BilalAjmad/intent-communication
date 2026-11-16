@@ -83,28 +83,37 @@ export async function runMcpStdio(projectRoot: string): Promise<void> {
       fail(typeof m.id === "number" || typeof m.id === "string" ? m.id : null, -32600, "Invalid Request: missing method");
       return;
     }
-    const isNotification = m.id === undefined || m.id === null;
+    const id = m.id;
+    if (id !== undefined && id !== null && typeof id !== "number" && typeof id !== "string") {
+      fail(null, -32600, 'Invalid Request: "id" must be a number, a string, or absent (notification)');
+      return;
+    }
+    const isNotification = id === undefined || id === null;
+    const replyId = isNotification ? null : (id as number | string);
 
     const sendError = (code: number, message: string, data?: unknown) => {
       // Notifications never get a response; nothing else swallows errors silently.
       if (isNotification) return;
-      fail(m.id as number | string, code, message, data);
+      fail(replyId, code, message, data);
     };
 
     try {
       switch (method) {
         case "initialize":
-          reply(m.id ?? null, {
+          if (isNotification) return; // a notification gets no response
+          reply(replyId, {
             protocolVersion: PROTOCOL_VERSION,
             capabilities: { tools: {} },
             serverInfo: { name: SERVER_NAME, version: SERVER_VERSION },
           });
           return;
         case "ping":
-          reply(m.id ?? null, {});
+          if (isNotification) return;
+          reply(replyId, {});
           return;
         case "tools/list":
-          reply(m.id ?? null, { tools: MCP_TOOL_DESCRIPTORS });
+          if (isNotification) return;
+          reply(replyId, { tools: MCP_TOOL_DESCRIPTORS });
           return;
         case "tools/call": {
           const params = (m.params ?? {}) as { name?: unknown; arguments?: unknown };
@@ -117,9 +126,10 @@ export async function runMcpStdio(projectRoot: string): Promise<void> {
             sendError(-32602, `Unknown tool: ${name}`);
             return;
           }
-          const sendEnvelope = (id: number | string | null, envelope: Envelope, isError: boolean) => {
+          const sendEnvelope = (envelope: Envelope, isError: boolean) => {
+            if (isNotification) return; // tools/call as notification: no response
             const body = JSON.stringify(envelope);
-            reply(id, {
+            reply(replyId, {
               content: [{ type: "text", text: body }],
               structuredContent: envelope,
               ...(isError ? { isError: true } : {}),
@@ -130,7 +140,6 @@ export async function runMcpStdio(projectRoot: string): Promise<void> {
             const structured = structuredFailureOf(result);
             if (structured) {
               sendEnvelope(
-                m.id ?? null,
                 errEnvelope(
                   structured.code,
                   STRUCTURED_FAILURE_MESSAGES[structured.code] ?? `Tool failed: ${structured.code}`,
@@ -139,14 +148,14 @@ export async function runMcpStdio(projectRoot: string): Promise<void> {
                 true,
               );
             } else {
-              sendEnvelope(m.id ?? null, okEnvelope(result), false);
+              sendEnvelope(okEnvelope(result), false);
             }
           } catch (err) {
             const e = err as { code?: unknown; message?: unknown; details?: unknown };
             const code = typeof e?.code === "string" ? e.code : "E_INTERNAL";
             const message = typeof e?.message === "string" ? e.message : String(err);
             // trd 10.1 + trd 18.2: the issue path travels in details.
-            sendEnvelope(m.id ?? null, errEnvelope(code, message, e?.details), true);
+            sendEnvelope(errEnvelope(code, message, e?.details), true);
           }
           return;
         }
@@ -181,14 +190,14 @@ export async function runMcpStdio(projectRoot: string): Promise<void> {
         const trimmed = line.trim();
         if (!trimmed) continue;
         if (line.length > MAX_LINE) {
-          fail(null, -32600, "Invalid Request: line exceeds 1 MiB");
+          pending = pending.then(() => fail(null, -32600, "Invalid Request: line exceeds 1 MiB"));
           continue;
         }
         let msg: unknown;
         try {
           msg = JSON.parse(trimmed);
         } catch {
-          fail(null, -32700, "Parse error");
+          pending = pending.then(() => fail(null, -32700, "Parse error"));
           continue;
         }
         pending = pending.then(() => handleMessage(msg)).catch(() => {
@@ -196,10 +205,13 @@ export async function runMcpStdio(projectRoot: string): Promise<void> {
         });
       }
       if (buffer.length > MAX_LINE) {
-        fail(null, -32600, "Invalid Request: line exceeds 1 MiB");
+        pending = pending.then(() => fail(null, -32600, "Invalid Request: line exceeds 1 MiB"));
         buffer = "";
       }
     });
+    // If the launching agent dies and the pipe breaks, exit quietly instead of
+    // crashing with an uncaught exception mid-write.
+    process.stdout.on("error", () => process.exit(0));
     process.stdin.on("end", () => { void pending.then(done); });
     process.stdin.on("error", () => { void pending.then(done); });
   });

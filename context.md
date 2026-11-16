@@ -74,3 +74,38 @@
 - AC-M1-01/03/07/09/11/13 have not been closed by this session.
 
 The only responsible remaining path to `v0.1.0`: close those AC items honestly in the next session(s), re-run verify, re-audit, get user's ruling on tag.
+
+## Phase 9 — Full line-by-line review + fix loop (2026-11-16)
+
+### Trigger
+User asked for a full-project review: every line of code reviewed and fixed in a loop, with context.md/usercontext.md remembered. Scope = fix everything confirmed, verify, repeat; nothing pushed or tagged.
+
+### Method
+- 4 parallel reviewers (core+schema / mcp-server+server / engine+linter+studio / cli+adapters+skills), plus a first-person deep pass on the concurrency/lock code and the interview meter.
+- Findings adjudicated by reading/reproducing, then fixed package by package; each fix built + unit-tested; full `pnpm verify` + full Playwright suite re-run after each batch.
+
+### Fixes that landed (all verified by tests)
+- **core/pipeline.ts rewritten all-or-nothing**: pre-batch snapshot + working-copy apply + single write; no partial persistence on a failed batch; baseRevision always vs pre-batch; ancestor/descendant lock walks are cycle-safe; sibling patches sharing an ancestor no longer self-E_LOCKED (acquire stays non-re-entrant; pipeline skips batch-held ids).
+- **core/ports.ts split** into port-types/storage-port/lock-port/crypto (500-line budget); strict validators on every read path (5 MB scene cap pre-read, E_INVALID_SCENE, ENOENT-only null, LocksFile shape check with legacy `locks:{}` migration); writeScene enforces 5 MB; debugLog no longer unhandled-rejections.
+- **core/atomic.ts**: temp file now lives NEXT TO the target (rename is always same-volume); symlink check before use; best-effort directory fsync after rename; `.intent/tmp` no longer escapes into projectRoot on root-level writes.
+- **core lock reclaim**: unparseable scene-lock file is quarantined via atomic rename then deleted (never blocks forever); change-then-unlink race eliminated (rename-quarantine); `releaseSceneLock` no longer unlinks foreign locks without an ownerToken; `isLocked`/`getLockedObjects` unchanged semantics; batch sibling double-acquire fixed in the pipeline.
+- **core schema**: `"summary"` added to interview kind enum (the summary screen was unreachable dead input); dead StoragePort/LockPort/CryptoPort const stubs deleted from schema/index.ts; Studio-input sceneId fields now SafeIdSchema; objectIds .max(50) (GHSA-mrhx-c7xc-m3w5).
+- **Interview bank/meter**: 16 new seeds for 16 slots that had none (all 53 profileKeys now askable, all 42 large-scope slots covered); 7 seed-matching slots added; `validateBank()` now validates control seeds + default∈options; dead `_milestone` param removed; `fatigueReached()` implements the SC-4 fatigue trigger; golden files regenerated (small=11/medium=28/large=42 slots, all ending at 100 with stated answers).
+- **patch.ts**: set/setState without value, add/remove without index now throw E_BAD_REQUEST (used to no-op while bumping revision); `move` throws (was console.warn no-op that bumped revisions); path resolution through non-objects throws E_BAD_REQUEST (was raw TypeError); prototype-safe `Object.hasOwn` walk; deep-cloned target (input scene no longer mutated); ALLOWED_PATH_ROOTS restricted to what the Scene schema actually persists (props/style/meta) — the old whitelist silently dropped position/size/etc. while reporting success.
+- **adapters-node**: `checkPathSafety` was dead (E_SYMLINK eaten by its own catch); prefix-compare bypass (`startsWith`) fixed via path.relative; all read paths now validate (validateScene/Config/Profile/InterviewState/Brief/Feedback); locks/brief/feedback paths assertSafeId; 5 MB scene cap; `ensureDirs` mkdir only on write paths; verify uses timingSafeEqual.
+- **Engine**: render budget + depth cap in both renderers (cyclic graphs threw RangeError before); `escapeHtml` String-coerces (was TypeError on numeric props); CSS value grammar rejects `/* */` and stray escapes; style KEY grammar (was declaration injection into the style attribute); `//host` protocol-relative URLs dropped; CSP nonce validated (no directive injection); export no longer broadcasts `window.INTENT_CLICK` to every embedder; sandboxed preview markup unchanged otherwise.
+- **Studio SPA (app.js)**: focus preserved across Interview re-renders; SSE re-render skipped while the summary editor is open; interviewKeyboard 0-9 / s / 0 shortcuts wired (design 2.4 said "reply with a number" but nothing listened); answer buttons guarded against double-submit (`interviewInflight`); malformed /api/interview payloads no longer blank the tab (shape-validated); summary edit now touches only [you said] items, makes only the text span editable (delegated items + tags stay readonly), and disables Exactly-right / Ask-more while editing; roving tabindex + arrow keys on the tab strip (APG); layers tree has proper treeitem semantics; interview options are action buttons (not aria-pressed toggles).
+- **Studio preview**: render budget + depth cap; CSP for the SPA shell comes from the server header (correct) — a duplicate meta CSP I added briefly **broke the preview** and was removed; 77/77 Playwright green again.
+- **Server**: outer try/catch around every route — a route bug is now a JSON 500, never a dead process; `/api/mcp` returns consistent status codes and envelope; raw internal messages no longer echo to clients; `/api/interview*` + all feedback mutations serialized through a cross-process file lock (`interview-state`, `feedback-<sceneId>`); SSE seed/resync no longer pollute the replay ring; dead SSE clients evicted on write; start() rejects on listen error; session store swept of expired sessions; body-parse errors map to 400 (not 413); response bodies drained on the limit path; CSP nonce attr uses the same grammar as the meta.
+
+### Verification (this machine, Windows 11)
+- `pnpm verify` 12/12 PASS — unit+integration **412/412**.
+- Full Playwright suite **77/77**.
+- Mutation proof: 5/5 detected (mutation-check M2 fixed to be compile-safe; M5 anchor moved to storage-port.ts; **all mutations detected again**).
+- context:check passes (ports.ts split; server/index.ts → 496 lines).
+- 10/10 consecutive multi-process runs green.
+- One verify run hit a transient build flake (exit 1 on build); rerun passed cleanly.
+
+### Still not done (unchanged honest limits)
+- M2/M3 untouched. No live agent session (OpenRouter 402 / Cursor CLI absent). CI unobserved. Stranger test unrun. zod 3→4 pending user approval. LICENSE unchosen. `docs/versions.md` connection claims verified against docs, not observed. Tier-1 smoke checklist (tests/smoke/CHECKLIST.md) remains empty. M1 gate remains **NOT READY for v0.1.0**.
+

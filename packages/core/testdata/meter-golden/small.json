@@ -6,57 +6,63 @@
     "expectedPercent": 11
   },
   {
+    "slot": "goal.platform",
+    "question": "G1",
+    "value": 1,
+    "expectedPercent": 22
+  },
+  {
     "slot": "users.primary",
     "question": "U1",
     "value": 1,
-    "expectedPercent": 22
+    "expectedPercent": 33
   },
   {
     "slot": "screens.list",
     "question": "S2",
     "value": 1,
-    "expectedPercent": 33
+    "expectedPercent": 44
   },
   {
     "slot": "screens.nav",
     "question": "F5",
     "value": 1,
-    "expectedPercent": 44
+    "expectedPercent": 55
   },
   {
     "slot": "flow.main",
     "question": "F6",
     "value": 1,
-    "expectedPercent": 61
+    "expectedPercent": 72
   },
   {
     "slot": "style.mood",
     "question": "ST1",
     "value": 1,
-    "expectedPercent": 66
+    "expectedPercent": 77
   },
   {
     "slot": "style.palette",
     "question": "ST2",
     "value": 1,
-    "expectedPercent": 72
+    "expectedPercent": 83
   },
   {
     "slot": "style.theme",
     "question": "ST3",
     "value": 1,
-    "expectedPercent": 77
+    "expectedPercent": 88
   },
   {
     "slot": "content.data",
     "question": "C2",
     "value": 1,
-    "expectedPercent": 83
+    "expectedPercent": 94
   },
   {
     "slot": "content.tone",
     "question": "C1",
     "value": 1,
-    "expectedPercent": 88
+    "expectedPercent": 100
   }
 ]

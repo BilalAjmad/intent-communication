@@ -8,7 +8,6 @@ import {
   CryptoPort,
 } from "@intent/core";
 import {
-  Config,
   Patch,
 } from "@intent/schema";
 import { createFileStoragePort, createFileLockPort, createNodeCryptoPort } from "@intent/adapters-node";
@@ -235,7 +234,38 @@ export class IntentServer {
     return false;
   }
 
+  /** Outer safety net (trd 18.2): a handler bug must never kill the process. */
   private async handleRequest(req: IncomingMessage, res: ServerResponse) {
+    try {
+      await this.routeRequest(req, res);
+    } catch (err) {
+      const code = (err as { code?: unknown })?.code;
+      const isIntentError = typeof code === "string" && /^E_[A-Z_]+$/.test(code as string);
+      const status =
+        isIntentError && ["E_BAD_REQUEST", "E_SCHEMA", "E_INVALID_PATCH", "E_PATH_TRAVERSAL", "E_BAD_REQUEST"].includes(code as string)
+          ? 400
+          : isIntentError && ("E_NOT_FOUND" === code)
+            ? 404
+            : isIntentError && (code === "E_CONFLICT" || code === "E_LOCKED")
+              ? 409
+              : 500;
+      try {
+        res.writeHead(status, { "Content-Type": "application/json" });
+        res.end(
+          JSON.stringify({
+            error: {
+              code: isIntentError ? code : "E_INTERNAL",
+              message: isIntentError ? (err as Error).message : "Internal error",
+            },
+          })
+        );
+      } catch {
+        // Response already sent or socket dead — nothing more to do.
+      }
+    }
+  }
+
+  private async routeRequest(req: IncomingMessage, res: ServerResponse) {
     const rawUrl = req.url || "";
     const url = new URL(rawUrl, `http://127.0.0.1:${this.config.previewPort}`);
     const pathname = url.pathname;
@@ -461,12 +491,5 @@ export function createServer(config: ServerConfig): IntentServer {
   return new IntentServer(config);
 }
 
-export function createServerFromConfig(projectRoot: string, config: Config): IntentServer {
-  return new IntentServer({
-    projectRoot,
-    previewPort: config.previewPort,
-    studioPort: config.studioPort,
-    mcpPort: config.mcpPort,
-  });
-}
+export { createServerFromConfig } from "./from-config.js";
 

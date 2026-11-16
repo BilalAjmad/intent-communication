@@ -11,7 +11,9 @@ import {
   sanitizeUrl,
   safeClassToken,
   buildCsp,
+  sanitizeNonce,
 } from "./sanitize.js";
+import { IntentError, ErrorCodes } from "@intent/core";
 
 /**
  * The exact CSS text the export emits (CSS variables + base rules), shared with
@@ -32,8 +34,9 @@ export interface HtmlExportOptions {
   cspNonce?: string;
 }
 
-function escapeHtml(str: string): string {
-  return str
+function escapeHtml(str: unknown): string {
+  const s = typeof str === "string" ? str : str == null ? "" : String(str);
+  return s
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
@@ -72,8 +75,12 @@ function resolveValue(val: SceneValue): string {
 
 function buildStyleString(style: Record<string, SceneValue>): string {
   const declarations: string[] = [];
+  // Only real CSS property names and custom properties — a key like
+  // "background:url(https://x); x" would otherwise inject a whole declaration.
+  const SAFE_KEY = /^(--[a-zA-Z0-9_-]+|-?[a-z][a-z0-9-]*)$/;
   for (const [key, val] of Object.entries(style)) {
     const cssKey = key.replace(/([A-Z])/g, "-$1").toLowerCase();
+    if (!SAFE_KEY.test(cssKey)) continue;
     const value = sanitizeCssValue(resolveValue(val));
     if (value) {
       declarations.push(`${cssKey}: ${value};`);
@@ -85,14 +92,29 @@ function buildStyleString(style: Record<string, SceneValue>): string {
 /** Input types allowed in the exported markup. */
 const ALLOWED_INPUT_TYPES = new Set(["text", "email", "password", "number", "tel", "url"]);
 
-function renderObject(obj: SceneObject, allObjects: Record<string, SceneObject>, depth: number = 0): string {
+// Renders are bounded: a corrupt/hostile scene graph can never blow the stack or
+// the output. Depth runs out first on deep nesting; the node budget stops exponential
+// diamond reuse.
+const MAX_DEPTH = 200;
+const MAX_NODES = 5000;
+
+function renderObject(
+  obj: SceneObject,
+  allObjects: Record<string, SceneObject>,
+  depth: number = 0,
+  budget: { remaining: number } = { remaining: MAX_NODES },
+): string {
+  if (depth > MAX_DEPTH || budget.remaining <= 0) {
+    throw new IntentError(ErrorCodes.E_LIMIT, "Scene exceeds render depth/size budget");
+  }
+  budget.remaining -= 1;
   const indent = "  ".repeat(depth);
   const styleStr = buildStyleString(obj.style);
   const styleAttr = styleStr ? ` style="${escapeHtml(styleStr)}"` : "";
   const children = obj.children.map((id) => {
     const child = allObjects[id];
     if (!child) return `<!-- missing child ${escapeHtml(id)} -->`;
-    return renderObject(child, allObjects, depth + 1);
+    return renderObject(child, allObjects, depth + 1, budget);
   }).join("\n");
 
   switch (obj.type) {
@@ -256,8 +278,9 @@ export function exportToHtml(scene: Scene, options: HtmlExportOptions = {}): str
 
   const cssVars = opts.includeStyles ? generateCssVariables() : "";
   const baseStyles = opts.includeStyles ? generateBaseStyles() : "";
-  const cspAttr = opts.cspNonce ? ` nonce="${escapeHtml(opts.cspNonce)}"` : "";
-  const csp = buildCsp(opts.cspNonce);
+  const safeNonce = sanitizeNonce(opts.cspNonce);
+  const cspAttr = safeNonce ? ` nonce="${escapeHtml(safeNonce)}"` : "";
+  const csp = buildCsp(safeNonce);
 
   return `<!DOCTYPE html>
 <html lang="en">
@@ -277,15 +300,6 @@ export function exportToHtml(scene: Scene, options: HtmlExportOptions = {}): str
 </head>
 <body>
 ${screenHtml}
-${opts.includeScripts ? `<script${cspAttr}>
-  document.addEventListener("DOMContentLoaded", function() {
-    document.querySelectorAll("[data-object-id]").forEach(function(el) {
-      el.addEventListener("click", function(e) {
-        window.postMessage({ type: "INTENT_CLICK", objectId: this.dataset.objectId }, "*");
-      });
-    });
-  });
-</script>` : ""}
 </body>
 </html>`;
 }

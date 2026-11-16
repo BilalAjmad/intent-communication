@@ -237,6 +237,8 @@
     rows.forEach(function (row) {
       var li = document.createElement("li");
       li.setAttribute("role", "treeitem");
+      li.setAttribute("aria-level", String(row.depth + 1));
+      li.setAttribute("aria-selected", String(state.selectedId === row.id));
       var btn = document.createElement("button");
       btn.className = "layer-item";
       btn.type = "button";
@@ -683,8 +685,13 @@
   async function loadInterview() {
     try {
       var data = await fetchJson("/api/interview?scene=" + encodeURIComponent(state.sceneId));
-      state.interview = data.state || interviewFreshState();
-      renderInterview();
+      var fresh = data && data.state;
+      if (!validInterviewState(fresh)) {
+        console.warn("Ignoring malformed interview state from /api/interview");
+        fresh = interviewFreshState();
+      }
+      state.interview = fresh;
+      if (!isInterviewEditing()) renderInterview();
     } catch (err) {
       // Interview tab stays visible with an error note; the rest of the shell is unaffected.
       el.interviewBody.innerHTML = "";
@@ -707,7 +714,61 @@
     return "not covered";
   }
 
+  var interviewInflight = false;
+
+  // H3: focus preservation across re-renders. Capture before the panel is wiped,
+  // restore after. Key = tag + class + trimmed text (stable across renders).
+  var lastPanelFocusKey = null;
+  function focusKeyOf(elm) {
+    if (!elm) return null;
+    return (elm.tagName || "") + "|" + (elm.className || "") + "|" + (elm.textContent || "").trim().slice(0, 30);
+  }
+  function capturePanelFocus() {
+    lastPanelFocusKey =
+      el.interviewBody && el.interviewBody.contains(document.activeElement) ? focusKeyOf(document.activeElement) : null;
+  }
+  function restorePanelFocus() {
+    if (!lastPanelFocusKey) return;
+    var els = el.interviewBody.querySelectorAll("button, textarea, input, [tabindex='-1']");
+    for (var i = 0; i < els.length; i++) {
+      if (focusKeyOf(els[i]) === lastPanelFocusKey) {
+        els[i].focus();
+        break;
+      }
+    }
+    lastPanelFocusKey = null;
+  }
+  function isInterviewEditing() {
+    return !!(el.interviewBody && el.interviewBody.querySelector('.summary-items .summary-item span[contenteditable="true"]'));
+  }
+
+  // M12: never trust the wire shape; a malformed payload used to blank the tab.
+  function validInterviewState(s) {
+    if (!s || typeof s !== "object" || Array.isArray(s)) return false;
+    if (typeof s.status !== "string") return false;
+    if (s.meter !== undefined && typeof s.meter !== "number") return false;
+    if (s.meterTopics !== undefined && (typeof s.meterTopics !== "object" || s.meterTopics === null || Array.isArray(s.meterTopics))) {
+      return false;
+    }
+    if (s.requiredTopics !== undefined && !Array.isArray(s.requiredTopics)) return false;
+    if (s.answers !== undefined && !Array.isArray(s.answers)) return false;
+    var pending = s.pendingQuestion;
+    if (pending === null || pending === undefined) return true;
+    if (typeof pending !== "object" || Array.isArray(pending)) return false;
+    var validKind = ["start", "choice", "text", "scale", "confirm", "skip", "summary"].indexOf(pending.kind) !== -1;
+    if (!validKind) return false;
+    if (typeof pending.prompt !== "string") return false;
+    if (pending.options !== undefined && !Array.isArray(pending.options)) return false;
+    if (pending.kind === "summary" && pending.summary !== undefined) {
+      if (typeof pending.summary !== "object" || pending.summary === null || Array.isArray(pending.summary)) return false;
+      if (pending.summary.items !== undefined && !Array.isArray(pending.summary.items)) return false;
+      if (pending.summary.delegated !== undefined && !Array.isArray(pending.summary.delegated)) return false;
+    }
+    return true;
+  }
+
   function renderInterview() {
+    capturePanelFocus();
     var state_interview = state.interview || interviewFreshState();
     var body = el.interviewBody;
     body.innerHTML = "";
@@ -716,12 +777,14 @@
     var pending = state_interview.pendingQuestion;
     if (pending && pending.kind === "summary" && pending.summary) {
       renderSummaryScreen(body, state_interview, pending);
+      restorePanelFocus();
       return;
     }
 
     // ---- Pending question card
     if (pending) {
       renderQuestionCard(body, state_interview, pending);
+      restorePanelFocus();
       return;
     }
 
@@ -731,6 +794,7 @@
       done.className = "interview-complete";
       done.innerHTML = "<strong>Interview complete.</strong><br><br>The brief is recorded. Anything else can go to the Feedback tab.";
       body.appendChild(done);
+      restorePanelFocus();
       return;
     }
     var empty = document.createElement("div");
@@ -740,6 +804,7 @@
       : "Waiting for the agent\u2026";
     empty.textContent = message;
     body.appendChild(empty);
+    restorePanelFocus();
   }
 
   function renderMetaLine(body, pending, meter) {
@@ -801,6 +866,7 @@
 
     var q = document.createElement("p");
     q.className = "interview-question";
+    q.setAttribute("tabindex", "-1");
     q.textContent = pending.prompt;
     body.appendChild(q);
 
@@ -812,7 +878,6 @@
         var btn = document.createElement("button");
         btn.className = "interview-option";
         btn.type = "button";
-        btn.setAttribute("aria-pressed", "false");
         var num = document.createElement("span");
         num.className = "option-number";
         num.textContent = String(i + 1) + ")";
@@ -902,6 +967,7 @@
   function renderSummaryScreen(body, interviewState, pending) {
     var title = document.createElement("h2");
     title.className = "summary-title";
+    title.setAttribute("tabindex", "-1");
     title.textContent = "Here is what I understood";
     body.appendChild(title);
 
@@ -972,9 +1038,15 @@
     change.type = "button";
     change.textContent = "Change something";
     change.addEventListener("click", function () {
-      var list = body.querySelectorAll(".summary-item");
-      list.forEach(function (item) { item.contentEditable = "true"; });
+      // Only [you said] items are editable; [chosen by me] stays readonly.
+      var items = body.querySelectorAll(".summary-items .summary-item");
+      items.forEach(function (item) {
+        var textSpan = item.querySelector("span:last-child");
+        if (textSpan) textSpan.setAttribute("contenteditable", "true");
+      });
       change.disabled = true;
+      exactly.disabled = true;
+      more.disabled = true;
       if (!body.querySelector(".save-summary-changes")) {
         var save = document.createElement("button");
         save.className = "primary save-summary-changes";
@@ -982,10 +1054,12 @@
         save.textContent = "Save changes";
         save.addEventListener("click", function () {
           var changes = [];
-          body.querySelectorAll(".summary-item").forEach(function (item) {
+          body.querySelectorAll(".summary-items .summary-item").forEach(function (item) {
             var textSpan = item.querySelector("span:last-child");
             if (textSpan) changes.push(textSpan.textContent || "");
           });
+          exactly.disabled = false;
+          more.disabled = false;
           submitInterviewAnswer(pending.questionId, { kind: "summary", summaryChoice: "change", changes: changes });
         });
         actions.appendChild(save);
@@ -1007,18 +1081,68 @@
   }
 
   async function submitInterviewAnswer(questionId, answer) {
+    if (interviewInflight) return;
+    interviewInflight = true;
     try {
       var data = await fetchJson("/api/interview/answer", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ sceneId: state.sceneId, questionId: questionId, answer: answer }),
       });
-      state.interview = (data && data.state) || interviewFreshState();
-      renderInterview();
+      var saved = data && data.state;
+      if (!validInterviewState(saved)) {
+        console.warn("Ignoring malformed interview state after answer");
+        saved = interviewFreshState();
+      }
+      state.interview = saved;
+      try {
+        if (!isInterviewEditing()) renderInterview();
+      } catch (renderErr) {
+        console.error(renderErr);
+        showToast("Answer saved. (View refresh failed.)");
+        return;
+      }
       showToast("Answer saved.");
     } catch (err) {
       showToast(err && err.message ? err.message : "Could not save the answer.");
+    } finally {
+      interviewInflight = false;
     }
+  }
+
+  // ---------- interview keyboard (design 2.4: "reply with a number, or describe it in your own words") ----------
+  function wireInterview() {
+    el.interviewPanel.addEventListener("keydown", function (event) {
+      var t = event.target;
+      if (!t) return;
+      if (t.closest && (t.closest("textarea") || t.closest('[contenteditable="true"]'))) {
+        return; // the user is typing in the free-text field or the summary editor
+      }
+      if (/^[0-9]$/.test(event.key)) {
+        var body = el.interviewBody;
+        if (event.key === "0") {
+          var dk = body.querySelector(".interview-secondary-row .icon-button:first-child");
+          if (dk) {
+            event.preventDefault();
+            dk.click();
+          }
+          return;
+        }
+        var option = body.querySelectorAll(".interview-option")[parseInt(event.key, 10) - 1];
+        if (option) {
+          event.preventDefault();
+          option.click();
+        }
+        return;
+      }
+      if (event.key === "s" || event.key === "S") {
+        var skip = el.interviewBody.querySelector(".interview-secondary-row .icon-button:nth-child(2)");
+        if (skip) {
+          event.preventDefault();
+          skip.click();
+        }
+      }
+    });
   }
 
   // ---------- wiring ----------
@@ -1033,6 +1157,27 @@
     el.interviewTab.addEventListener("click", function () {
       activateTab("interview");
     });
+    // Roving tabindex: one tab is tabbable at a time; arrows/Home/End move between tabs.
+    el.inspectorTab.setAttribute("tabindex", "0");
+    el.feedbackTab.setAttribute("tabindex", "-1");
+    el.interviewTab.setAttribute("tabindex", "-1");
+    var tablist = el.inspectorTab.parentElement;
+    if (tablist) {
+      tablist.addEventListener("keydown", function (event) {
+        var tabs = [el.inspectorTab, el.feedbackTab, el.interviewTab];
+        var current = tabs.indexOf(document.activeElement);
+        if (current === -1) return;
+        var next = null;
+        if (event.key === "ArrowRight") next = (current + 1) % tabs.length;
+        else if (event.key === "ArrowLeft") next = (current - 1 + tabs.length) % tabs.length;
+        else if (event.key === "Home") next = 0;
+        else if (event.key === "End") next = tabs.length - 1;
+        if (next === null) return;
+        event.preventDefault();
+        tabs[next].focus();
+        activateTab(tabs[next] === el.interviewTab ? "interview" : tabs[next] === el.feedbackTab ? "feedback" : "inspector");
+      });
+    }
   }
 
   function activateTab(which) {
@@ -1041,10 +1186,17 @@
     el.feedbackTab.setAttribute("aria-selected", String(showFeedback));
     el.inspectorTab.setAttribute("aria-selected", String(!showFeedback && !showInterview));
     el.interviewTab.setAttribute("aria-selected", String(showInterview));
+    el.feedbackTab.setAttribute("tabindex", showFeedback ? "0" : "-1");
+    el.inspectorTab.setAttribute("tabindex", showFeedback || showInterview ? "-1" : "0");
+    el.interviewTab.setAttribute("tabindex", showInterview ? "0" : "-1");
     el.feedbackPanel.hidden = !showFeedback;
     el.inspectorPanel.hidden = showFeedback || showInterview;
     el.interviewPanel.hidden = !showInterview;
     if (showFeedback) el.feedbackText.focus();
+    if (showInterview) {
+      var target = el.interviewBody.querySelector(".interview-question, .interview-option, .summary-title");
+      if (target) target.focus();
+    }
   }
 
   function wireSendButton() {
@@ -1097,6 +1249,7 @@
 
   async function boot() {
     cacheEls();
+    wireInterview();
     window.addEventListener("message", handlePreviewMessage);
     window.addEventListener("resize", function () {
       if (state.selectedId) {

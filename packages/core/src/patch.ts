@@ -1,19 +1,12 @@
 import { Patch, Scene, SceneObject, validatePatch } from "@intent/schema";
 import { IntentError, ErrorCodes } from "./error.js";
 
-/** Roots a `set`/`unset` path may target (trd 6.2). Anything else is E_BAD_REQUEST. */
+/** Roots a `set`/`unset`/`setState` path may target (trd 6.2 + what the Scene schema
+ *  actually persists). Anything else is E_BAD_REQUEST. */
 const ALLOWED_PATH_ROOTS = new Set([
-  "name",
-  "visible",
-  "size",
-  "position",
-  "margin",
-  "style",
-  "layout",
   "props",
-  "a11y",
-  "interactions",
-  "responsive",
+  "style",
+  "meta",
 ]);
 
 /** Path segments that must never be traversed — they escape the object or reach Object.prototype. */
@@ -43,7 +36,7 @@ function assertSafePatchPath(path: string, op: string): string[] {
     }
   }
 
-  if (op === "set" || op === "unset") {
+  if (op === "set" || op === "unset" || op === "setState") {
     const root = parts[0];
     if (root && !ALLOWED_PATH_ROOTS.has(root)) {
       throw new IntentError(
@@ -58,18 +51,25 @@ function assertSafePatchPath(path: string, op: string): string[] {
 export function applyPatch(scene: Scene, patch: Patch): Scene {
   const validated = validatePatch(patch);
   const objects = { ...scene.objects };
-  const obj = objects[validated.objectId];
-  if (!obj) {
+  const rawObj = objects[validated.objectId];
+  if (!rawObj) {
     throw new IntentError(ErrorCodes.E_NOT_FOUND, `Object ${validated.objectId} not found`);
   }
+  // Deep-clone the target object: applyPatch must not mutate the caller's scene.
+  const obj = structuredClone(rawObj);
 
   const pathParts = assertSafePatchPath(validated.path, validated.op);
   let current: Record<string, unknown> = obj;
   for (let i = 0; i < pathParts.length - 1; i++) {
     const part = pathParts[i];
     if (!part) continue;
-    if (!(part in current)) {
+    if (!Object.hasOwn(current, part)) {
       current[part] = {};
+    } else if (typeof current[part] !== "object" || current[part] === null) {
+      throw new IntentError(
+        ErrorCodes.E_BAD_REQUEST,
+        `Patch path segment "${part}" does not resolve to an object`
+      );
     }
     current = current[part] as Record<string, unknown>;
   }
@@ -78,34 +78,43 @@ export function applyPatch(scene: Scene, patch: Patch): Scene {
 
   switch (validated.op) {
     case "set":
-      if (validated.value !== undefined) {
-        current[lastPart] = validated.value;
+      if (validated.value === undefined) {
+        throw new IntentError(ErrorCodes.E_BAD_REQUEST, "op 'set' requires a value");
       }
+      current[lastPart] = validated.value;
       break;
     case "unset":
       delete current[lastPart];
       break;
     case "add":
-      if (Array.isArray(current[lastPart]) && validated.index !== undefined) {
-        const arr = current[lastPart] as unknown[];
-        arr.splice(validated.index, 0, validated.value);
+      if (validated.value === undefined) {
+        throw new IntentError(ErrorCodes.E_BAD_REQUEST, "op 'add' requires a value");
       }
+      if (validated.index === undefined) {
+        throw new IntentError(ErrorCodes.E_BAD_REQUEST, "op 'add' requires an index");
+      }
+      if (!Array.isArray(current[lastPart])) {
+        throw new IntentError(ErrorCodes.E_BAD_REQUEST, "op 'add' target is not an array");
+      }
+      (current[lastPart] as unknown[]).splice(validated.index, 0, validated.value);
       break;
     case "remove":
-      if (Array.isArray(current[lastPart]) && validated.index !== undefined) {
-        const arr = current[lastPart] as unknown[];
-        arr.splice(validated.index, 1);
+      if (validated.index === undefined) {
+        throw new IntentError(ErrorCodes.E_BAD_REQUEST, "op 'remove' requires an index");
       }
+      if (!Array.isArray(current[lastPart])) {
+        throw new IntentError(ErrorCodes.E_BAD_REQUEST, "op 'remove' target is not an array");
+      }
+      (current[lastPart] as unknown[]).splice(validated.index, 1);
       break;
     case "move":
-      if (validated.fromIndex !== undefined && validated.toParentId) {
-        console.warn("Move operation not fully implemented");
-      }
-      break;
+      // Not implemented in M1 — fail loudly instead of pretending to succeed.
+      throw new IntentError(ErrorCodes.E_BAD_REQUEST, "op 'move' is not implemented in M1");
     case "setState":
-      if (validated.value !== undefined) {
-        current[lastPart] = validated.value;
+      if (validated.value === undefined) {
+        throw new IntentError(ErrorCodes.E_BAD_REQUEST, "op 'setState' requires a value");
       }
+      current[lastPart] = validated.value;
       break;
   }
 

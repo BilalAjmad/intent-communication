@@ -125,7 +125,7 @@ describe("Mutation check (section F) - behavioral", () => {
     expect(result.error).toBe(ErrorCodes.E_LOCKED);
   });
 
-  it("M5: Schema validation - invalid scene returns null from readScene", async () => {
+  it("M5: Schema validation - invalid scene throws IntentError E_INVALID_SCENE from readScene", async () => {
     await setupScene({ [objectId]: makeObject(objectId, null, "initial") });
 
     // Write an invalid scene directly (valid JSON, missing required structure)
@@ -145,8 +145,14 @@ describe("Mutation check (section F) - behavioral", () => {
       "utf-8"
     );
 
-    const scene = await storage.readScene(sceneId);
-    // validateScene throws on invalid shape → caught → null
-    expect(scene).toBeNull();
+    // A corrupt scene on disk is NOT "absent": it throws loudly with a code
+    // instead of being laundered into null (which let callers silently treat
+    // a broken project as empty and overwrite it).
+    try {
+      await storage.readScene(sceneId);
+      throw new Error("expected IntentError");
+    } catch (err) {
+      expect((err as { code?: string }).code).toBe("E_INVALID_SCENE");
+    }
   });
 });

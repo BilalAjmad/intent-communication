@@ -30,9 +30,9 @@ test.describe("FX-07 hostile scene — through export", () => {
     expect(() => validateScene(scene)).not.toThrow();
   });
 
-  test("exactly the 2 legitimate script blocks, 2 style blocks and 1 title pair are emitted", () => {
-    expect(html.split("<script").length - 1).toBe(2);
-    expect(html.split("</script>").length - 1).toBe(2);
+  test("exactly the 1 legitimate script block, 2 style blocks and 1 title pair are emitted", () => {
+    expect(html.split("<script").length - 1).toBe(1);
+    expect(html.split("</script>").length - 1).toBe(1);
     expect(html.split("</style>").length - 1).toBe(2);
     expect(html.split("<title>").length - 1).toBe(1);
     expect(html.split("</title>").length - 1).toBe(1);

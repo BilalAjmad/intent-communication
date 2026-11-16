@@ -295,7 +295,7 @@ export const GetSceneInputSchema = z.object({
   depth: z.number().int().min(0).max(4).default(2),
   includeLocks: z.boolean().default(true),
   maxBytes: z.number().int().positive().default(32768),
-  sceneId: z.string().min(1).max(120).default("default"),
+  sceneId: SafeIdSchema.default("default"),
 });
 
 export type GetSceneInput = z.infer<typeof GetSceneInputSchema>;
@@ -378,42 +378,8 @@ export const ReadConfigOutputSchema = z.object({
 
 export type ReadConfigOutput = z.infer<typeof ReadConfigOutputSchema>;
 
-export const StoragePort = {
-  readScene: (_sceneId: string) => Promise<Scene | null>,
-  writeScene: (_sceneId: string, _scene: Scene) => Promise<void>,
-  readLocks: (_sceneId: string) => Promise<LocksFile>,
-  writeLocks: (_sceneId: string, _locks: LocksFile) => Promise<void>,
-  readConfig: (_projectRoot: string) => Promise<Config>,
-  writeConfig: (_projectRoot: string, _config: Config) => Promise<void>,
-  readProfile: (_projectRoot: string) => Promise<Profile | null>,
-  writeProfile: (_projectRoot: string, _profile: Profile) => Promise<void>,
-  readInterviewState: (_projectRoot: string) => Promise<InterviewState | null>,
-  writeInterviewState: (_projectRoot: string, _state: InterviewState) => Promise<void>,
-  readBrief: (_projectRoot: string, _briefId: string) => Promise<Brief | null>,
-  writeBrief: (_projectRoot: string, _brief: Brief) => Promise<void>,
-  readFeedback: (_sceneId: string) => Promise<Feedback[]>,
-  writeFeedback: (_sceneId: string, _feedback: Feedback[]) => Promise<void>,
-  listScenes: (_projectRoot: string) => Promise<string[]>,
-};
-
-export const LockPort = {
-  acquire: (_sceneId: string, _objectId: string) => Promise<boolean>,
-  release: (_sceneId: string, _objectId: string) => Promise<boolean>,
-  isLocked: (_sceneId: string, _objectId: string) => Promise<boolean>,
-  getLockedObjects: (_sceneId: string) => Promise<string[]>,
-  acquireSceneLock: (_sceneId: string) => Promise<boolean>,
-  releaseSceneLock: (_sceneId: string) => Promise<boolean>,
-};
-
-export const CryptoPort = {
-  generateId: (): string => "",
-  hash: (_input: string): Promise<string> => Promise.resolve(""),
-  verify: (_input: string, _hash: string): Promise<boolean> => Promise.resolve(false),
-};
-
-export type StoragePort = typeof StoragePort;
-export type LockPort = typeof LockPort;
-export type CryptoPort = typeof CryptoPort;
+// Port interfaces live in @intent/core (single source of truth). An earlier
+// copy here was dead code with mismatched signatures — removed.
 
 export function validateScene(data: unknown): Scene {
   return SceneSchema.parse(data);

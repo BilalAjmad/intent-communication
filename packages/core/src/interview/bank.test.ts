@@ -9,12 +9,13 @@ import {
   ControlSeedSchema,
 } from "./bank";
 import { promises as fs } from "node:fs";
+import { slotsInScope } from "./meter";
 import { resolve } from "node:path";
 
 describe("Interview Bank", () => {
   describe("Counts", () => {
-    it("has 35 interview seeds", () => {
-      expect(INTERVIEW_SEEDS.length).toBe(35);
+    it("has 51 interview seeds", () => {
+      expect(INTERVIEW_SEEDS.length).toBe(51);
     });
 
     it("has 6 deep-dive seeds", () => {
@@ -25,8 +26,8 @@ describe("Interview Bank", () => {
       expect(CONTROL_SEEDS.length).toBe(5);
     });
 
-    it("has 41 total seeds (35 + 6)", () => {
-      expect(ALL_SEEDS.length).toBe(41);
+    it("has 57 total seeds (51 + 6)", () => {
+      expect(ALL_SEEDS.length).toBe(57);
     });
   });
 
@@ -228,5 +229,22 @@ describe("Interview Bank", () => {
         }
       }
     });
+  });
+});
+describe("Bank/meter invariants (review 2026-11-16)", () => {
+  it("every seed with a profileKey maps to a slot that exists in large scope (no dead seeds)", () => {
+    const scope = new Set(slotsInScope("large"));
+    for (const seed of ALL_SEEDS) {
+      if (seed.profileKey) {
+        expect(scope.has(seed.profileKey), `${seed.seedId}: ${seed.profileKey} has no slot in SLOT_DEFS`).toBe(true);
+      }
+    }
+  });
+
+  it("every slot in large scope has at least one seed (no uncoverable slot)", () => {
+    const seeded = new Set(ALL_SEEDS.map((s) => s.profileKey).filter(Boolean) as string[]);
+    for (const slot of slotsInScope("large")) {
+      expect(seeded.has(slot), `slot ${slot} has no seed`).toBe(true);
+    }
   });
 });

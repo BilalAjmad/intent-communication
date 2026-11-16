@@ -6,7 +6,7 @@ import { ISODateTimeSchema } from "./primitives.js";
 // the paragraph/items/delegated payload the Studio renders as the summary screen.
 export const InterviewQuestionCoreSchema = z.object({
   questionId: z.string().min(1).max(120),
-  kind: z.enum(["start", "choice", "text", "scale", "confirm", "skip"]),
+  kind: z.enum(["start", "choice", "text", "scale", "confirm", "skip", "summary"]),
   prompt: z.string().min(1).max(2000),
   options: z.array(z.object({
     value: z.string().max(100),

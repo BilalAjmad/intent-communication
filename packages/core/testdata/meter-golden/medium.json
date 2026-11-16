@@ -1,92 +1,170 @@
 [
   {
+    "slot": "deep.buttonStyle",
+    "question": "D5",
+    "value": 1,
+    "expectedPercent": 1
+  },
+  {
+    "slot": "deep.imageShape",
+    "question": "D6",
+    "value": 1,
+    "expectedPercent": 3
+  },
+  {
     "slot": "goal.purpose",
     "question": "F1",
     "value": 1,
-    "expectedPercent": 5
+    "expectedPercent": 9
+  },
+  {
+    "slot": "goal.platform",
+    "question": "G1",
+    "value": 1,
+    "expectedPercent": 14
+  },
+  {
+    "slot": "goal.success",
+    "question": "G2",
+    "value": 1,
+    "expectedPercent": 19
+  },
+  {
+    "slot": "goal.protoUse",
+    "question": "G3",
+    "value": 1,
+    "expectedPercent": 24
   },
   {
     "slot": "users.primary",
     "question": "U1",
     "value": 1,
-    "expectedPercent": 8
+    "expectedPercent": 27
+  },
+  {
+    "slot": "users.skill",
+    "question": "U6",
+    "value": 1,
+    "expectedPercent": 31
+  },
+  {
+    "slot": "users.a11y",
+    "question": "U7",
+    "value": 1,
+    "expectedPercent": 34
   },
   {
     "slot": "screens.list",
     "question": "S2",
     "value": 1,
-    "expectedPercent": 15
+    "expectedPercent": 41
+  },
+  {
+    "slot": "screens.auth",
+    "question": "S7",
+    "value": 1,
+    "expectedPercent": 48
   },
   {
     "slot": "screens.nav",
     "question": "F5",
     "value": 1,
-    "expectedPercent": 22
+    "expectedPercent": 55
   },
   {
     "slot": "flow.after",
     "question": "F2",
     "value": 1,
-    "expectedPercent": 27
+    "expectedPercent": 60
   },
   {
     "slot": "flow.links",
     "question": "F3",
     "value": 1,
-    "expectedPercent": 32
+    "expectedPercent": 65
   },
   {
     "slot": "flow.main",
     "question": "F6",
     "value": 1,
-    "expectedPercent": 37
+    "expectedPercent": 70
   },
   {
     "slot": "style.mood",
     "question": "ST1",
     "value": 1,
-    "expectedPercent": 40
+    "expectedPercent": 72
   },
   {
     "slot": "style.palette",
     "question": "ST2",
     "value": 1,
-    "expectedPercent": 42
+    "expectedPercent": 74
   },
   {
     "slot": "style.theme",
     "question": "ST3",
     "value": 1,
-    "expectedPercent": 45
+    "expectedPercent": 76
   },
   {
     "slot": "style.density",
     "question": "ST4",
     "value": 1,
-    "expectedPercent": 48
+    "expectedPercent": 78
   },
   {
     "slot": "style.corner",
     "question": "ST5",
     "value": 1,
-    "expectedPercent": 50
+    "expectedPercent": 80
   },
   {
     "slot": "style.brand",
     "question": "ST6",
     "value": 1,
-    "expectedPercent": 53
+    "expectedPercent": 82
   },
   {
     "slot": "content.data",
     "question": "C2",
     "value": 1,
-    "expectedPercent": 56
+    "expectedPercent": 85
   },
   {
     "slot": "content.tone",
     "question": "C1",
     "value": 1,
-    "expectedPercent": 60
+    "expectedPercent": 87
+  },
+  {
+    "slot": "content.media",
+    "question": "C3",
+    "value": 1,
+    "expectedPercent": 90
+  },
+  {
+    "slot": "content.lang",
+    "question": "C10",
+    "value": 1,
+    "expectedPercent": 92
+  },
+  {
+    "slot": "behavior.states",
+    "question": "BH1",
+    "value": 1,
+    "expectedPercent": 95
+  },
+  {
+    "slot": "behavior.forms",
+    "question": "BH2",
+    "value": 1,
+    "expectedPercent": 97
+  },
+  {
+    "slot": "behavior.responsive",
+    "question": "BH3",
+    "value": 1,
+    "expectedPercent": 100
   }
 ]

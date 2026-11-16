@@ -1,5 +1,5 @@
 import { promises as fs } from "node:fs";
-import { resolve, dirname } from "node:path";
+import { resolve, dirname, relative, isAbsolute } from "node:path";
 import {
   Scene,
   LocksFile,
@@ -9,6 +9,11 @@ import {
   Brief,
   Feedback,
   validateScene,
+  validateConfig,
+  validateProfile,
+  validateInterviewState,
+  validateBrief,
+  validateFeedback,
 } from "@intent/schema";
 import {
   StoragePort,
@@ -32,6 +37,8 @@ export function createFileStoragePort(projectRoot: string): StoragePort {
   const briefsDir = resolve(intentDir, "briefs");
   const feedbackDir = resolve(intentDir, "feedback");
 
+  // Directory creation happens on WRITE paths only — reads must never
+  // materialize a .intent tree (the MCP read tools have no business mkdir-ing).
   async function ensureDirs() {
     await fs.mkdir(scenesDir, { recursive: true });
     await fs.mkdir(locksDir, { recursive: true });
@@ -43,7 +50,8 @@ export function createFileStoragePort(projectRoot: string): StoragePort {
   async function checkPathSafety(targetPath: string, basePath: string) {
     const resolved = resolve(targetPath);
     const resolvedBase = resolve(basePath);
-    if (!resolved.startsWith(resolvedBase)) {
+    const rel = relative(resolvedBase, resolved);
+    if (rel.startsWith("..") || isAbsolute(rel)) {
       throw new IntentError(ErrorCodes.E_PATH_TRAVERSAL, "Path traversal attempt detected");
     }
     try {
@@ -51,24 +59,38 @@ export function createFileStoragePort(projectRoot: string): StoragePort {
       if (stats.isSymbolicLink()) {
         throw new IntentError(ErrorCodes.E_SYMLINK, "Symlinks not allowed");
       }
-    } catch {
-      // Ignore: path doesn't exist or is not a symlink
+    } catch (err) {
+      // Missing file is fine; symlink rejection is re-thrown.
+      if (isIntentError(err)) throw err;
     }
+  }
+
+  function isNotFound(err: unknown): boolean {
+    return (err as NodeJS.ErrnoException)?.code === "ENOENT";
   }
 
   return {
     rootDir: resolve(projectRoot),
 
     async readScene(sceneId: string): Promise<Scene | null> {
-      await ensureDirs();
       assertSafeId(sceneId, "sceneId");
       const scenePath = resolve(scenesDir, `${sceneId}.json`);
       await checkPathSafety(scenePath, scenesDir);
       try {
+        // trd 20: scene file hard limit is 5 MB; refuse oversized files up front.
+        const stats = await fs.stat(scenePath);
+        if (stats.size > 5 * 1024 * 1024) {
+          throw new IntentError(ErrorCodes.E_BAD_REQUEST, "Scene file exceeds the 5 MB hard limit");
+        }
         const content = await fs.readFile(scenePath, "utf-8");
         return validateScene(JSON.parse(content));
-      } catch {
-        return null;
+      } catch (err) {
+        if (isNotFound(err)) return null;
+        if (isIntentError(err)) throw err;
+        throw new IntentError(
+          ErrorCodes.E_INVALID_SCENE,
+          `Scene file .intent/scenes/${sceneId}.json is unreadable or invalid: ${(err as Error).message}`
+        );
       }
     },
 
@@ -82,51 +104,75 @@ export function createFileStoragePort(projectRoot: string): StoragePort {
     },
 
     async readLocks(sceneId: string): Promise<LocksFile> {
-      await ensureDirs();
+      assertSafeId(sceneId, "sceneId");
       const locksPath = resolve(locksDir, `${sceneId}.locks.json`);
       await checkPathSafety(locksPath, locksDir);
       try {
         const content = await fs.readFile(locksPath, "utf-8");
-        const data = JSON.parse(content);
+        const data = JSON.parse(content) as Partial<LocksFile> & { lockedObjects?: unknown; owners?: unknown; locks?: unknown };
+        // Legacy registry form ({ locks: { <objectId>: owner } }): migrate in-memory to lockedObjects.
+        if (data.lockedObjects === undefined && data.locks && typeof data.locks === "object" && !Array.isArray(data.locks)) {
+          data.lockedObjects = Object.keys(data.locks as Record<string, unknown>);
+        }
+        if (!Array.isArray(data.lockedObjects) || data.lockedObjects.some((id) => typeof id !== "string")) {
+          throw new IntentError(ErrorCodes.E_SCHEMA, `Lock file for scene ${sceneId} has an invalid lockedObjects array`);
+        }
+        if (data.owners !== undefined && (typeof data.owners !== "object" || data.owners === null || Array.isArray(data.owners))) {
+          throw new IntentError(ErrorCodes.E_SCHEMA, `Lock file for scene ${sceneId} has an invalid owners map`);
+        }
         return {
           version: data.version ?? 1,
-          lockedObjects: data.lockedObjects ?? [],
+          lockedObjects: data.lockedObjects,
           updatedAt: data.updatedAt ?? new Date().toISOString(),
-          owners: data.owners ?? {},
+          owners: (data.owners as LocksFile["owners"]) ?? {},
         };
-      } catch {
-        return {
-          version: 1,
-          lockedObjects: [],
-          updatedAt: new Date().toISOString(),
-          owners: {},
-        };
+      } catch (err) {
+        if (isNotFound(err)) {
+          return {
+            version: 1,
+            lockedObjects: [],
+            updatedAt: new Date().toISOString(),
+            owners: {},
+          };
+        }
+        if (isIntentError(err)) throw err;
+        throw new IntentError(
+          ErrorCodes.E_SCHEMA,
+          `Lock file .intent/locks/${sceneId}.locks.json is unreadable or invalid: ${(err as Error).message}`
+        );
       }
     },
 
     async writeLocks(sceneId: string, locksFile: LocksFile): Promise<void> {
       await ensureDirs();
+      assertSafeId(sceneId, "sceneId");
       const locksPath = resolve(locksDir, `${sceneId}.locks.json`);
       await checkPathSafety(locksPath, locksDir);
       await writeAtomic(locksPath, JSON.stringify(locksFile, null, 0));
     },
 
     async readConfig(): Promise<Config> {
-      await ensureDirs();
       try {
         const content = await fs.readFile(configPath, "utf-8");
-        return JSON.parse(content);
-      } catch {
-        return {
-          version: 1,
-          projectName: "Intent Project",
-          previewPort: 3456,
-          studioPort: 3457,
-          mcpPort: 3458,
-          maxBytes: 32768,
-          autoSave: true,
-          lockTTL: 30000,
-        };
+        return validateConfig(JSON.parse(content));
+      } catch (err) {
+        if (isNotFound(err)) {
+          return {
+            version: 1,
+            projectName: "Intent Project",
+            previewPort: 3456,
+            studioPort: 3457,
+            mcpPort: 3458,
+            maxBytes: 32768,
+            autoSave: true,
+            lockTTL: 30000,
+          };
+        }
+        if (isIntentError(err)) throw err;
+        throw new IntentError(
+          ErrorCodes.E_SCHEMA,
+          `Config file .intent/config.json is unreadable or invalid: ${(err as Error).message}`
+        );
       }
     },
 
@@ -137,12 +183,16 @@ export function createFileStoragePort(projectRoot: string): StoragePort {
     },
 
     async readProfile(): Promise<Profile | null> {
-      await ensureDirs();
       try {
         const content = await fs.readFile(profilePath, "utf-8");
-        return JSON.parse(content);
-      } catch {
-        return null;
+        return validateProfile(JSON.parse(content));
+      } catch (err) {
+        if (isNotFound(err)) return null;
+        if (isIntentError(err)) throw err;
+        throw new IntentError(
+          ErrorCodes.E_SCHEMA,
+          `Profile file .intent/profile.json is unreadable or invalid: ${(err as Error).message}`
+        );
       }
     },
 
@@ -153,12 +203,16 @@ export function createFileStoragePort(projectRoot: string): StoragePort {
     },
 
     async readInterviewState(): Promise<InterviewState | null> {
-      await ensureDirs();
       try {
         const content = await fs.readFile(interviewPath, "utf-8");
-        return JSON.parse(content);
-      } catch {
-        return null;
+        return validateInterviewState(JSON.parse(content));
+      } catch (err) {
+        if (isNotFound(err)) return null;
+        if (isIntentError(err)) throw err;
+        throw new IntentError(
+          ErrorCodes.E_SCHEMA,
+          `Interview state .intent/interview/state.json is unreadable or invalid: ${(err as Error).message}`
+        );
       }
     },
 
@@ -169,52 +223,77 @@ export function createFileStoragePort(projectRoot: string): StoragePort {
     },
 
     async readBrief(briefId: string): Promise<Brief | null> {
-      await ensureDirs();
+      assertSafeId(briefId, "briefId");
       const briefPath = resolve(briefsDir, `${briefId}.json`);
       await checkPathSafety(briefPath, briefsDir);
       try {
         const content = await fs.readFile(briefPath, "utf-8");
-        return JSON.parse(content);
-      } catch {
-        return null;
+        return validateBrief(JSON.parse(content));
+      } catch (err) {
+        if (isNotFound(err)) return null;
+        if (isIntentError(err)) throw err;
+        throw new IntentError(
+          ErrorCodes.E_SCHEMA,
+          `Brief file .intent/briefs/${briefId}.json is unreadable or invalid: ${(err as Error).message}`
+        );
       }
     },
 
     async writeBrief(brief: Brief): Promise<void> {
       await ensureDirs();
+      assertSafeId(brief.id, "brief.id");
       const briefPath = resolve(briefsDir, `${brief.id}.json`);
       await checkPathSafety(briefPath, briefsDir);
       await writeAtomic(briefPath, JSON.stringify(brief, null, 0));
     },
 
     async readFeedback(sceneId: string): Promise<Feedback[]> {
-      await ensureDirs();
+      assertSafeId(sceneId, "sceneId");
       const feedbackPath = resolve(feedbackDir, `${sceneId}.json`);
       await checkPathSafety(feedbackPath, feedbackDir);
       try {
         const content = await fs.readFile(feedbackPath, "utf-8");
-        return JSON.parse(content);
-      } catch {
-        return [];
+        const data = JSON.parse(content) as unknown;
+        if (!Array.isArray(data)) {
+          throw new IntentError(ErrorCodes.E_SCHEMA, `Feedback file for scene ${sceneId} is not an array`);
+        }
+        return data.map((item, i) => {
+          try {
+            return validateFeedback(item);
+          } catch (err) {
+            throw new IntentError(
+              ErrorCodes.E_SCHEMA,
+              `Feedback file .intent/feedback/${sceneId}.json: entry ${i} is invalid: ${(err as Error).message}`
+            );
+          }
+        });
+      } catch (err) {
+        if (isNotFound(err)) return [];
+        if (isIntentError(err)) throw err;
+        throw new IntentError(
+          ErrorCodes.E_SCHEMA,
+          `Feedback file .intent/feedback/${sceneId}.json is unreadable or invalid: ${(err as Error).message}`
+        );
       }
     },
 
     async writeFeedback(sceneId: string, feedback: Feedback[]): Promise<void> {
       await ensureDirs();
+      assertSafeId(sceneId, "sceneId");
       const feedbackPath = resolve(feedbackDir, `${sceneId}.json`);
       await checkPathSafety(feedbackPath, feedbackDir);
       await writeAtomic(feedbackPath, JSON.stringify(feedback, null, 0));
     },
 
     async listScenes(): Promise<string[]> {
-      await ensureDirs();
       try {
         const entries = await fs.readdir(scenesDir);
         return entries
           .filter((e: string) => e.endsWith(".json"))
           .map((e: string) => e.slice(0, -5));
-      } catch {
-        return [];
+      } catch (err) {
+        if (isNotFound(err)) return [];
+        throw err;
       }
     },
   };
@@ -241,8 +320,12 @@ export function createNodeCryptoPort(): CryptoPort {
       return crypto.createHash("sha256").update(input).digest("hex");
     },
     async verify(input: string, hash: string): Promise<boolean> {
-      const computed = await createNodeCryptoPort().hash(input);
-      return computed === hash;
+      const crypto = await import("node:crypto");
+      const computed = await this.hash(input);
+      const a = Buffer.from(computed, "utf8");
+      const b = Buffer.from(hash, "utf8");
+      if (a.length !== b.length) return false;
+      return crypto.timingSafeEqual(a, b);
     },
   };
 }

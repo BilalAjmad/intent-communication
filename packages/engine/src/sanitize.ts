@@ -65,6 +65,8 @@ export function sanitizeCssValue(value: string): string {
   if (/[;{}]/.test(value)) return "";
   // CSS escapes can smuggle any character past a naive check.
   if (value.includes("\\")) return "";
+  // Comments can eat the rest of the declaration list inside a style attribute.
+  if (value.includes("/*") || value.includes("*/")) return "";
   if (!CSS_VALUE_ALLOWLIST.test(value)) return "";
   return value;
 }
@@ -106,7 +108,10 @@ export function sanitizeUrl(url: unknown): string {
     return s;
   }
 
-  // A relative path with no scheme is allowed.
+  // A relative path with no scheme is allowed — but never protocol-relative
+  // ("//host/path" would issue an external request; the CSP currently blocks it,
+  // which this closes properly at the sanitizer).
+  if (s.startsWith("//")) return "";
   if (/^[A-Za-z0-9._\-/]+$/.test(s) && !s.includes("..")) {
     return s;
   }
@@ -121,8 +126,15 @@ export function sanitizeUrl(url: unknown): string {
  * trd 13.3: "CSP meta (default-src 'none'; style-src 'unsafe-inline';
  * script-src 'unsafe-inline'; img-src data:)".
  */
+/** A CSP nonce must match the token grammar or be dropped (never interpolated raw). */
+const NONCE_RE = /^[A-Za-z0-9+/=_-]{1,128}$/;
+export function sanitizeNonce(nonce: unknown): string {
+  return typeof nonce === "string" && NONCE_RE.test(nonce) ? nonce : "";
+}
+
 export function buildCsp(nonce: string): string {
-  const scriptSrc = nonce ? `script-src 'unsafe-inline' 'nonce-${nonce}'` : "script-src 'unsafe-inline'";
+  const safeNonce = sanitizeNonce(nonce);
+  const scriptSrc = safeNonce ? `script-src 'unsafe-inline' 'nonce-${safeNonce}'` : "script-src 'unsafe-inline'";
   return [
     "default-src 'none'",
     "style-src 'unsafe-inline'",

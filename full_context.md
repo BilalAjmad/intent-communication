@@ -46,7 +46,8 @@
 - AC-M1-13 — Demo D stranger-test not recorded.
 - AC-M1-01..13 verdict in `docs/review.md` section 21.1: **NOT READY for v0.1.0** (not stopping based on code state; stopping based on per-AC evidence).
 
-## Decision log
+## Decision log (phase 9 addendum: see context.md Phase 9)
+
 
 - 2026-11-13 — adopt phase 0/1 checkpoint; adopt R-B1..R-B4 rework; fix skills backtick; fix server lock-port wiring; remove PowerShell liveness (hugely slow on Windows); gate on Crockford ULID regex.
 - 2026-11-13 — adopt writeAtomic + locks.json registry design from parallel agent's rework; extend it to reclaim stale object owners; add `owners` to `LocksFileSchema`; `readScene` validates via Zod; `writePipeline` rejects stale baseRevision; applyPatch rejects `..`, `__proto__`, empty segments; enforce trd 6.2 root-whitelist for set/unset; path and text lengths capped at trd 20 limits.
@@ -88,3 +89,10 @@
 - Do not touch `.kilocode/` or `AGENTS.md` unless the user asks.
 - Do not create a `phase2-concurrency`-style duplicate branch — refine on `main`.
 - The only safe-to-merge path forward is: close AC-M1-01/03/07/09/11/13 gaps honestly, re-run verify, re-audit, get user's `git tag v0.1.0` ruling.
+
+
+## Phase 9 addendum (2026-11-16 — full review+fix loop)
+- Every package was re-read; confirmed bugs fixed (pipeline all-or-nothing, ports split + strict readers, atomic same-dir tmp, lock reclaim quarantine, engine/linter/studio hardening, server outer catch + cross-process locks, schema summary kind added).
+- Bank/meter expanded so the interview is honest: 53 askable seeds, 42 large-scope slots all covered; golden files regenerated; SC-4 fatigue trigger implemented.
+- Verify 12/12 PASS (412/412 unit), Playwright 77/77, mutation proof 5/5, context:check green.
+- Still open: M2/M3, CI observation, Tier-1 agent session (OpenRouter 402; Cursor CLI absent), stranger test, zod 3→4, LICENSE, push/tag — all user decisions. M1 gate NOT READY.

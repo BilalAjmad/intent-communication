@@ -70,11 +70,11 @@ describe("Conformance: Error codes (trd 18.2)", () => {
 });
 
 describe("Conformance: Interview bank (intent.md 6.3-6.5)", () => {
-  it("has 35 interview + 6 deep-dive + 5 control seeds = 46 total", () => {
-    expect(INTERVIEW_SEEDS).toHaveLength(35);
+  it("has 51 interview + 6 deep-dive + 5 control seeds = 62 total (after the 2026-11-16 bank/meter expansion)", () => {
+    expect(INTERVIEW_SEEDS).toHaveLength(51);
     expect(DEEP_DIVE_SEEDS).toHaveLength(6);
     expect(CONTROL_SEEDS).toHaveLength(5);
-    expect(ALL_SEEDS).toHaveLength(41);
+    expect(ALL_SEEDS).toHaveLength(57);
   });
 
   it("passes the bank's own validation", () => {

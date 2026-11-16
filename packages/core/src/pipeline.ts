@@ -3,6 +3,12 @@ import { ErrorCodes } from "./error.js";
 import { Patch } from "@intent/schema";
 import { applyPatch } from "./patch.js";
 
+/**
+ * writePipeline: trd 9.2 scene lock -> object locks -> pre-batch snapshot checks ->
+ * apply ALL patches to a working copy -> one atomic write. All-or-nothing:
+ * a failure at any step persists nothing. The client's baseRevision is the
+ * PRE-BATCH revision (trd 6.3) — in-batch writes never feed back into the checks.
+ */
 export async function writePipeline(
   storage: StoragePort,
   lockPort: LockPort,
@@ -15,37 +21,49 @@ export async function writePipeline(
   error?: string;
   details?: { changedObjectIds: string[] };
 }> {
-  // Scene-level write lock: trd 9.2 single write lock for the whole scene
   const sceneLockAcquired = await lockPort.acquireSceneLock(sceneId);
   if (!sceneLockAcquired) {
     return { success: false, revision: -1, error: ErrorCodes.E_LOCKED };
   }
 
-  // Acquire object-level locks for touched objects (handles stale locks from dead processes)
+  // Pre-batch snapshot — the only reference for consistency checks (trd 6.3).
+  const scene = await storage.readScene(sceneId);
+  if (!scene) {
+    await lockPort.releaseSceneLock(sceneId);
+    return { success: false, revision: -1, error: ErrorCodes.E_NOT_FOUND };
+  }
+
   const acquiredPatchLocks: string[] = [];
   try {
-    const scene = await storage.readScene(sceneId);
-    if (!scene) {
-      return { success: false, revision: -1, error: ErrorCodes.E_NOT_FOUND };
-    }
-
     for (const patch of patches) {
       const acquired = await lockPort.acquire(sceneId, patch.objectId);
       if (!acquired) {
-        // Release any locks acquired so far in this batch
-        for (const released of acquiredPatchLocks.reverse()) {
+        for (const released of [...acquiredPatchLocks].reverse()) {
           await lockPort.release(sceneId, released);
         }
         return { success: false, revision: scene.revision, error: ErrorCodes.E_LOCKED };
       }
       acquiredPatchLocks.push(patch.objectId);
-      // Check ancestor locks (going up from patch object)
+
+      // Ancestor locks — cycle-safe (corrupt graphs cannot loop forever); a lock
+      // this batch already holds is not re-acquired (siblings share ancestors).
+      const seenAncestors = new Set<string>();
       let current = scene.objects[patch.objectId]?.parentId;
       while (current) {
+        if (acquiredPatchLocks.includes(current)) {
+          current = scene.objects[current]?.parentId;
+          continue;
+        }
+        if (seenAncestors.has(current)) {
+          for (const released of [...acquiredPatchLocks].reverse()) {
+            await lockPort.release(sceneId, released);
+          }
+          return { success: false, revision: scene.revision, error: ErrorCodes.E_INVALID_SCENE };
+        }
+        seenAncestors.add(current);
         const ancestorAcquired = await lockPort.acquire(sceneId, current);
         if (!ancestorAcquired) {
-          // Release locks acquired so far
-          for (const released of [...acquiredPatchLocks, current].reverse()) {
+          for (const released of [...acquiredPatchLocks].reverse()) {
             await lockPort.release(sceneId, released);
           }
           return { success: false, revision: scene.revision, error: ErrorCodes.E_LOCKED };
@@ -53,14 +71,18 @@ export async function writePipeline(
         acquiredPatchLocks.push(current);
         current = scene.objects[current]?.parentId;
       }
-      // Check descendant locks (going down: any locked object whose ancestor is patch.objectId)
+
+      // Descendant locks (a writer may not move a subtree under a locked node).
+      const seenDescendants = new Set<string>();
       const lockedObjects = await lockPort.getLockedObjects(sceneId);
       for (const lockedId of lockedObjects) {
+        if (acquiredPatchLocks.includes(lockedId)) continue;
         let ancestor = scene.objects[lockedId]?.parentId;
         while (ancestor) {
+          if (seenDescendants.has(ancestor) || seenDescendants.size > Object.keys(scene.objects).length) break;
+          seenDescendants.add(ancestor);
           if (ancestor === patch.objectId) {
-            // Descendant is locked - release all and fail
-            for (const released of acquiredPatchLocks.reverse()) {
+            for (const released of [...acquiredPatchLocks].reverse()) {
               await lockPort.release(sceneId, released);
             }
             return { success: false, revision: scene.revision, error: ErrorCodes.E_LOCKED };
@@ -70,73 +92,67 @@ export async function writePipeline(
       }
     }
 
-    let currentScene = scene;
+    // Verify-before-write: one re-read; the scene lock makes an interleaving
+    // writer effectively impossible, so any drift here is a contract violation.
+    const verifyScene = await storage.readScene(sceneId);
+    if (!verifyScene || verifyScene.revision !== scene.revision) {
+      return {
+        success: false,
+        revision: verifyScene?.revision ?? scene.revision,
+        error: ErrorCodes.E_CONFLICT,
+      };
+    }
+
+    // Consistency checks against the PRE-BATCH snapshot, then apply to a working copy.
+    let working = scene;
     for (const patch of patches) {
-      // baseRevision check (always enforced): client snapshot must be current, and no
-      // touched object may have been modified after the client's snapshot (trd 6.3)
+      // trd 6.3: no touched object may have changed since the client's snapshot.
       const changedObjectIds: string[] = [];
       for (const other of patches) {
-        const obj = currentScene.objects[other.objectId];
+        const obj = scene.objects[other.objectId];
         if (!obj) continue;
-        const objRev = obj.rev ?? currentScene.revision;
+        const objRev = obj.rev ?? scene.revision;
         if (objRev > patch.baseRevision) {
           changedObjectIds.push(other.objectId);
         }
       }
-
-      if (patch.baseRevision !== currentScene.revision || changedObjectIds.length > 0) {
+      if (patch.baseRevision !== scene.revision || changedObjectIds.length > 0) {
         return {
           success: false,
-          revision: currentScene.revision,
+          revision: scene.revision,
           error: ErrorCodes.E_CONFLICT,
           details: { changedObjectIds },
         };
       }
-      // expectedContent is an additional check: the specific object's content must match
       if (expectedContent && patch.objectId in expectedContent) {
-        const currentObj = currentScene.objects[patch.objectId];
+        const currentObj = scene.objects[patch.objectId];
         const expected = expectedContent[patch.objectId];
         const currentContent = currentObj?.props?.content as string | undefined;
         if (currentContent !== expected) {
           return {
             success: false,
-            revision: currentScene.revision,
+            revision: scene.revision,
             error: ErrorCodes.E_CONFLICT,
           };
         }
       }
-      // Object existence check (scope rule)
-      if (!currentScene.objects[patch.objectId]) {
+      if (!scene.objects[patch.objectId]) {
         return {
           success: false,
-          revision: currentScene.revision,
+          revision: scene.revision,
           error: ErrorCodes.E_NOT_FOUND,
         };
       }
-
-      // Verify-before-write: prevent lost writes from concurrent modifications
-      const verifyScene = await storage.readScene(sceneId);
-      if (!verifyScene || verifyScene.revision !== currentScene.revision) {
-        return {
-          success: false,
-          revision: verifyScene?.revision ?? currentScene.revision,
-          error: ErrorCodes.E_CONFLICT,
-        };
-      }
-
-      const newScene = applyPatch(currentScene, patch);
-      await storage.writeScene(sceneId, newScene);
-      currentScene = newScene;
+      working = applyPatch(working, patch);
     }
 
-    const finalScene = await storage.readScene(sceneId);
-    return { success: true, revision: finalScene?.revision ?? currentScene.revision };
+    await storage.writeScene(sceneId, working);
+    return { success: true, revision: working.revision, details: { changedObjectIds: [] } };
   } finally {
-    // Release object locks acquired during this writePipeline call
-    for (const released of acquiredPatchLocks.reverse()) {
+    // Release the object locks this batch acquired, then the scene lock.
+    for (const released of [...acquiredPatchLocks].reverse()) {
       await lockPort.release(sceneId, released);
     }
-    // Release the trd 9.2 scene lock
     await lockPort.releaseSceneLock(sceneId);
   }
 }

@@ -27,5 +27,6 @@ export { applyPatch } from "./patch.js";
 
 export { writePipeline } from "./pipeline.js";
 export { writeAtomic } from "./atomic.js";
+export { withProjectLock } from "./projectLock.js";
 
 export { SCHEMA_VERSION, SCENE_SCHEMA_VERSION } from "@intent/schema";

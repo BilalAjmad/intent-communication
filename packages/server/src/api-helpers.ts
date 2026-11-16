@@ -65,11 +65,28 @@ export async function readJsonBody(req: IncomingMessage, limit: number): Promise
   for await (const chunk of req) {
     size += (chunk as Buffer).length;
     if (size > limit) {
+      // Drain the remainder so a keep-alive client is not confused by an
+      // unread request on the wire.
+      req.resume();
       throw Object.assign(new Error("request body too large"), { code: "E_LIMIT" });
     }
     body += (chunk as Buffer).toString("utf-8");
   }
-  return JSON.parse(body);
+  try {
+    return JSON.parse(body);
+  } catch {
+    throw Object.assign(new Error("request body is not valid JSON"), { code: "E_BAD_REQUEST" });
+  }
+}
+
+/** Maps a readJsonBody failure to the right status/envelope (413 vs 400). */
+export function sendBodyError(res: ServerResponse, err: unknown): void {
+  const code = (err as { code?: unknown })?.code;
+  if (code === "E_LIMIT") {
+    sendJson(res, 413, { error: { code: "E_LIMIT", message: "Payload too large" } });
+    return;
+  }
+  sendJson(res, 400, { error: { code: "E_BAD_REQUEST", message: "Request body is not valid JSON" } });
 }
 
 export async function readQueue(storage: StoragePort, sceneId: string): Promise<Feedback[]> {

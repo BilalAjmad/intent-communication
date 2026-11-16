@@ -30,8 +30,10 @@ const MUTATIONS = [
   {
     name: 'Conflict check (E_CONFLICT)',
     file: 'pipeline.ts',
-    oldString: 'if (patch.baseRevision !== currentScene.revision || changedObjectIds.length > 0) {',
-    newString: 'if (false) { // MUTATED: conflict check removed',
+    oldString: 'if (patch.baseRevision !== scene.revision || changedObjectIds.length > 0) {',
+    // Deliberately NOT a compile-time constant (which breaks narrowing of the
+    // early null guard and fails the build): a runtime comparison that is always false.
+    newString: 'if (patch.baseRevision > Number.MAX_SAFE_INTEGER && changedObjectIds.length > 0) { // MUTATED: conflict check removed',
     expectedFailingTest: 'M2: Conflict check',
   },
   {
@@ -50,7 +52,7 @@ const MUTATIONS = [
   },
   {
     name: 'Schema validation (E_SCHEMA)',
-    file: 'ports.ts',
+    file: 'storage-port.ts',
     oldString: 'return validateScene(JSON.parse(content));',
     newString: 'return JSON.parse(content) as Scene; // MUTATED: schema validation removed',
     expectedFailingTest: 'M5: Schema validation',

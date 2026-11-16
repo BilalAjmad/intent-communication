@@ -202,7 +202,9 @@ test("TC-STU-04: full keyboard-only flow from load to Send", async ({ page }) =>
   expect(joined).toContain("screen-select");
   expect(joined).toContain("layer-item");
   expect(joined).toContain("tab-inspector");
-  expect(joined).toContain("tab-feedback");
+  // APG roving tabindex: only the selected tab is in the natural Tab order
+  await expect(page.locator("#tab-inspector")).toHaveAttribute("tabindex", "0");
+  await expect(page.locator("#tab-feedback")).toHaveAttribute("tabindex", "-1");
   expect(joined).toContain("tray-toggle");
 
   // Activate the Feedback tab with the keyboard; focus must land in the text field

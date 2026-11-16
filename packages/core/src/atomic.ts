@@ -3,24 +3,21 @@ import { resolve, dirname } from "node:path";
 import { IntentError, ErrorCodes } from "./error.js";
 
 export async function writeAtomic(targetPath: string, data: string): Promise<void> {
-  const tmpDir = resolve(dirname(targetPath), "..", "tmp");
-  await fs.mkdir(tmpDir, { recursive: true });
+  // Temp file lives in the SAME directory as the target: rename() is then always
+  // same-volume (atomic), and tmp files never escape the project (they used to land
+  // in <projectRoot>/tmp for root-level targets).
+  const tmpDir = dirname(targetPath);
   const tmpName = `${Date.now()}-${Math.random().toString(36).slice(2)}.tmp`;
   const tmpPath = resolve(tmpDir, tmpName);
 
-  // Symlink protection: lstat every path component of tmpDir
-  let current = tmpDir;
-  while (current !== dirname(current)) {
-    try {
-      const st = await fs.lstat(current);
-      if (st.isSymbolicLink()) throw new IntentError(ErrorCodes.E_IO, "Symlink not allowed in path");
-    } catch (e) {
-      const code = (e as NodeJS.ErrnoException).code;
-      if (code !== "ENOENT") {
-        if (e instanceof IntentError) throw e;
-      }
-    }
-    current = dirname(current);
+  // Symlink protection: the target's own directory must not be a symlink.
+  try {
+    const st = await fs.lstat(tmpDir);
+    if (st.isSymbolicLink()) throw new IntentError(ErrorCodes.E_IO, "Symlink not allowed in path");
+  } catch (e) {
+    if (e instanceof IntentError) throw e;
+    const code = (e as NodeJS.ErrnoException).code;
+    if (code !== "ENOENT") throw e;
   }
 
   const fh = await fs.open(tmpPath, "w", 0o600);
@@ -35,10 +32,18 @@ export async function writeAtomic(targetPath: string, data: string): Promise<voi
   for (let i = 0; i <= delays.length; i++) {
     try {
       await fs.rename(tmpPath, targetPath);
+      // Best-effort directory fsync so the rename itself is durable.
+      try {
+        const dirFh = await fs.open(tmpDir, "r");
+        await dirFh.sync();
+        await dirFh.close();
+      } catch {
+        // Platform may forbid opening a directory; the data sync already happened.
+      }
       return;
     } catch (err) {
       const code = (err as NodeJS.ErrnoException).code;
-      if ((code === "EPERM" || code === "EBUSY" || code === "EACCES") && i < delays.length) {
+      if ((code === "EPERM" || code === "EBUSY") && i < delays.length) {
         await new Promise((r) => setTimeout(r, delays[i]));
         continue;
       }

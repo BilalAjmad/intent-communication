@@ -37,9 +37,15 @@ const TOKEN_COLORS: Record<string, string> = {
 };
 
 function hexToRgb(hex: string): [number, number, number] | null {
-  const m = /^#([0-9a-fA-F]{6})$/.exec(hex);
+  const m = /^#([0-9a-fA-F]{3,4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/.exec(hex);
   if (!m) return null;
-  const n = (i: number) => parseInt(m[1]!.slice(i * 2, i * 2 + 2), 16);
+  let h = m[1]!;
+  if (h.length === 3 || h.length === 4) {
+    h = h.slice(0, 3).split("").map((c) => c + c).join("");
+  } else if (h.length === 8) {
+    h = h.slice(0, 6); // drop alpha
+  }
+  const n = (i: number) => parseInt(h.slice(i * 2, i * 2 + 2), 16);
   return [n(0), n(1), n(2)];
 }
 
@@ -64,18 +70,36 @@ function isLargeText(obj: { props: Record<string, unknown> }): boolean {
   const props = obj.props ?? {};
   const fontSize = props["fontSize"] as number | undefined;
   const fontWeight = props["fontWeight"];
-  if (typeof fontSize === "number" && fontSize >= 18) return true;
-  if (fontWeight === "bold" || fontWeight === 700 || (typeof fontWeight === "number" && fontWeight >= 700)) return true;
+  const weightNum =
+    typeof fontWeight === "number" ? fontWeight : fontWeight === "bold" ? 700 : fontWeight === "medium" ? 500 : 400;
+  const size = typeof fontSize === "number" ? fontSize : 16;
+  // WCAG 2.1 AA: large text = >= 24px regular, or >= 18.66px bold (~14pt bold)
+  if (size >= 24) return true;
+  if (size >= 18.66 && weightNum >= 700) return true;
   return false;
 }
 
+function tokenString(val: unknown): string | null {
+  if (typeof val === "string") return val;
+  if (
+    typeof val === "object" &&
+    val !== null &&
+    (val as { $type?: unknown }).$type === "token" &&
+    typeof (val as { $value?: unknown }).$value === "string"
+  ) {
+    return (val as { $value: string }).$value;
+  }
+  return null;
+}
+
 function resolveColor(val: unknown): [number, number, number] | null {
-  if (typeof val !== "string") return null;
-  if (val.startsWith("token.color.")) {
-    const hex = TOKEN_COLORS[val];
+  const s = tokenString(val);
+  if (!s) return null;
+  if (s.startsWith("token.color.")) {
+    const hex = TOKEN_COLORS[s];
     return hex ? hexToRgb(hex) : null;
   }
-  return hexToRgb(val);
+  return hexToRgb(s);
 }
 
 function checkSchema(scene: Scene, violations: LintViolation[]): void {
@@ -154,22 +178,28 @@ function checkGrid(scene: Scene, violations: LintViolation[]): void {
   }
 }
 
+const SPACING_TOKENS: Record<string, number> = {
+  "token.spacing.xs": 4,
+  "token.spacing.sm": 8,
+  "token.spacing.md": 16,
+  "token.spacing.lg": 24,
+  "token.spacing.xl": 32,
+  "token.spacing.touchTarget": 44,
+};
+
+function numericLen(v: unknown): number | undefined {
+  if (typeof v === "number") return v;
+  const s = tokenString(v);
+  if (s && s in SPACING_TOKENS) return SPACING_TOKENS[s];
+  return undefined;
+}
+
 function checkTouch(scene: Scene, violations: LintViolation[]): void {
   for (const [id, obj] of Object.entries(scene.objects)) {
     if (obj.type !== "button" && obj.type !== "input") continue;
     const style = obj.style ?? {};
-    const width: number | undefined =
-      typeof style["width"] === "number"
-        ? (style["width"] as number)
-        : typeof style["minWidth"] === "number"
-        ? (style["minWidth"] as number)
-        : undefined;
-    const height: number | undefined =
-      typeof style["height"] === "number"
-        ? (style["height"] as number)
-        : typeof style["minHeight"] === "number"
-        ? (style["minHeight"] as number)
-        : undefined;
+    const width = numericLen(style["width"]) ?? numericLen(style["minWidth"]);
+    const height = numericLen(style["height"]) ?? numericLen(style["minHeight"]);
     if (typeof width === "number" && width < 44) {
       violations.push({
         ruleId: "L-TOUCH",
@@ -310,6 +340,11 @@ function lintScene(scene: unknown, locks: string[] = []): LintResult {
 }
 
 function lintSceneWithRules(scene: unknown, ruleIds: string[], locks: string[] = []): LintResult {
+  const known = new Set(M1_RULES.map((r) => r.id));
+  const unknown = ruleIds.filter((id) => !known.has(id));
+  if (unknown.length > 0) {
+    throw new Error(`Unknown lint rule id(s): ${unknown.join(", ")}. Known ids: ${[...known].join(", ")}`);
+  }
   const validated = validateScene(scene);
   const violations: LintViolation[] = [];
   for (const rule of M1_RULES) {

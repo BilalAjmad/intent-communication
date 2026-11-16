@@ -7,7 +7,7 @@ Scope: M1, in-tree state at the current working tree after the Interview-tab pas
 
 ## What works (verified with evidence, this tree)
 
-- **All 12 verify steps pass** on this machine (Windows 11, Node v22.23.4, pnpm 9.7.1): install, build (10/10), typecheck, lint, unit+integration **386/386**, multi-process 2/2, sigkill 1/1, mutation proof 5/5, visual diff 6/6, smoke 5/5, docs:index, context:check. See `VERIFY-REPORT.md` (regenerated; gitignored).
+- **All 12 verify steps pass** on this machine (Windows 11, Node v22.23.4, pnpm 9.7.1): install, build (10/10), typecheck, lint, unit+integration **412/412**, multi-process 2/2, sigkill 1/1, mutation proof 5/5, visual diff 6/6, smoke 5/5, docs:index, context:check. See `VERIFY-REPORT.md` (regenerated; gitignored).
 - **Full Playwright suite: 77/77** on Windows 11 (includes visual-diff pixel comparisons, smoke, fidelity-pixel, keyboard-only flow, interview-tab, axe, and the summary-change path).
 - **Interview tab, real code, no fixtures** (this pass): question card with options / "0) Don't know, you choose" / "s) Skip" / why-asked; estimated-understanding meter with topic chips (icon + text); summary screen with `[you said]` / `[chosen by me]` tags and the three buttons; answers POST to `/api/interview/answer` into `.intent/interview/state.json`; Studio answer wins over chat; `get_feedback` returns unconsumed answers once.
 - **TC-INT-17** — Studio answer returned by `get_feedback` exactly once; a later chat answer for the same questionId is ignored with a note. 3/3 unit tests pass.
@@ -51,7 +51,7 @@ Scope: M1, in-tree state at the current working tree after the Interview-tab pas
 
 ## AC-M1 gate audit — evidence per criterion (2026-11-15, this machine)
 
-`pnpm verify` 12/12 PASS (unit 386/386) and full Playwright suite **77/77**, Windows 11, Node v22.23.4, pnpm 9.7.1. Everything below is what those runs prove and what they cannot prove.
+`pnpm verify` 12/12 PASS (unit 412/412) and full Playwright suite **77/77**, Windows 11, Node v22.23.4, pnpm 9.7.1. Everything below is what those runs prove and what they cannot prove.
 
 | AC | Verdict | Evidence / why |
 |----|---------|-----------------|
