@@ -50,6 +50,13 @@ export interface IconRenderOptions {
   objectId?: string;
 }
 
+export interface IconJsxOptions {
+  /** React style object literal text, e.g. `{{"color":"red"}}` — optional. */
+  styleObject?: string;
+  /** data-object-id for selection/inspection. */
+  objectId?: string;
+}
+
 /**
  * The inner markup of the `icon` object type (a span wrapping an inline SVG).
  * `icon`/`size`/`color`/`label` come from the scene and are therefore hostile
@@ -76,4 +83,35 @@ export function renderIconMarkup(
   const idAttr = options.objectId ? ` data-object-id="${escapeHtml(options.objectId)}"` : "";
   const style = options.styleAttr ?? "";
   return `<span class="intent-icon"${idAttr}${aria}${style}><svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="${stroke}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${body}</svg></span>`;
+}
+
+/**
+ * JSX variant of the icon markup for the React exporter. Same allowlisted
+ * glyphs and size clamp; attribute values are emitted through
+ * JSON.stringify-in-expression form so scene-derived strings can never break
+ * out of the attribute.
+ */
+export function renderIconJsx(
+  icon: unknown,
+  size: unknown,
+  color: unknown,
+  label: unknown,
+  options: IconJsxOptions = {},
+): string {
+  const name = typeof icon === "string" ? icon.trim().toLowerCase() : "";
+  const body = ICONS[name] ?? FALLBACK_ICON;
+  const rawSize = typeof size === "number" && Number.isFinite(size) ? Math.floor(size) : 24;
+  const s = Math.min(Math.max(rawSize, 1), 256);
+  const rawColor = sanitizeCssValue(resolveColor(color));
+  const stroke = rawColor ? JSON.stringify(rawColor) : '"currentColor"';
+  const rawLabel = typeof label === "string" && label.trim() ? label.trim() : "";
+  const aria = rawLabel
+    ? ` role="img" aria-label={${JSON.stringify(rawLabel)}}`
+    : ' aria-hidden="true"';
+  const idAttr = options.objectId ? ` data-object-id={${JSON.stringify(options.objectId)}}` : "";
+  const style = options.styleObject ? ` style={${options.styleObject}}` : "";
+  // SVG presentation attributes in JSX must be camelCase; the shared glyph
+  // bodies only use lowercase SVG attributes that are valid in both forms
+  // except the ones below, so keep bodies as-is (all are valid JSX as-is).
+  return `<span className="intent-icon"${idAttr}${aria}${style}><svg width={${s}} height={${s}} viewBox="0 0 24 24" fill="none" stroke={${stroke}} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">${body}</svg></span>`;
 }

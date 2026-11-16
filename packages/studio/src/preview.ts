@@ -137,9 +137,13 @@ function renderNode(obj: SceneObject, all: Record<string, SceneObject>, depth = 
   budget.remaining -= 1;
   const pad = "  ".repeat(depth);
   const children = obj.children
-    .map((id) => all[id])
-    .filter((c): c is SceneObject => Boolean(c))
-    .map((c) => renderNode(c, all, depth + 1, budget))
+    .map((id) => {
+      const child = all[id];
+      if (!child) {
+        return `${pad}  <!-- missing child ${String(id).replace(/[^A-Za-z0-9_-]/g, "?")} -->`;
+      }
+      return renderNode(child, all, depth + 1, budget);
+    })
     .join("\n");
 
   const style = buildStyleString(obj.style);

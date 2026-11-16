@@ -330,6 +330,9 @@ export {
   buildStyleString,
 } from "./html.js";
 
+export { exportToReact } from "./export-react.js";
+export type { FileMap, ReactExportOptions } from "./export-react.js";
+
 export type { HtmlExportOptions } from "./html.js";
 
 export {

@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { initCommand, doctorCommand, createCLI } from "./index";
+import { initCommand, doctorCommand, createCLI, exportCommand } from "./index";
 import { promises as fs } from "node:fs";
 import { resolve } from "node:path";
 import { tmpdir } from "node:os";
@@ -105,6 +105,85 @@ describe("CLI package", () => {
       const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
       await doctorCommand(emptyDir);
       consoleSpy.mockRestore();
+    });
+  });
+
+  describe("exportCommand", () => {
+    const SCREEN_ID = "s_01ARZ3NDEKTSV4RRFFQ69G5FAV";
+    const scene = {
+      version: 1,
+      revision: 0,
+      createdAt: "2026-11-16T00:00:00.000Z",
+      updatedAt: "2026-11-16T00:00:00.000Z",
+      screens: {
+        [SCREEN_ID]: {
+          id: SCREEN_ID, type: "screen", parentId: null, children: [],
+          props: { title: "Home", width: 1280, height: 720 },
+          style: {}, meta: {},
+        },
+      },
+      objects: {
+        [SCREEN_ID]: {
+          id: SCREEN_ID, type: "screen", parentId: null, children: [],
+          props: { title: "Home", width: 1280, height: 720 },
+          style: {}, meta: {},
+        },
+      },
+      screenOrder: [SCREEN_ID],
+      metadata: { name: "Export Test", tags: [] },
+    };
+
+    async function seedScene(dir: string, name: string = "default"): Promise<void> {
+      const scenesDir = resolve(dir, ".intent", "scenes");
+      await fs.mkdir(scenesDir, { recursive: true });
+      await fs.writeFile(resolve(scenesDir, `${name}.json`), JSON.stringify(scene), "utf8");
+    }
+
+    it("exports html to a file", async () => {
+      await seedScene(testDir);
+      const out = resolve(testDir, "out.html");
+      const prevExit = process.exitCode;
+      await exportCommand(testDir, { scene: "default", output: out, format: "html" });
+      expect(process.exitCode ?? 0).toBe(0);
+      const html = await fs.readFile(out, "utf8");
+      expect(html).toContain("<!DOCTYPE html>");
+      expect(html).toContain("Home");
+      process.exitCode = prevExit;
+    });
+
+    it("exports react to a directory tree", async () => {
+      await seedScene(testDir);
+      const outDir = resolve(testDir, "out-react");
+      const prevExit = process.exitCode;
+      await exportCommand(testDir, { scene: "default", output: outDir, format: "react" });
+      expect(process.exitCode ?? 0).toBe(0);
+      const app = await fs.readFile(resolve(outDir, "intent-export", "App.tsx"), "utf8");
+      expect(app).toContain("export default function App");
+      const screenFile = await fs.readFile(resolve(outDir, "intent-export", "screens", "Home.tsx"), "utf8");
+      expect(screenFile).toContain("export default function Home");
+      const tokens = await fs.readFile(resolve(outDir, "intent-export", "tokens.css"), "utf8");
+      expect(tokens).toContain("--intent-color-primary");
+      const index = await fs.readFile(resolve(outDir, "intent-export", "index.ts"), "utf8");
+      expect(index).toContain('export { default as App }');
+      process.exitCode = prevExit;
+    });
+
+    it("fails with exitCode 1 for unsupported format", async () => {
+      await seedScene(testDir);
+      const prevExit = process.exitCode;
+      process.exitCode = 0;
+      await exportCommand(testDir, { scene: "default", format: "pdf" });
+      expect(process.exitCode).toBe(1);
+      process.exitCode = prevExit;
+    });
+
+    it("fails with exitCode 1 when the scene is missing", async () => {
+      await fs.mkdir(resolve(testDir, ".intent", "scenes"), { recursive: true });
+      const prevExit = process.exitCode;
+      process.exitCode = 0;
+      await exportCommand(testDir, { scene: "nope" });
+      expect(process.exitCode).toBe(1);
+      process.exitCode = prevExit;
     });
   });
 });

@@ -96,3 +96,10 @@
 - Bank/meter expanded so the interview is honest: 53 askable seeds, 42 large-scope slots all covered; golden files regenerated; SC-4 fatigue trigger implemented.
 - Verify 12/12 PASS (412/412 unit), Playwright 77/77, mutation proof 5/5, context:check green.
 - Still open: M2/M3, CI observation, Tier-1 agent session (OpenRouter 402; Cursor CLI absent), stranger test, zod 3→4, LICENSE, push/tag — all user decisions. M1 gate NOT READY.
+
+## Phase 10 addendum (2026-11-16 — zod 4 + M2 start)
+- zod 3.25.76 → ^4.6.7 (a0427d6) — GHSA-mrhx-c7xc-m3w5 closed; tools/list inputSchema via z.toJSONSchema(..., { io: "input" }); audit 19→18, all dev/test toolchain; verify 12/12, unit 412/412.
+- M2.A object type family shipped (fb12e18): checkbox, radio, switch, link, list, modal, icon, divider — schema (500-line budget kept via base-object.ts/object-types.ts split), engine + studio preview renderers, shared allowlisted inline-SVG icon module (renderIconMarkup/renderIconJsx).
+- ReactExporter basic (trd 13.7): exportToReact(scene, options) — pure deterministic sorted FileMap; intent-export/{tokens.css, screens/<Name>.tsx, App.tsx, index.ts}; hash-based screen switching; uncontrolled React inputs; native <dialog>; JSON-expression attribute escaping; golden files (tests/golden/react-simple.json, react-m2a.json); TS-parser syntax verification of generated output. **Deviation: no 13.2 RenderModel yet; exporters render directly from the scene.**
+- CLI `intent export --format html|react` wired + bug fix (missing await on html path); path containment checks for react tree writes; CLI tests 45/45.
+- Verify 12/12, unit 459/459, Playwright 77/77. M2 ≈ 20%; M2.B/C/D untouched. M1 gate still NOT READY (AC-M1-11, AC-M1-13, CI unobserved, LICENSE, push/tag). Whole project honestly ≈ 35%.

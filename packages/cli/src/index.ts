@@ -1,6 +1,6 @@
 import { Command } from "commander";
 import { promises as fs } from "node:fs";
-import { resolve } from "node:path";
+import { dirname, resolve, sep } from "node:path";
 import chalk from "chalk";
 import ora from "ora";
 import {
@@ -8,7 +8,7 @@ import {
   createFileLockPort,
   createNodeCryptoPort,
 } from "@intent/adapters-node";
-import { exportSceneToFile } from "@intent/engine";
+import { exportSceneToFile, exportToReact } from "@intent/engine";
 import { mergeAgentMcpConfigs } from "./mcp-config.js";
 import { ensureAgentsIntentBlock } from "./agents-block.js";
 
@@ -234,28 +234,58 @@ function printResults(issues: string[], warnings: string[]): void {
 
 async function exportCommand(projectRoot: string, options: { scene?: string; output?: string; format?: string }): Promise<void> {
   const spinner = ora("Exporting scene...").start();
-
   const sceneId = options.scene || "default";
-  const storage = createFileStoragePort(projectRoot);
-  const scene = await storage.readScene(sceneId);
+  const format = (options.format || "html").toLowerCase();
 
-  if (!scene) {
-    spinner.fail(chalk.red(`Scene '${sceneId}' not found`));
-    return;
-  }
+  try {
+    const storage = createFileStoragePort(projectRoot);
+    const scene = await storage.readScene(sceneId);
 
-  const outputPath = options.output || resolve(projectRoot, `export-${sceneId}.html`);
-  const format = options.format || "html";
+    if (!scene) {
+      spinner.fail(chalk.red(`Scene '${sceneId}' not found`));
+      process.exitCode = 1;
+      return;
+    }
 
-  if (format === "html") {
-    exportSceneToFile(scene, outputPath, {
-      includeStyles: true,
-      includeScripts: true,
-      inlineAssets: true,
-    });
-    spinner.succeed(chalk.green(`Exported to ${outputPath}`));
-  } else {
-    spinner.fail(chalk.red(`Unsupported format: ${format}`));
+    if (format === "html") {
+      const outputPath = options.output || resolve(projectRoot, `export-${sceneId}.html`);
+      await exportSceneToFile(scene, outputPath, {
+        includeStyles: true,
+        includeScripts: true,
+        inlineAssets: true,
+      });
+      spinner.succeed(chalk.green(`Exported to ${outputPath}`));
+      return;
+    }
+
+    if (format === "react") {
+      const outDir = options.output || resolve(projectRoot, `export-${sceneId}-react`);
+      const files = exportToReact(scene);
+      let written = 0;
+      for (const [relative, content] of Object.entries(files)) {
+        // FileMap keys come from the generator; validate them anyway — this
+        // command writes attacker-influenced output to disk.
+        if (!/^intent-export\/[A-Za-z0-9._\-/]+$/.test(relative) || relative.includes("..")) {
+          throw new Error(`Unsafe export path: ${relative}`);
+        }
+        const target = resolve(outDir, relative);
+        const root = resolve(outDir);
+        if (target !== root && !target.startsWith(root + sep)) {
+          throw new Error(`Export path escapes output directory: ${relative}`);
+        }
+        await fs.mkdir(dirname(target), { recursive: true });
+        await fs.writeFile(target, content, "utf8");
+        written += 1;
+      }
+      spinner.succeed(chalk.green(`Exported ${written} files to ${outDir}`));
+      return;
+    }
+
+    spinner.fail(chalk.red(`Unsupported format: ${format} (supported: html, react)`));
+    process.exitCode = 1;
+  } catch (err) {
+    spinner.fail(chalk.red("Export failed: " + (err instanceof Error ? err.message : String(err))));
+    process.exitCode = 1;
   }
 }
 
@@ -300,10 +330,10 @@ export function createCLI(): Command {
 
   program
     .command("export")
-    .description("Export a scene to HTML")
+    .description("Export a scene to HTML or a React source folder")
     .option("-s, --scene <sceneId>", "Scene ID to export", "default")
-    .option("-o, --output <path>", "Output file path")
-    .option("-f, --format <format>", "Export format (html)", "html")
+    .option("-o, --output <path>", "Output path (file for html, directory for react)")
+    .option("-f, --format <format>", "Export format (html|react)", "html")
     .action(async (options) => {
       await exportCommand(resolve(program.opts()["path"] as string), {
         scene: options.scene,
