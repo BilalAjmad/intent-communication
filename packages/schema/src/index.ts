@@ -124,7 +124,7 @@ export const SceneSchema = z.object({
     name: z.string().default("Untitled Project"),
     description: z.string().optional(),
     tags: z.array(z.string()).max(50).default([]),
-  }).default({}),
+  }).default({ name: "Untitled Project", tags: [] }),
 });
 
 export type Scene = z.infer<typeof SceneSchema>;
@@ -194,7 +194,7 @@ export const ProfileSchema = z.object({
     motion: z.enum(["none", "reduced", "full"]).default("reduced"),
     language: z.string().default("en"),
     tokens: z.record(z.string(), z.string()).default({}),
-  }).default({}),
+  }).default({ colorScheme: "system", density: "comfortable", motion: "reduced", language: "en", tokens: {} }),
   patterns: z.array(z.object({
     id: CrockfordULIDSchema,
     name: z.string().max(200),
@@ -244,7 +244,7 @@ export const BriefSchema = z.object({
     palette: z.array(z.string()).max(50).default([]),
     typography: z.string().optional(),
     inspiration: z.array(z.string()).max(50).default([]),
-  }).default({}),
+  }).default({ palette: [], inspiration: [] }),
   technicalRequirements: z.array(z.string()).max(100).default([]),
   outOfScope: z.array(z.string()).max(50).default([]),
   approvalStatus: z.enum(["draft", "pending_review", "approved", "rejected"]).default("draft"),

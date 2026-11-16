@@ -23,7 +23,7 @@ import {
   OpenStudioInputSchema,
 } from "@intent/schema";
 import { createFileStoragePort, createFileLockPort, createNodeCryptoPort } from "@intent/adapters-node";
-import { zodToJsonSchema } from "zod-to-json-schema";
+import { z } from "zod";
 import { lockedWithDescendantsLocal, freshInterviewState, dedupe, renderPlainTextCard, applyMeterUpdate, meterWithRequiredTopicCap } from "./helpers.js";
 
 export interface MCPTool {
@@ -428,9 +428,9 @@ export const MCP_TOOL_DESCRIPTORS: McpToolDescriptor[] = MCP_TOOLS.map((tool) =>
   description: tool.description,
   inputSchema: (
     isZodSchema(tool.inputSchema)
-      ? zodToJsonSchema(tool.inputSchema as Parameters<typeof zodToJsonSchema>[0])
+      ? (z.toJSONSchema(tool.inputSchema as z.ZodType, { io: "input" }) as unknown as Record<string, unknown>)
       : tool.inputSchema
-  ) as unknown as Record<string, unknown>,
+  ) as Record<string, unknown>,
 }));
 
 // Structural ZodError detection (zod is not a direct dependency of this package).

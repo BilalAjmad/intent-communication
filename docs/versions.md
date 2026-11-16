@@ -43,6 +43,8 @@ Sources (fetched 2026-11-15): https://cursor.com/docs/context/mcp and https://cu
 | `@modelcontextprotocol/sdk` | `1.32.2` | 2026-11-15 | MIT | https://registry.npmjs.org/@modelcontextprotocol/sdk | **devDependency of `@intent/cli` only**; test-only (spawns `intent mcp` as a child process and speaks MCP); never imported by shipped code (context:check passes) |
 
 `pnpm audit` (2026-11-15): 19 findings (1 low, 13 moderate, 2 high, 3 critical). None of them come from the two packages above. All criticals are in the dev/test toolchain (vitest UI server, tinypool); the high in `zod@3.25.76` (GHSA-mrhx-c7xc-m3w5, patched in >=4.6.6) is pre-existing and is **not** fixed here (zod 3 -> 4 is a migration; not in scope). Full output not committed (machine-local).
+`pnpm audit` (2026-11-16): 18 findings (1 low, 13 moderate, 1 high, 3 critical), **all in the dev/test toolchain** (vitest, vite, tinypool, launch-editor, esbuild) — none from a shipped runtime dependency of Intent. The zod advisory is closed.
+
 ## UNVERIFIED — do not claim until checked
 
 Everything not listed above is unverified, including but not limited to:

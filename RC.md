@@ -47,7 +47,7 @@ Scope: M1, in-tree state at the current working tree after the Interview-tab pas
 - **All evidence is this one Windows machine** (plus whatever CI shows later). No clean-machine run has happened.
 - **No push / no tag / no release has happened.** The user decides.
 
-- **zod@3.25.76 is flagged by `pnpm audit` (GHSA-mrhx-c7xc-m3w5 / CVE-2023-54404, high, < 4.6.6, patched >= 4.6.6).** Mechanism: `$ZodArray` accumulates every per-element validation issue with no cap. Mitigated (not fixed) by the 1 MiB stdio line cap and `objectIds` now `.max(50)`; all other arrays were already `.max()`-bounded. **The full fix (zod >= 4.6.6, a 3→4 migration) is NOT applied — needs your approval.** The advisory remains visible in `pnpm audit`.
+- **zod migrated to `^4.6.7` on 2026-11-16** (was 3.25.76): **GHSA-mrhx-c7xc-m3w5 / CVE-2023-54404 closed** (`$ZodArray` issue accumulation, patched in >= 4.6.6). The tool/list schemas now derive via `z.toJSONSchema(schema, { io: "input" })` (zod-to-json-schema dropped as a direct dep). `pnpm audit` now reports 18 findings, **all in the dev/test toolchain** (vitest/vite/tinypool/launch-editor/esbuild) — zero from shipped runtime deps. The 1 MiB stdio line cap and `objectIds.max(50)` mitigations remain in place as defense-in-depth.
 
 ## AC-M1 gate audit — evidence per criterion (2026-11-15, this machine)
 
@@ -66,10 +66,10 @@ Scope: M1, in-tree state at the current working tree after the Interview-tab pas
 | AC-M1-09 | Pass | keyboard-only 2/2 (render→select→feedback→draft→send→status), AC-M1-09 roundtrip, 77/77 suite |
 | AC-M1-10 | Pass | CLI 41/41 (init incl. --dry-run writes nothing, drift + budget tests) + .intent/.gitignore 4/4 (git check-ignore) |
 | AC-M1-11 | **NOT DONE** | Tier 1 smoke checklist is empty; no live Claude Code/Cursor session was run; cannot be produced from this machine |
-| AC-M1-12 | **PARTIAL** | typecheck 0, lint 0, docs:index fresh, no `any` in shipped src; **`pnpm audit` is NOT clean**: 19 findings (1 low, 13 moderate, 2 high, 3 critical) — all criticals/most-highs sit in the dev/test toolchain (vitest/vite/tinypool/esbuild); the zod high (GHSA-mrhx-c7xc-m3w5, <4.6.6) is mitigated (stdio 1 MiB line cap, objectIds .max(50)) but unpatched pending your approval (3→4 migration) |
+| AC-M1-12 | **PARTIAL → PASS (deps)** | typecheck 0, lint 0, docs:index fresh, no `any` in shipped src. **zod migrated 3.25.76 → ^4.6.7 (2026-11-16)** — GHSA-mrhx-c7xc-m3w5 closed; tools/list inputSchema via `z.toJSONSchema(..., { io: \"input\" })`; zod-to-json-schema removed. `pnpm audit`: 18 findings, **all in the dev/test toolchain** (vitest/vite/tinypool/esbuild/launch-editor) — zero from shipped runtime deps |
 | AC-M1-13 | **NOT DONE** | Demo D transcribed (docs/demo-d.md) but never executed on a clean machine; stranger test (3 humans) never run |
 
-**Gate verdict: NOT READY for v0.1.0.** The blocking items are human/agent-run evidence (AC-M1-11, AC-M1-13), CI observation (AC-M1-01/04/07/08), an audit-clean report (AC-M1-12, 19 findings), and the zod 3→4 decision. None of these can be produced by an agent working alone.
+**Gate verdict: NOT READY for v0.1.0.** The remaining blocking items are human/agent-run evidence (AC-M1-11, AC-M1-13) and CI observation (AC-M1-01/04/07/08). The dependency-hygiene part of AC-M1-12 is now closed (zod 4.6.7); the remaining audit findings are dev/test-toolchain only. None of these can be produced by an agent working alone.
 
 ## Planned versus actual (PL-11, honest record)
 

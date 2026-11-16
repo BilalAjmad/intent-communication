@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import Ajv from "ajv";
+import Ajv2020 from "ajv/dist/2020.js";
 import { GetFeedbackInputSchema } from "@intent/schema";
 import { MCP_TOOL_DESCRIPTORS, getMCPTool } from "./index";
 
@@ -12,7 +12,7 @@ import { MCP_TOOL_DESCRIPTORS, getMCPTool } from "./index";
 // Zod input schema by design (tool-errors.test.ts), so ajv gets exercises the
 // hand-written document instead of a zod oracle.
 
-const ajv = new Ajv({ allErrors: true, strict: false, validateFormats: false });
+const ajv = new Ajv2020({ allErrors: true, strict: false, validateFormats: false });
 
 const VALID: Record<string, unknown> = {
   get_scene: {},
