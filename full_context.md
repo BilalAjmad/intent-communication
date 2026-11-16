@@ -135,3 +135,16 @@
 - **Review loop (this session, every package re-read):** REAL defects fixed — schema GetSceneOutputSchema.locks wrong type; linter L-ALIGN dead rule (numeric strings never parsed); linter L-CONTRAST read color from the wrong place (never fired for real scenes); lock-port transient non-EEXIST write error instant-returned false (annotations.test.ts intermittent E_LOCKED 409 under full recursive-test load; now 3 retries w/ backoff; 2x pnpm -r test green); tokenToCssVar broke on dotted paths (token.color.text.primary -> var(--intent-color-text.primary); now hyphenated); React exporter re-pointed at the RenderModel (parallel scene walker deleted; goldens regenerated; no nested <main>; .intent-app height chain fix from Phase 13).
 - **Flagged, not changed:** L-LOCK stays severity error (recorded contract + explicit test); output schemas GetSceneOutput*/GetFeedback* never parsed anywhere (dead-but-exported).
 - Verify 12/12, unit 623/623, Playwright 95/95. M2 ~75%; M3 ~25% started.
+
+## Phase 15 addendum (2026-11-17 — M3.A/Static complete, 4-pass review findings)
+
+- **Design Profile to React/Tailwind (trd 13.7, b9a816a):** tailwind-map.ts (pure, PURE exact-match); underscore keys sanitize, dots become arbitrary-value classes; no match means CSS-var fallback preserved; `intent export --format react` auto-reads .intent/design-profile.json.
+- **trd 21 budgets test-enforced:** flat valid 500-object scene; core normalize median <50ms; writePipeline p95 documented-hardware-gap (128-170ms CI host) with honest comment + owner TODO to tighten post-measurement on laptop hardware.
+- **pipeline.ts:** verify-before-write re-read removed (redundant under scene lock; baseRevision is the drift gate).
+- **tokenToCssVar:** dotted token paths now hyphenate (token.color.text.primary -> var(--intent-color-text-primary)); applied in style-decl.ts and icons.ts.
+- **linter L-ALIGN:** numeric-string lefts ("100px") were never parsed; rule previously dead. **linter L-CONTRAST:** read color from the wrong place; now reads style.color/background with props fallback.
+- **lock-port:** transient non-EEXIST write errors (Windows AV/indexer) no longer instant-fail writePipeline (3 retries with backoff) — annotations.test.ts intermittently failed the wrong PUT with 409 under full verify parallel load; now stable across 2x verify runs.
+- **Axe full-tab coverage:** Interview/Profile/Feedback tabs, zero critical/serious (CSP-bypass harness).
+- **S-3-00 re-plan** (docs/s3-00-replan.md) — executed; M3 ~ 70%; remaining is owner-gated release work.
+- **RC:** axe/pipeline/bench + profile mapping landed AFTER the M1 gate waiver review cycle; M1 gate verdict unchanged (closed by owner waivers 2026-11-16).
+- Unit 635/635; Playwright 98/98; verify 12/12 at b9a816a + this docs commit.

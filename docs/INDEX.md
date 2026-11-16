@@ -1,6 +1,6 @@
 # Documentation Index
 
-Generated: 2026-11-16T22:42:48.969Z
+Generated: 2026-11-16T22:47:28.646Z
 
 ## Plan
 
@@ -456,6 +456,10 @@ Generated: 2026-11-16T22:42:48.969Z
   - 3 3. Dependency re-verification (versions to verify, honestly re-checked 2026-11-17)
   - 4 4. Benchmark gates (trd 21) — decision recorded
   - 5 5. Carried into M3 (not silently dropped)
+
+## S3 00 Replan
+
+- Path: `docs/s3-00-replan.md`
 
 ## Security Audit 2026 11 13
 
