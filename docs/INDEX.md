@@ -1,6 +1,6 @@
 # Documentation Index
 
-Generated: 2026-11-16T19:52:11.592Z
+Generated: 2026-11-16T19:54:06.278Z
 
 ## Plan
 
@@ -39,6 +39,10 @@ Generated: 2026-11-16T19:52:11.592Z
   - 17 17. Open Questions
   - 18 18. Flags for Later Documents
   - 19 19. Change Log
+
+## Acceptance Protocol
+
+- Path: `docs/acceptance-protocol.md`
 
 ## Architecture
 
@@ -442,6 +446,16 @@ Generated: 2026-11-16T19:52:11.592Z
   - 21 21. Open Questions (to resolve in later documents)
   - 22 22. Flags for Later Documents
   - 23 23. Change Log
+
+## S2 00 Replan
+
+- Path: `docs/s2-00-replan.md`
+- Sections:
+  - 1 1. M1 actuals (baseline for M2)
+  - 2 2. M2 detailed plan vs. actual (as-built)
+  - 3 3. Dependency re-verification (versions to verify, honestly re-checked 2026-11-17)
+  - 4 4. Benchmark gates (trd 21) — decision recorded
+  - 5 5. Carried into M3 (not silently dropped)
 
 ## Security Audit 2026 11 13
 
