@@ -92,6 +92,27 @@ export const ResponsiveSchema = z.strictObject({
 });
 export type Responsive = z.infer<typeof ResponsiveSchema>;
 
+/**
+ * trd 5.5 ComponentRef: `componentId` is the def being instantiated;
+ * `overrides` keys are INNER node ids of the def (never the instance id).
+ */
+export const ComponentRefSchema = z.strictObject({
+  componentId: ObjectIdSchema.refine((v) => v.startsWith("c_"), {
+    message: "componentId must be a c_ id",
+  }),
+  overrides: z
+    .partialRecord(
+      ObjectIdSchema,
+      z.strictObject({
+        props: z.record(z.string(), SceneValueSchema).optional(),
+        style: z.record(z.string(), SceneValueSchema).optional(),
+        visible: z.boolean().optional(),
+      }),
+    )
+    .default({}),
+});
+export type ComponentRef = z.infer<typeof ComponentRefSchema>;
+
 export const BaseObjectSchema = z.object({
   id: ObjectIdSchema,
   type: z.string().min(1),
@@ -103,4 +124,5 @@ export const BaseObjectSchema = z.object({
   rev: z.number().int().nonnegative().optional(),
   states: z.partialRecord(StateNameSchema, StateOverrideSchema).default({}),
   responsive: ResponsiveSchema.default({}),
+  componentRef: ComponentRefSchema.optional(),
 });

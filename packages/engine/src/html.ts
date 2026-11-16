@@ -6,6 +6,7 @@ import {
 } from "@intent/schema";
 import type { SceneValue } from "./index.js";
 import { renderIconMarkup } from "./icons.js";
+import { expandComponentInstances } from "./components.js";
 import { renderStateCss } from "./state-css.js";
 import { renderResponsiveCss, DEFAULT_BREAKPOINTS } from "./responsive-css.js";
 import type { Breakpoints } from "@intent/schema";
@@ -358,8 +359,9 @@ const DEFAULT_HTML_OPTIONS: Required<HtmlExportOptions> = {
 export function exportToHtml(scene: Scene, options: HtmlExportOptions = {}): string {
   const opts = { ...DEFAULT_HTML_OPTIONS, ...options };
   const validated = validateScene(scene);
-  const stateCss = opts.includeStyles ? renderStateCss(validated) : "";
-  const responsiveCss = opts.includeStyles ? renderResponsiveCss(validated, opts.breakpoints) : "";
+  const renderScene = expandComponentInstances(validated);
+  const stateCss = opts.includeStyles ? renderStateCss(renderScene) : "";
+  const responsiveCss = opts.includeStyles ? renderResponsiveCss(renderScene, opts.breakpoints) : "";
 
   const screens = Object.values(validated.screens).sort((a, b) => {
     const idxA = validated.screenOrder.indexOf(a.id);
@@ -372,7 +374,7 @@ export function exportToHtml(scene: Scene, options: HtmlExportOptions = {}): str
   }
 
   const screenHtml = screens.map((screen) => {
-    const allObjects = { ...validated.objects };
+    const allObjects = renderScene.objects;
     return renderObject(screen, allObjects);
   }).join("\n\n");
 

@@ -10,6 +10,7 @@ import {
   renderIconMarkup,
   renderStateCss,
   renderResponsiveCss,
+  expandComponentInstances,
   DEFAULT_BREAKPOINTS,
 } from "@intent/engine";
 import type { Breakpoints } from "@intent/schema";
@@ -271,17 +272,18 @@ export function buildPreviewDocument(scene: Scene, options: { breakpoints?: Brea
   const breakpoints = options.breakpoints ?? DEFAULT_BREAKPOINTS;
   const csp =
     `default-src 'none'; script-src ${PREVIEW_SCRIPT_HASHES}; style-src 'unsafe-inline'; img-src data:; font-src 'none'; connect-src 'none'; frame-src 'none'; base-uri 'none'; form-action 'none'`;
-  const screenIds = Object.keys(scene.screens);
-  const ordered = scene.screenOrder.filter((id) => scene.screens[id]);
+  const renderScene = expandComponentInstances(scene);
+  const screenIds = Object.keys(renderScene.screens);
+  const ordered = renderScene.screenOrder.filter((id) => renderScene.screens[id]);
   const rest = screenIds.filter((id) => !ordered.includes(id));
   const ids = [...ordered, ...rest];
-  const all = scene.objects;
+  const all = renderScene.objects;
 
-  const stateCss = renderStateCss(scene);
-  const responsiveCss = renderResponsiveCss(scene, breakpoints);
+  const stateCss = renderStateCss(renderScene);
+  const responsiveCss = renderResponsiveCss(renderScene, breakpoints);
   const body = ids
     .map((id) => {
-      const screen = scene.screens[id];
+      const screen = renderScene.screens[id];
       if (!screen) return "";
       return renderNode(screen, all);
     })

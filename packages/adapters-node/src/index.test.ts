@@ -28,7 +28,7 @@ describe("Adapters-Node package", () => {
         updatedAt: "2026-11-02T22:38:00.000Z",
         screens: {},
         objects: {},
-        screenOrder: [],
+        components: [], screenOrder: [],
         metadata: { name: "Test", tags: [] },
       };
       await storage.writeScene("scene-1", scene);
@@ -140,8 +140,8 @@ describe("Adapters-Node package", () => {
     });
 
     it("lists scenes", async () => {
-      await storage.writeScene("scene-a", { version: 1, revision: 0, createdAt: "2026-11-02T22:38:00.000Z", updatedAt: "2026-11-02T22:38:00.000Z", screens: {}, objects: {}, screenOrder: [], metadata: { name: "A", tags: [] } });
-      await storage.writeScene("scene-b", { version: 1, revision: 0, createdAt: "2026-11-02T22:38:00.000Z", updatedAt: "2026-11-02T22:38:00.000Z", screens: {}, objects: {}, screenOrder: [], metadata: { name: "B", tags: [] } });
+      await storage.writeScene("scene-a", { version: 1, revision: 0, createdAt: "2026-11-02T22:38:00.000Z", updatedAt: "2026-11-02T22:38:00.000Z", screens: {}, objects: {}, components: [], screenOrder: [], metadata: { name: "A", tags: [] } });
+      await storage.writeScene("scene-b", { version: 1, revision: 0, createdAt: "2026-11-02T22:38:00.000Z", updatedAt: "2026-11-02T22:38:00.000Z", screens: {}, objects: {}, components: [], screenOrder: [], metadata: { name: "B", tags: [] } });
       const list = await storage.listScenes();
       expect(list).toContain("scene-a");
       expect(list).toContain("scene-b");
@@ -213,7 +213,7 @@ describe("Adapters-Node package", () => {
         updatedAt: "2026-11-02T22:38:00.000Z",
         screens: {},
         objects: {},
-        screenOrder: [],
+        components: [], screenOrder: [],
         metadata: { name: "Test", tags: [] },
       };
       await expect(storage.writeScene("../etc/passwd", scene)).rejects.toThrow();

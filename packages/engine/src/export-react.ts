@@ -4,6 +4,7 @@ import {
   validateScene,
 } from "@intent/schema";
 import { buildStyleString, renderExportCss } from "./html.js";
+import { expandComponentInstances } from "./components.js";
 import { renderStateCss } from "./state-css.js";
 import { renderResponsiveCss, DEFAULT_BREAKPOINTS } from "./responsive-css.js";
 import { renderIconJsx } from "./icons.js";
@@ -357,10 +358,11 @@ function buildIndex(entries: { name: string }[]): string {
  */
 export function exportToReact(scene: Scene, options: ReactExportOptions = {}): FileMap {
   const validated = validateScene(scene);
+  const renderScene = expandComponentInstances(validated);
   const includeDataIds = options.includeDataIds === true;
-  const { entries, screens } = buildScreenFiles(validated, includeDataIds);
-  const stateCss = renderStateCss(validated);
-  const responsiveCss = renderResponsiveCss(validated, options.breakpoints ?? DEFAULT_BREAKPOINTS);
+  const { entries, screens } = buildScreenFiles(renderScene, includeDataIds);
+  const stateCss = renderStateCss(renderScene);
+  const responsiveCss = renderResponsiveCss(renderScene, options.breakpoints ?? DEFAULT_BREAKPOINTS);
   const tokens = `${GENERATOR_BANNER}\n${renderExportCss()}${stateCss ? `\n${stateCss}\n` : ""}${responsiveCss ? `\n${responsiveCss}\n` : ""}`;
   const files: Record<string, string> = {
     "intent-export/tokens.css": tokens,

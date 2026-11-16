@@ -4,10 +4,13 @@ import { InterviewQuestionCoreSchema, PendingInterviewQuestionSchema, InterviewA
 import { CreatePatchInputSchema, UpdatePatchInputSchema, SendPatchesInputSchema, ResolvePatchInputSchema, PatchListQuerySchema, InterviewAnswerInputSchema } from "./studio-api.js";
 import { SceneValueSchema, BaseObjectSchema } from "./base-object.js";
 import { CheckboxSchema, RadioSchema, SwitchSchema, LinkSchema, ListSchema, ModalSchema, IconSchema, DividerSchema } from "./object-types.js";
+import { ComponentDefSchema } from "./components.js";
 export { CrockfordULIDSchema, ISODateTimeSchema, RevisionSchema, ObjectIdSchema, ScreenIdSchema, SafeIdSchema, ChipSchema, CreatePatchInputSchema, UpdatePatchInputSchema, SendPatchesInputSchema, ResolvePatchInputSchema, PatchListQuerySchema, InterviewAnswerInputSchema };
 export { InterviewQuestionCoreSchema, PendingInterviewQuestionSchema, InterviewAnswerSchema, AskUserInputSchema };
-export { PrimitiveValueSchema, TokenValueSchema, SceneValueSchema, BaseObjectSchema, StateNameSchema, StateOverrideSchema, STATE_NAMES, ResponsiveOverrideSchema, ResponsiveSchema } from "./base-object.js";
-export type { StateName, StateOverride, ResponsiveOverride, Responsive } from "./base-object.js";
+export { PrimitiveValueSchema, TokenValueSchema, SceneValueSchema, BaseObjectSchema, StateNameSchema, StateOverrideSchema, STATE_NAMES, ResponsiveOverrideSchema, ResponsiveSchema, ComponentRefSchema } from "./base-object.js";
+export type { StateName, StateOverride, ResponsiveOverride, Responsive, ComponentRef } from "./base-object.js";
+export { ComponentDefSchema, ExposedPropSchema } from "./components.js";
+export type { ComponentDef } from "./components.js";
 export { CheckboxSchema, RadioSchema, SwitchSchema, LinkSchema, ListSchema, ModalSchema, IconSchema, DividerSchema } from "./object-types.js";
 export type { Chip } from "./primitives.js";
 export type { InterviewQuestionCore, PendingInterviewQuestion, InterviewAnswer, AskUserInput } from "./interview.js";
@@ -107,6 +110,7 @@ export const SceneSchema = z.object({
   updatedAt: ISODateTimeSchema,
   screens: z.record(ScreenIdSchema, ScreenSchema),
   objects: z.record(ObjectIdSchema, SceneObjectSchema),
+  components: z.array(ComponentDefSchema).max(200).default([]),
   screenOrder: z.array(ScreenIdSchema).max(1000).default([]),
   metadata: z.object({
     name: z.string().default("Untitled Project"),
