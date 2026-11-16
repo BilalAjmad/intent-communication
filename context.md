@@ -111,6 +111,13 @@ User asked for a full-project review: every line of code reviewed and fixed in a
 
 (Updated 2026-11-16 by the Phase 10 addendum below: zod IS now migrated, M2.A has started. The list above is preserved as the Phase 9 snapshot.)
 
+## Phase 12 addendum (2026-11-16 — M2 wiring + race fix)
+- Multi-process race fixed (cf5a988): stale-reclaim age tiebreaker 10s -> 60s; pid-liveness primary; 10/10 stress + 2 verify runs green.
+- Named-version restore (97034d2): /api/versions + Inspector Snapshots; blank-inspector-on-boot fixed; 5 server API tests + Playwright e2e.
+- Linter surfaces (ca5de9f): MCP validate lint verdicts, GET /api/lint, topbar Lint chip + accessible panel, live SSE refresh; Playwright 2/2.
+- M2.D integration demo (4a742fc): tests/m2d-demo.spec.ts — full loop seed -> annotate -> feedback -> MCP get_feedback -> apply_patch -> export, zero external requests, no API key.
+- Unit 558 -> 567/567; verify 12/12; Playwright 84/84. M2 ~55%.
+
 ## Phase 11 addendum (2026-11-16 — M1 gate closed by owner waivers + deps zero)
 - pnpm audit 18 → 0: vitest 2.1.9 → 5.1.0, vite 5.4.21 → 8.3.8 (root+studio), @types/node → ^22, @typescript-eslint 8.72.2, pnpm override minimatch >=7 <11 → ^11.0.1 (commit 9ff7419). verify 12/12, unit 552/552.
 - AC-M1-06: byte-identical exportToHtml determinism test added.

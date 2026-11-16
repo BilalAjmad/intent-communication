@@ -97,6 +97,13 @@
 - Verify 12/12 PASS (412/412 unit), Playwright 77/77, mutation proof 5/5, context:check green.
 - Still open: M2/M3, CI observation, Tier-1 agent session (OpenRouter 402; Cursor CLI absent), stranger test, zod 3→4, LICENSE, push/tag — all user decisions. M1 gate NOT READY.
 
+## Phase 12 addendum (2026-11-16 — M2.B/M2.C/M2.D wiring + real race fix)
+- **Multi-process race root-caused and fixed** (lock-port.ts): stale-reclaim treated a 10s-old lock as dead even with a live owner pid; under full-verify load a starved lock holder was reclaimed and two processes both wrote revision 1. Age tiebreaker is now 60s; pid-liveness is primary. 10/10 stress runs + 2 consecutive full verify runs green. (commit cf5a988)
+- **Named-version restore** (trd 6.x): /api/versions list + /api/versions/:file/restore (validate, revision bump, SSE broadcast); Inspector Snapshots section (blank-inspector-on-boot fixed); 5 server API tests + Playwright e2e. (commit 97034d2)
+- **Linter surfaces end to end** (ca5de9f): MCP `validate` returns lint verdicts (type=scene); `GET /api/lint`; topbar Lint chip with toggleable accessible panel (Escape closes; live-updates on SSE revision); Playwright 2/2. Full M2 ruleset was already merged (69d1c37).
+- **M2.D integration demo** tests/m2d-demo.spec.ts (4a742fc): seed 3-screen scene → Studio → draw annotation → attach to feedback → send → MCP `get_feedback` returns feedback + annotation summary → agent `apply_patch` (no API key, no external services) → export renders patched copy with zero external requests. Playwright 80/80 → 84/84.
+- Unit 558 → 567/567; verify 12/12; Playwright 84/84.
+
 ## Phase 11 addendum (2026-11-16 - M1 gate CLOSED BY OWNER WAIVERS + deps zero)
 - pnpm audit 18 -> 0: vitest 2.1.9 -> 5.1.0, vite 5.4.21 -> 8.3.8 (root+studio), @types/node -> ^22, @typescript-eslint 8.72.2, pnpm override minimatch >=7 <11 -> ^11.0.1 (commits 9ff7419, 06ec726). verify 12/12, unit 552/552.
 - AC-M1-06: byte-identical exportToHtml determinism test added.
