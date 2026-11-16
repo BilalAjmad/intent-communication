@@ -26,6 +26,7 @@ import {
   handleApiInterviewGet,
   handleApiInterviewAnswer,
 } from "./api-routes.js";
+import { registerAnnotationRoutes } from "./annotations-api.js";
 import { handleSSE, serveStatic, writeRuntimeFile } from "./runtime.js";
 import { SseEventBus, type SSEClient } from "./event-bus.js";
 export type { SSEClient } from "./event-bus.js";
@@ -276,7 +277,6 @@ export class IntentServer {
       res.end(JSON.stringify({ error: "Forbidden" }));
       return;
     }
-
     // trd 11.3: preflight is refused; no CORS headers are sent.
     if ((req.method || "GET").toUpperCase() === "OPTIONS") {
       res.writeHead(403, { "Content-Type": "application/json" });
@@ -398,6 +398,11 @@ export class IntentServer {
       return;
     }
 
+    // Annotations (trd 9.7)
+    if (await registerAnnotationRoutes(this.apiCtx, req, res, pathname, url)) {
+      return;
+    }
+
     // Interview (trd 11.3)
     if (pathname === "/api/interview" && req.method === "GET") {
       await handleApiInterviewGet(this.apiCtx, req, res, url);
@@ -446,7 +451,6 @@ export class IntentServer {
   broadcastPatchChanged(sceneId: string, id: string, status: string) {
     this.events.send(sceneId, "patch.changed", { id, status, sceneId });
   }
-
   broadcastInterviewChanged(status: string) {
     // The interview is project-wide; fan out to every connected scene channel.
     this.events.sendAll("interview.changed", { status });

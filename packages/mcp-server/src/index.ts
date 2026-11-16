@@ -9,6 +9,7 @@ import {
 } from "@intent/core";
 import {
   Feedback,
+  AnnotationSummary,
   validateScene,
   validatePatch,
   validateConfig,
@@ -230,8 +231,37 @@ export const getFeedbackTool: MCPTool = {
       interviewState.updatedAt = new Date().toISOString();
       await context.storage.writeInterviewState(interviewState);
     }
+    // Annotations (trd 9.7): agents see sent/resolved only; imageData is opt-in and capped at 3 images per call.
+    const allAnnotations = await context.storage.readAnnotations(validated.sceneId);
+    const annotations: AnnotationSummary[] = allAnnotations
+      .filter(
+        (a) =>
+          a.status !== "open" &&
+          (!validated.objectIds || (a.objectId !== null && validated.objectIds.includes(a.objectId))),
+      )
+      .map((a) => ({
+        id: a.id,
+        kind: a.kind,
+        objectId: a.objectId,
+        screenId: a.screenId,
+        anchor: a.anchor,
+        ...(a.text !== undefined ? { text: a.text } : {}),
+        status: a.status as "sent" | "resolved",
+        ...(a.image ? { image: a.image } : {}),
+      }));
+    if (validated.includeImageData) {
+      let imagesAttached = 0;
+      for (let i = 0; i < annotations.length && imagesAttached < 3; i++) {
+        const summary = annotations[i]!;
+        if (!summary.image) continue;
+        const bytes = await context.storage.readAnnotationImage(validated.sceneId, summary.image.file);
+        if (!bytes) continue; // image metadata kept; bytes unavailable — agent falls back to the file path
+        annotations[i] = { ...summary, imageData: bytes.toString("base64") };
+        imagesAttached += 1;
+      }
+    }
 
-    return { feedback, interviewAnswers, locked };
+    return { feedback, interviewAnswers, locked, annotations };
     });
   },
 };

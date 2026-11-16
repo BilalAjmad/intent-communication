@@ -1,7 +1,9 @@
 import { z } from "zod";
 import { ObjectIdSchema, RevisionSchema, CrockfordULIDSchema, ChipSchema, SafeIdSchema } from "./primitives.js";
+import { AnnotationIdSchema } from "./annotations.js";
 
 // Studio server API inputs for the feedback patch queue (trd 11.3; design.md 4.3, 4.8, 4.10).
+
 export const CreatePatchInputSchema = z.object({
   sceneId: SafeIdSchema.default("default"),
   objectId: ObjectIdSchema,
@@ -9,9 +11,10 @@ export const CreatePatchInputSchema = z.object({
   feedback: z.object({
     text: z.string().max(2000).optional(),
     chips: z.array(ChipSchema).max(7).default([]),
+    annotationIds: z.array(AnnotationIdSchema).max(50).default([]),
   }),
-}).refine((v) => (v.feedback.text?.trim().length ?? 0) > 0 || v.feedback.chips.length > 0, {
-  message: "feedback.text or at least one chip is required",
+}).refine((v) => (v.feedback.text?.trim().length ?? 0) > 0 || v.feedback.chips.length > 0 || v.feedback.annotationIds.length > 0, {
+  message: "feedback.text, at least one chip, or at least one annotation is required",
 });
 
 export const UpdatePatchInputSchema = z.object({

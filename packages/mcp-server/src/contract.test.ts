@@ -173,7 +173,7 @@ describe("AC-M1-03: six-tool contract matrix", () => {
   it("get_feedback — happy path returns empty feedback for an untouched scene", async () => {
     const result = (await handleMCPRequest("get_feedback", { sceneId: "s_01ARZ3NDEKTSV4RRFFQ69G5FAV" }, context)) as Record<string, unknown>;
     expect(Array.isArray(result)).toBe(false);
-    expect(result).toEqual({ feedback: [], interviewAnswers: [], locked: [] });
+    expect(result).toEqual({ feedback: [], interviewAnswers: [], locked: [], annotations: [] });
   });
 
   // 4. ask_user (deterministic first question for taskSize=small)

@@ -1,8 +1,8 @@
 import { promises as fs } from "node:fs";
 import { resolve, dirname, relative, isAbsolute } from "node:path";
 import {
-  Scene, LocksFile, Config, Profile, InterviewState, Brief, Feedback,
-  validateScene, validateConfig, validateProfile, validateInterviewState, validateBrief, validateFeedback,
+  Scene, LocksFile, Config, Profile, InterviewState, Brief, Feedback, Annotation,
+  validateScene, validateConfig, validateProfile, validateInterviewState, validateBrief, validateFeedback, validateAnnotation,
 } from "@intent/schema";
 import { IntentError, ErrorCodes } from "./error.js";
 import { assertSafeId } from "./paths.js";
@@ -18,12 +18,14 @@ export function createStoragePort(testDir: string): StoragePort {
   const interviewPath = resolve(intentDir, "interview", "state.json");
   const briefsDir = resolve(intentDir, "briefs");
   const feedbackDir = resolve(intentDir, "feedback");
+  const annotationsDir = resolve(intentDir, "annotations");
 
   async function ensureDirs() {
     await fs.mkdir(scenesDir, { recursive: true });
     await fs.mkdir(locksDir, { recursive: true });
     await fs.mkdir(briefsDir, { recursive: true });
     await fs.mkdir(feedbackDir, { recursive: true });
+    await fs.mkdir(annotationsDir, { recursive: true });
     await fs.mkdir(dirname(interviewPath), { recursive: true });
   }
 
@@ -243,6 +245,92 @@ export function createStoragePort(testDir: string): StoragePort {
       assertSafeId(sceneId, "sceneId");
       const feedbackPath = resolve(feedbackDir, `${sceneId}.json`);
       await writeAtomic(feedbackPath, JSON.stringify(feedback, null, 0));
+    },
+
+    async readAnnotations(sceneId: string): Promise<Annotation[]> {
+      assertSafeId(sceneId, "sceneId");
+      const annotationsPath = resolve(annotationsDir, `${sceneId}.json`);
+      try {
+        const content = await fs.readFile(annotationsPath, "utf-8");
+        if (content.length > 1_000_000) {
+          throw new IntentError(ErrorCodes.E_SCHEMA, "Annotations file exceeds the 1 MB limit");
+        }
+        const data = JSON.parse(content) as unknown;
+        if (!Array.isArray(data)) {
+          throw new IntentError(ErrorCodes.E_SCHEMA, `Annotations file for scene ${sceneId} is not an array`);
+        }
+        return data.map((item, i) => {
+          try {
+            return validateAnnotation(item);
+          } catch (err) {
+            throw new IntentError(ErrorCodes.E_SCHEMA, `Annotations file .intent/annotations/${sceneId}.json: entry ${i} is invalid: ${(err as Error).message}`);
+          }
+        });
+      } catch (err) {
+        if ((err as NodeJS.ErrnoException)?.code === "ENOENT") return [];
+        if (err instanceof IntentError) throw err;
+        throw new IntentError(ErrorCodes.E_SCHEMA, `Annotations file .intent/annotations/${sceneId}.json is unreadable or invalid: ${(err as Error).message}`);
+      }
+    },
+
+    async writeAnnotations(sceneId: string, annotations: Annotation[]): Promise<void> {
+      await ensureDirs();
+      assertSafeId(sceneId, "sceneId");
+      const serialized = JSON.stringify(annotations);
+      if (serialized.length > 1_000_000) {
+        throw new IntentError(ErrorCodes.E_SCHEMA, "Annotations payload exceeds the 1 MB limit");
+      }
+      const annotationsPath = resolve(annotationsDir, `${sceneId}.json`);
+      await writeAtomic(annotationsPath, serialized);
+    },
+
+    async writeAnnotationImage(
+      sceneId: string,
+      annotationId: string,
+      png: Buffer,
+    ): Promise<{ file: string; width: number; height: number }> {
+      assertSafeId(sceneId, "sceneId");
+      if (!/^a_[0-9A-HJKMNP-TV-Z]{26}$/.test(annotationId)) {
+        throw new IntentError(ErrorCodes.E_BAD_REQUEST, "Invalid annotation id");
+      }
+      if (png.length === 0 || png.length > 1_000_000) {
+        throw new IntentError(ErrorCodes.E_BAD_REQUEST, "PNG exceeds the 1 MB server limit");
+      }
+      const PNG_MAGIC = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+      if (png.length < 33 || !png.subarray(0, 8).equals(PNG_MAGIC) || png.toString("latin1", 12, 16) !== "IHDR") {
+        throw new IntentError(ErrorCodes.E_BAD_REQUEST, "Not a valid PNG file");
+      }
+      const width = png.readUInt32BE(16);
+      const height = png.readUInt32BE(20);
+      if (width < 1 || height < 1 || width > 4096 || height > 4096) {
+        throw new IntentError(ErrorCodes.E_BAD_REQUEST, "PNG dimensions out of range (max 4096)");
+      }
+      const dir = resolve(annotationsDir, sceneId);
+      await fs.mkdir(dir, { recursive: true });
+      const target = resolve(dir, `${annotationId}.png`);
+      await checkPathSafety(target, dir);
+      await fs.writeFile(target, png, { mode: 0o600 });
+      return { file: `${annotationId}.png`, width, height };
+    },
+
+    async readAnnotationImage(sceneId: string, file: string): Promise<Buffer | null> {
+      assertSafeId(sceneId, "sceneId");
+      if (!/^a_[0-9A-HJKMNP-TV-Z]{26}\.png$/.test(file)) {
+        throw new IntentError(ErrorCodes.E_BAD_REQUEST, "Invalid image file name");
+      }
+      const target = resolve(annotationsDir, sceneId, file);
+      await checkPathSafety(target, resolve(annotationsDir, sceneId));
+      try {
+        const stats = await fs.stat(target);
+        if (stats.size > 1_000_000) {
+          throw new IntentError(ErrorCodes.E_BAD_REQUEST, "PNG exceeds the 1 MB server limit");
+        }
+        return await fs.readFile(target);
+      } catch (err) {
+        if ((err as NodeJS.ErrnoException)?.code === "ENOENT") return null;
+        if (err instanceof IntentError) throw err;
+        throw err;
+      }
     },
 
     async listScenes(): Promise<string[]> {

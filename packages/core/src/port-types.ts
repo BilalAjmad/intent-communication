@@ -1,5 +1,5 @@
 import type {
-  Scene, LocksFile, Config, Profile, InterviewState, Brief, Feedback,
+  Scene, LocksFile, Config, Profile, InterviewState, Brief, Feedback, Annotation,
 } from "@intent/schema";
 
 export interface StoragePort {
@@ -23,6 +23,20 @@ export interface StoragePort {
   writeBrief(brief: Brief): Promise<void>;
   readFeedback(sceneId: string): Promise<Feedback[]>;
   writeFeedback(sceneId: string, feedback: Feedback[]): Promise<void>;
+  /**
+   * Annotations (trd 9.7). Vector data lives in .intent/annotations/<sceneId>.json;
+   * PNGs (created by the browser over a screenshot of the target box) live in
+   * .intent/annotations/<sceneId>/<aId>.png. Both are validated strictly; files
+   * over 1 MB are rejected.
+   */
+  readAnnotations(sceneId: string): Promise<Annotation[]>;
+  writeAnnotations(sceneId: string, annotations: Annotation[]): Promise<void>;
+  writeAnnotationImage(
+    sceneId: string,
+    annotationId: string,
+    png: Buffer,
+  ): Promise<{ file: string; width: number; height: number }>;
+  readAnnotationImage(sceneId: string, file: string): Promise<Buffer | null>;
   listScenes(): Promise<string[]>;
 }
 

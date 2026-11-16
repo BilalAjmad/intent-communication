@@ -27,6 +27,17 @@ export function newPatchId(): string {
   return `p_${out}`;
 }
 
+/** Same entropy source as newPatchId; annotation ids use the a_ prefix (trd 9.7). */
+export function newAnnotationId(): string {
+  const crockf = "0123456789ABCDEFGHJKMNPQRSTVWXYZ";
+  const bytes = randomBytes(26);
+  let out = "";
+  for (let i = 0; i < 26; i++) {
+    out += crockf[(bytes[i] as number) % 32];
+  }
+  return `a_${out}`;
+}
+
 /** Locked objects including descendants of locked containers (effective lock set). */
 export function lockedWithDescendants(scene: Scene | null, locked: string[]): string[] {
   const out = new Set(locked);
@@ -77,6 +88,22 @@ export async function readJsonBody(req: IncomingMessage, limit: number): Promise
   } catch {
     throw Object.assign(new Error("request body is not valid JSON"), { code: "E_BAD_REQUEST" });
   }
+}
+
+/** Read a raw body (e.g. image/png) into a Buffer; throws { code: "E_LIMIT" } over the cap. */
+export async function readRawBody(req: IncomingMessage, limit: number): Promise<Buffer> {
+  const chunks: Buffer[] = [];
+  let size = 0;
+  for await (const chunk of req) {
+    const buf = chunk as Buffer;
+    size += buf.length;
+    if (size > limit) {
+      req.resume();
+      throw Object.assign(new Error("request body too large"), { code: "E_LIMIT" });
+    }
+    chunks.push(buf);
+  }
+  return Buffer.concat(chunks);
 }
 
 /** Maps a readJsonBody failure to the right status/envelope (413 vs 400). */

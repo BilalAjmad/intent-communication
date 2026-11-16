@@ -5,12 +5,15 @@ import { CreatePatchInputSchema, UpdatePatchInputSchema, SendPatchesInputSchema,
 import { SceneValueSchema, BaseObjectSchema } from "./base-object.js";
 import { CheckboxSchema, RadioSchema, SwitchSchema, LinkSchema, ListSchema, ModalSchema, IconSchema, DividerSchema } from "./object-types.js";
 import { ComponentDefSchema } from "./components.js";
+import { AnnotationIdSchema, AnnotationSummarySchema, AnnotationSchema, type Annotation } from "./annotations.js";
 export { CrockfordULIDSchema, ISODateTimeSchema, RevisionSchema, ObjectIdSchema, ScreenIdSchema, SafeIdSchema, ChipSchema, CreatePatchInputSchema, UpdatePatchInputSchema, SendPatchesInputSchema, ResolvePatchInputSchema, PatchListQuerySchema, InterviewAnswerInputSchema };
 export { InterviewQuestionCoreSchema, PendingInterviewQuestionSchema, InterviewAnswerSchema, AskUserInputSchema };
 export { PrimitiveValueSchema, TokenValueSchema, SceneValueSchema, BaseObjectSchema, StateNameSchema, StateOverrideSchema, STATE_NAMES, ResponsiveOverrideSchema, ResponsiveSchema, ComponentRefSchema } from "./base-object.js";
 export type { StateName, StateOverride, ResponsiveOverride, Responsive, ComponentRef } from "./base-object.js";
 export { ComponentDefSchema, ExposedPropSchema } from "./components.js";
 export type { ComponentDef } from "./components.js";
+export { AnnotationIdSchema, AnnotationStrokeSchema, AnnotationPointSchema, AnnotationImageSchema, AnnotationSchema, CreateAnnotationInputSchema, AnnotationSummarySchema } from "./annotations.js";
+export type { Annotation, AnnotationStroke, AnnotationImage, AnnotationSummary, CreateAnnotationInput } from "./annotations.js";
 export { CheckboxSchema, RadioSchema, SwitchSchema, LinkSchema, ListSchema, ModalSchema, IconSchema, DividerSchema } from "./object-types.js";
 export type { Chip } from "./primitives.js";
 export type { InterviewQuestionCore, PendingInterviewQuestion, InterviewAnswer, AskUserInput } from "./interview.js";
@@ -269,6 +272,7 @@ export const FeedbackSchema = z.object({
   appliedAt: ISODateTimeSchema.nullable().default(null),
   patchId: CrockfordULIDSchema.nullable().default(null),
   screenshot: z.string().optional(),
+  annotationIds: z.array(AnnotationIdSchema).max(50).default([]),
 });
 
 export type Feedback = z.infer<typeof FeedbackSchema>;
@@ -347,6 +351,7 @@ export const GetFeedbackOutputSchema = z.object({
   feedback: z.array(FeedbackSchema).max(2000),
   interviewAnswers: z.array(InterviewAnswerSchema).max(2000).default([]),
   locked: z.array(ObjectIdSchema).max(2000).default([]),
+  annotations: z.array(AnnotationSummarySchema).max(2000).default([]),
 });
 
 export type GetFeedbackOutput = z.infer<typeof GetFeedbackOutputSchema>;
@@ -407,6 +412,10 @@ export function validateBrief(data: unknown): Brief {
 
 export function validateFeedback(data: unknown): Feedback {
   return FeedbackSchema.parse(data);
+}
+
+export function validateAnnotation(data: unknown): Annotation {
+  return AnnotationSchema.parse(data);
 }
 
 export function validateGetSceneInput(data: unknown): GetSceneInput {

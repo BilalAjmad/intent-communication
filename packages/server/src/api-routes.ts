@@ -131,7 +131,10 @@ export async function handleApiPatchCreate(ctx: ApiContext, req: IncomingMessage
   }
   const text = (input.feedback.text ?? "").trim();
   const chips = input.feedback.chips;
-  const message = text || chips.map((c) => CHIP_LABELS[c] ?? c).join(" Â· ");
+  const chipLabel = chips.map((c) => CHIP_LABELS[c] ?? c).join(", ");
+  // Annotation-only feedback is valid input (see the create refine) but the
+  // queue invariant requires a non-empty message, so derive one deterministically.
+  const message = text || chipLabel || `Annotation attached (${input.feedback.annotationIds.length})`;
   const item: Feedback = {
     id: newPatchId(),
     sceneId: input.sceneId,
@@ -146,6 +149,7 @@ export async function handleApiPatchCreate(ctx: ApiContext, req: IncomingMessage
     sentAt: null,
     appliedAt: null,
     patchId: null,
+    annotationIds: input.feedback.annotationIds,
   };
   const queue = await readQueue(ctx.storage, input.sceneId);
   queue.push(item);
@@ -261,6 +265,23 @@ export async function handleApiPatchSend(ctx: ApiContext, req: IncomingMessage, 
   });
   await ctx.storage.writeFeedback(input.sceneId, updated);
   await saveBeforeSendVersion(ctx.storage, ctx.projectRoot, input.sceneId);
+  // Flip any annotations referenced by the sent feedback items from open to
+  // sent so they become visible to get_feedback (trd 9.7).
+  const sentAnnotationIds = new Set(sent.flatMap((f) => f.annotationIds));
+  if (sentAnnotationIds.size > 0) {
+    const annotations = await ctx.storage.readAnnotations(input.sceneId);
+    let changed = false;
+    const flipped = annotations.map((a) => {
+      if (a.status === "open" && sentAnnotationIds.has(a.id)) {
+        changed = true;
+        return { ...a, status: "sent" as const };
+      }
+      return a;
+    });
+    if (changed) {
+      await ctx.storage.writeAnnotations(input.sceneId, flipped);
+    }
+  }
   for (const item of sent) {
     ctx.broadcastPatchChanged(input.sceneId, item.id, "sent");
   }
@@ -442,3 +463,4 @@ export async function handleApiInterviewAnswer(ctx: ApiContext, req: IncomingMes
 
   });
 }
+
