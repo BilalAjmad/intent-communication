@@ -55,3 +55,7 @@ opencode.*.local.json
 *.pem
 *.key
 .envrc
+.vitest/
+packages/*/.vitest/
+coverage/
+packages/*/coverage/
