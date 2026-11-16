@@ -6,9 +6,17 @@ import {
 } from "@intent/schema";
 
 type Container = SceneObject & { type: "container"; props: { layout: "flex" | "grid" | "absolute"; gap?: number; padding?: number; direction?: "row" | "column"; align?: "start" | "center" | "end" | "stretch"; justify?: "start" | "center" | "end" | "space-between" | "space-around" } };
-type Text = SceneObject & { type: "text"; props: { content: string; fontSize?: number; fontWeight?: number | "normal" | "bold" | "medium" | "light"; color?: string; lineHeight?: number; textAlign?: "left" | "center" | "right" | "justify" } };
+type Text = SceneObject & { type: "text"; props: { content: string; fontSize?: number; fontWeight?: number | "normal" | "bold" | "medium" | "light"; color?: SceneValue; lineHeight?: number; textAlign?: "left" | "center" | "right" | "justify" } };
 type Button = SceneObject & { type: "button"; props: { label: string; variant?: "primary" | "secondary" | "outline" | "ghost" | "destructive"; disabled?: boolean; size?: "sm" | "md" | "lg"; onClick?: string } };
 type Input = SceneObject & { type: "input"; props: { placeholder?: string; value?: string; type?: "text" | "email" | "password" | "number" | "tel" | "url"; disabled?: boolean; required?: boolean; onChange?: string } };
+type Checkbox = SceneObject & { type: "checkbox"; props: { label?: string; checked?: boolean; name?: string; disabled?: boolean; onChange?: string } };
+type Radio = SceneObject & { type: "radio"; props: { label?: string; checked?: boolean; name?: string; value?: string; disabled?: boolean; onChange?: string } };
+type Switch = SceneObject & { type: "switch"; props: { label?: string; checked?: boolean; name?: string; disabled?: boolean; onChange?: string } };
+type Link = SceneObject & { type: "link"; props: { label?: string; target?: "_self" | "_blank" | "_parent" | "_top"; rel?: string; onClick?: string } };
+type List = SceneObject & { type: "list"; props: { items?: string[]; ordered?: boolean } };
+type Modal = SceneObject & { type: "modal"; props: { title?: string; size?: "sm" | "md" | "lg"; open?: boolean } };
+type Icon = SceneObject & { type: "icon"; props: { icon?: string; size?: number; color?: SceneValue; label?: string } };
+type Divider = SceneObject & { type: "divider"; props: { direction?: "horizontal" | "vertical"; thickness?: number } };
 type Image = SceneObject & { type: "image"; props: { src: string; alt?: string; fit?: "cover" | "contain" | "fill" | "scale-down" | "none"; width?: number; height?: number } };
 
 export interface NormalizeOptions {
@@ -141,6 +149,43 @@ function applyDefaults(obj: SceneObject, changes: string[]): SceneObject {
       };
       if (o.props.layout === undefined) changes.push(`container.${o.id}: set default layout flex`);
       return updated;
+    }
+    case "checkbox": {
+      const o = obj as Checkbox;
+      return {
+        ...o,
+        props: { checked: false, label: "Checkbox", disabled: false, ...o.props },
+        style: { ...o.style },
+        meta: o.meta,
+      };
+    }
+    case "radio": {
+      const o = obj as Radio;
+      return { ...o, props: { checked: false, label: "Option", disabled: false, ...o.props }, style: { ...o.style }, meta: o.meta };
+    }
+    case "switch": {
+      const o = obj as Switch;
+      return { ...o, props: { checked: false, label: "Toggle", disabled: false, ...o.props }, style: { ...o.style }, meta: o.meta };
+    }
+    case "link": {
+      const o = obj as Link;
+      return { ...o, props: { label: "Link", target: "_self", ...o.props }, style: { ...o.style }, meta: o.meta };
+    }
+    case "list": {
+      const o = obj as List;
+      return { ...o, props: { items: [], ordered: false, ...o.props }, style: { ...o.style }, meta: o.meta };
+    }
+    case "modal": {
+      const o = obj as Modal;
+      return { ...o, props: { title: "", size: "md", open: false, ...o.props }, style: { ...o.style }, meta: o.meta };
+    }
+    case "icon": {
+      const o = obj as Icon;
+      return { ...o, props: { icon: "info", size: 24, ...o.props }, style: { ...o.style }, meta: o.meta };
+    }
+    case "divider": {
+      const o = obj as Divider;
+      return { ...o, props: { direction: "horizontal", thickness: 1, ...o.props }, style: { ...o.style }, meta: o.meta };
     }
     case "text": {
       const o = obj as Text;
@@ -296,5 +341,7 @@ export {
   buildCsp,
   sanitizeNonce,
 } from "./sanitize.js";
+
+export { renderIconMarkup } from "./icons.js";
 
 export { SCHEMA_VERSION, SCENE_SCHEMA_VERSION } from "@intent/schema";

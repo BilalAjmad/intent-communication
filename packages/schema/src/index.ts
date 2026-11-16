@@ -2,36 +2,15 @@ import { z } from "zod";
 import { CrockfordULIDSchema, ISODateTimeSchema, RevisionSchema, ObjectIdSchema, ScreenIdSchema, SafeIdSchema, ChipSchema } from "./primitives.js";
 import { InterviewQuestionCoreSchema, PendingInterviewQuestionSchema, InterviewAnswerSchema, AskUserInputSchema, type AskUserInput } from "./interview.js";
 import { CreatePatchInputSchema, UpdatePatchInputSchema, SendPatchesInputSchema, ResolvePatchInputSchema, PatchListQuerySchema, InterviewAnswerInputSchema } from "./studio-api.js";
+import { SceneValueSchema, BaseObjectSchema } from "./base-object.js";
+import { CheckboxSchema, RadioSchema, SwitchSchema, LinkSchema, ListSchema, ModalSchema, IconSchema, DividerSchema } from "./object-types.js";
 export { CrockfordULIDSchema, ISODateTimeSchema, RevisionSchema, ObjectIdSchema, ScreenIdSchema, SafeIdSchema, ChipSchema, CreatePatchInputSchema, UpdatePatchInputSchema, SendPatchesInputSchema, ResolvePatchInputSchema, PatchListQuerySchema, InterviewAnswerInputSchema };
 export { InterviewQuestionCoreSchema, PendingInterviewQuestionSchema, InterviewAnswerSchema, AskUserInputSchema };
+export { PrimitiveValueSchema, TokenValueSchema, SceneValueSchema, BaseObjectSchema } from "./base-object.js";
+export { CheckboxSchema, RadioSchema, SwitchSchema, LinkSchema, ListSchema, ModalSchema, IconSchema, DividerSchema } from "./object-types.js";
 export type { Chip } from "./primitives.js";
 export type { InterviewQuestionCore, PendingInterviewQuestion, InterviewAnswer, AskUserInput } from "./interview.js";
 export type { CreatePatchInput, UpdatePatchInput, SendPatchesInput, ResolvePatchInput } from "./studio-api.js";
-
-export const PrimitiveValueSchema = z.union([z.string(), z.number(), z.boolean(), z.null()]);
-
-export const TokenValueSchema = z.object({
-  $type: z.literal("token"),
-  $value: z.string(),
-});
-
-export const SceneValueSchema = z.union([
-  PrimitiveValueSchema,
-  TokenValueSchema,
-  z.record(z.string(), z.unknown()),
-  z.array(z.unknown()).max(500),
-]);
-
-export const BaseObjectSchema = z.object({
-  id: ObjectIdSchema,
-  type: z.string().min(1),
-  parentId: ObjectIdSchema.nullable(),
-  children: z.array(ObjectIdSchema).max(200).default([]),
-  props: z.record(z.string(), SceneValueSchema).default({}),
-  style: z.record(z.string(), SceneValueSchema).default({}),
-  meta: z.record(z.string(), z.unknown()).default({}),
-  rev: z.number().int().nonnegative().optional(),
-});
 
 export const ScreenSchema = BaseObjectSchema.extend({
   type: z.literal("screen"),
@@ -109,6 +88,14 @@ export const SceneObjectSchema = z.union([
   ImageSchema,
   ButtonSchema,
   InputSchema,
+  CheckboxSchema,
+  RadioSchema,
+  SwitchSchema,
+  LinkSchema,
+  ListSchema,
+  ModalSchema,
+  IconSchema,
+  DividerSchema,
   BaseObjectSchema,
 ]);
 

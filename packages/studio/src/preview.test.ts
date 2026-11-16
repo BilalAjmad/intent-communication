@@ -89,3 +89,98 @@ describe("buildPreviewDocument (S-1-11)", () => {
     expect(html).toContain('src="data:image/png;base64,iVBORw0KGgo="');
   });
 });
+
+describe("new object types (M2.A) in preview", () => {
+  const CB = "o_04ARZ3NDEKTSV4RRFFQ69G5FAV";
+  const SW = "o_05ARZ3NDEKTSV4RRFFQ69G5FAV";
+  const LINK = "o_06ARZ3NDEKTSV4RRFFQ69G5FAV";
+  const LIST = "o_07ARZ3NDEKTSV4RRFFQ69G5FAV";
+  const MODAL = "o_08ARZ3NDEKTSV4RRFFQ69G5FAV";
+  const INNER = "o_09ARZ3NDEKTSV4RRFFQ69G5FAV";
+  const ICON = "o_10ARZ3NDEKTSV4RRFFQ69G5FAV";
+  const HR = "o_11ARZ3NDEKTSV4RRFFQ69G5FAV";
+
+  it("renders checkbox, switch and link with data-object-id hooks", () => {
+    const html = buildPreviewDocument(
+      baseScene(
+        {
+          [CB]: { id: CB, type: "checkbox", parentId: SCREEN, children: [], props: { label: "Agree", checked: true }, style: {}, meta: {} },
+          [SW]: { id: SW, type: "switch", parentId: SCREEN, children: [], props: { label: "Notify" }, style: {}, meta: {} },
+          [LINK]: { id: LINK, type: "link", parentId: SCREEN, children: [], props: { label: "Home", href: "#s-home" }, style: {}, meta: {} },
+        },
+        [CB, SW, LINK]
+      )
+    );
+    expect(html).toContain(`data-object-id="${CB}"`);
+    expect(html).toContain(`data-object-id="${SW}"`);
+    expect(html).toContain(`data-object-id="${LINK}"`);
+    expect(html).toContain('role="switch"');
+    expect(html).toContain('href="#s-home"');
+  });
+
+  it("escapes list items and renders ordered list", () => {
+    const html = buildPreviewDocument(
+      baseScene(
+        {
+          [LIST]: { id: LIST, type: "list", parentId: SCREEN, children: [], props: { ordered: true, items: ["<b>x</b>", "y"] }, style: {}, meta: {} },
+        },
+        [LIST]
+      )
+    );
+    expect(html).toContain("<ol");
+    expect(html).toContain("&lt;b&gt;x&lt;/b&gt;");
+    expect(html).not.toContain("<b>x</b>");
+  });
+
+  it("renders modal as <dialog> with children inside", () => {
+    const html = buildPreviewDocument(
+      baseScene(
+        {
+          [MODAL]: { id: MODAL, type: "modal", parentId: SCREEN, children: [INNER], props: { title: "Confirm", size: "sm", open: true }, style: {}, meta: {} },
+          [INNER]: { id: INNER, type: "text", parentId: MODAL, children: [], props: { content: "Proceed?" }, style: {}, meta: {} },
+        },
+        [MODAL]
+      )
+    );
+    expect(html).toContain('<dialog class="intent-modal intent-modal-sm" open');
+    expect(html).toContain("Confirm");
+    expect(html).toContain("Proceed?");
+    expect(html).toContain("intent-modal-title");
+  });
+
+  it("renders allowlisted icon as inline SVG; unknown name falls back safely", () => {
+    const known = buildPreviewDocument(
+      baseScene(
+        {
+          [ICON]: { id: ICON, type: "icon", parentId: SCREEN, children: [], props: { icon: "warning", size: 20, label: "Careful" }, style: {}, meta: {} },
+        },
+        [ICON]
+      )
+    );
+    expect(known).toContain("<svg");
+    expect(known).toContain('aria-label="Careful"');
+    const unknown = buildPreviewDocument(
+      baseScene(
+        {
+          [ICON]: { id: ICON, type: "icon", parentId: SCREEN, children: [], props: { icon: "bogus-icon" }, style: {}, meta: {} },
+        },
+        [ICON]
+      )
+    );
+    expect(unknown).toContain("<svg");
+    expect(unknown).toContain('aria-hidden="true"');
+  });
+
+  it("renders divider as <hr> with thickness style", () => {
+    const html = buildPreviewDocument(
+      baseScene(
+        {
+          [HR]: { id: HR, type: "divider", parentId: SCREEN, children: [], props: { direction: "vertical", thickness: 2 }, style: {}, meta: {} },
+        },
+        [HR]
+      )
+    );
+    expect(html).toContain("intent-divider-vertical");
+    expect(html).toContain("width: 2px;");
+  });
+});

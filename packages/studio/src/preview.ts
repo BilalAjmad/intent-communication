@@ -7,6 +7,7 @@ import {
   sanitizeUrl,
   renderExportCss,
   buildStyleString,
+  renderIconMarkup,
 } from "@intent/engine";
 
 // S-1-11 / AC-M1-07: the Studio preview renderer.
@@ -172,6 +173,68 @@ function renderNode(obj: SceneObject, all: Record<string, SceneObject>, depth = 
       const alt = escapeHtml((obj.props.alt as string) ?? "");
       const fit = safeClassToken(obj.props.fit, "cover");
       return `${pad}<img class="intent-image intent-fit-${fit}" src="${src}" alt="${alt}"${styleAttr} data-object-id="${escapeHtml(obj.id)}" />`;
+    }
+    case "checkbox": {
+      const label = escapeHtml((obj.props.label as string) ?? "Checkbox");
+      const checked = obj.props.checked ? " checked" : "";
+      const disabled = obj.props.disabled ? " disabled" : "";
+      const name = typeof obj.props.name === "string" && obj.props.name ? ` name="${escapeHtml(obj.props.name)}"` : "";
+      return `${pad}<label class="intent-checkbox"${styleAttr} data-object-id="${escapeHtml(obj.id)}"><input type="checkbox"${name}${checked}${disabled} /><span>${label}</span></label>`;
+    }
+    case "radio": {
+      const label = escapeHtml((obj.props.label as string) ?? "Option");
+      const checked = obj.props.checked ? " checked" : "";
+      const disabled = obj.props.disabled ? " disabled" : "";
+      const name = typeof obj.props.name === "string" && obj.props.name ? ` name="${escapeHtml(obj.props.name)}"` : "";
+      const value = typeof obj.props.value === "string" && obj.props.value ? ` value="${escapeHtml(obj.props.value)}"` : "";
+      return `${pad}<label class="intent-radio"${styleAttr} data-object-id="${escapeHtml(obj.id)}"><input type="radio"${name}${value}${checked}${disabled} /><span>${label}</span></label>`;
+    }
+    case "switch": {
+      const label = escapeHtml((obj.props.label as string) ?? "Toggle");
+      const checked = obj.props.checked ? " checked" : "";
+      const disabled = obj.props.disabled ? " disabled" : "";
+      const name = typeof obj.props.name === "string" && obj.props.name ? ` name="${escapeHtml(obj.props.name)}"` : "";
+      return `${pad}<label class="intent-switch"${styleAttr} data-object-id="${escapeHtml(obj.id)}"><input type="checkbox" role="switch"${name}${checked}${disabled} /><span class="switch-track"></span><span>${label}</span></label>`;
+    }
+    case "link": {
+      const label = escapeHtml((obj.props.label as string) ?? "Link");
+      const href = sanitizeUrl(obj.props.href);
+      const target = safeClassToken(obj.props.target, "_self");
+      const targetAttr = target === "_self" ? "" : ` target="${target}"`;
+      const SAFE_REL = new Set(["noopener", "noreferrer", "nofollow"]);
+      const rawRel = typeof obj.props.rel === "string" ? obj.props.rel : "";
+      const rels = rawRel.split(/\s+/).filter((t) => SAFE_REL.has(t));
+      if (target === "_blank" && !rels.includes("noopener")) rels.push("noopener");
+      const relAttr = rels.length ? ` rel="${rels.join(" ")}"` : "";
+      const hrefAttr = href ? ` href="${escapeHtml(href)}"` : "";
+      return `${pad}<a class="intent-link"${hrefAttr}${targetAttr}${relAttr}${styleAttr} data-object-id="${escapeHtml(obj.id)}">${label}</a>`;
+    }
+    case "list": {
+      const items = Array.isArray(obj.props.items) ? (obj.props.items as string[]) : [];
+      const ordered = obj.props.ordered === true;
+      const tag = ordered ? "ol" : "ul";
+      const lis = items.map((item) => `${pad}  <li>${escapeHtml(item)}</li>`).join("\n");
+      return `${pad}<${tag} class="intent-list"${styleAttr} data-object-id="${escapeHtml(obj.id)}">\n${lis}\n${pad}</${tag}>`;
+    }
+    case "modal": {
+      const title = escapeHtml((obj.props.title as string) ?? "");
+      const size = safeClassToken(obj.props.size, "md");
+      const modalClass = size === "md" ? "intent-modal" : `intent-modal intent-modal-${size}`;
+      const openAttr = obj.props.open ? " open" : "";
+      const titleHtml = title ? `\n${pad}  <h2 class="intent-modal-title">${title}</h2>` : "";
+      return `${pad}<dialog class="${modalClass}"${openAttr}${styleAttr} data-object-id="${escapeHtml(obj.id)}">${titleHtml}\n${children}\n${pad}</dialog>`;
+    }
+    case "icon":
+      return `${pad}${renderIconMarkup(obj.props.icon, obj.props.size, obj.props.color, obj.props.label, { objectId: obj.id, styleAttr })}`;
+    case "divider": {
+      const direction = obj.props.direction === "vertical" ? "vertical" : "horizontal";
+      const thicknessRaw = typeof obj.props.thickness === "number" && Number.isFinite(obj.props.thickness) ? obj.props.thickness : 1;
+      const thickness = Math.min(Math.max(Math.floor(thicknessRaw), 1), 32);
+      const base = buildStyleString(obj.style);
+      const dimension = direction === "horizontal" ? `height: ${thickness}px;` : `width: ${thickness}px;`;
+      const merged = [base, dimension].filter(Boolean).join(" ").trim();
+      const mergedAttr = merged ? ` style="${escapeHtml(merged)}"` : "";
+      return `${pad}<hr class="intent-divider intent-divider-${direction}" role="separator"${mergedAttr} data-object-id="${escapeHtml(obj.id)}" />`;
     }
     default:
       return `${pad}<div${styleAttr} data-object-id="${escapeHtml(obj.id)}">\n${children}\n${pad}</div>`;
