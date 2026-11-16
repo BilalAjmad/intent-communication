@@ -1,6 +1,6 @@
 # Documentation Index
 
-Generated: 2026-11-16T09:19:23.663Z
+Generated: 2026-11-16T09:26:37.777Z
 
 ## Plan
 
@@ -25,7 +25,6 @@ Generated: 2026-11-16T09:19:23.663Z
   - 8.2 8.2 Sub-slices
   - 8.3 8.3 Steps
   - 8.3.1 8.3.1 S-1 Step Status (evidence from `pnpm verify` 2026-11-15)
-  - 8.4 8.4 Cut line for M1 (what goes first if M1 is too big)
   - 8.5 8.5 M1 acceptance criteria
   - 8.6 8.6 Demo D script (the M1 demo)
   - 8.7 8.7 M1 gate

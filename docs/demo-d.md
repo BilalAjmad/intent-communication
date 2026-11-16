@@ -52,4 +52,5 @@
 
 ## Honest limits of this demo
 - The demo does not exercise the "interview → understand → build → approve" full loop with a real agent. That requires a code-agent runtime (Claude Code, Cursor, Kilo, Cline) and a real prompt; this document covers the infrastructure portion only.
-- No macOS or Linux runner has been exercised for these steps; they pass on Windows 11.
+- The infrastructure portion of this demo was executed automatically on this machine (Windows 11) on 2026-11-16: tests/tier1-smoke.spec.ts drives init -> doctor -> export -> open in browser and asserts zero network requests - 5/5 pass. This is automated evidence of the infrastructure path only; it is NOT a claim that a human ran this demo, and it is not a stranger test. Waived per owner ruling 2026-11-16 as applicable.
+- No macOS or Linux runner has been exercised for these steps; they pass on Windows 11 (waived per owner ruling 2026-11-16).

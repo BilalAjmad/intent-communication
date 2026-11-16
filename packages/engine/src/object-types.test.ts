@@ -221,6 +221,25 @@ describe("new object types (M2.A)", () => {
       expect(html).toContain("height: 3px;");
     });
 
+    it("exportToHtml is byte-identical on repeat (AC-M1-06, trd 13.3)", () => {
+      const scene = sceneWith(
+        {
+          o_05ARZ3NDEKTSV4RRFFQ69G5FAV: {
+            id: "o_05ARZ3NDEKTSV4RRFFQ69G5FAV", type: "checkbox", parentId: containerId, children: [],
+            props: { label: "I agree", checked: true },
+            style: {}, meta: {},
+          },
+          o_06ARZ3NDEKTSV4RRFFQ69G5FAV: {
+            id: "o_06ARZ3NDEKTSV4RRFFQ69G5FAV", type: "list", parentId: containerId, children: [],
+            props: { ordered: true, items: ["first", "second", "third"] },
+            style: {}, meta: {},
+          },
+        },
+        ["o_05ARZ3NDEKTSV4RRFFQ69G5FAV", "o_06ARZ3NDEKTSV4RRFFQ69G5FAV"],
+      );
+      expect(exportToHtml(scene)).toBe(exportToHtml(scene));
+    });
+
     it("escapes label with quotes in checkbox (attribute injection)", () => {
       const checkboxId = "o_03ARZ3NDEKTSV4RRFFQ69G5FAV";
       const scene = sceneWith(

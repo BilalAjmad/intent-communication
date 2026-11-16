@@ -44,6 +44,7 @@ Sources (fetched 2026-11-15): https://cursor.com/docs/context/mcp and https://cu
 
 `pnpm audit` (2026-11-15): 19 findings (1 low, 13 moderate, 2 high, 3 critical). None of them come from the two packages above. All criticals are in the dev/test toolchain (vitest UI server, tinypool); the high in `zod@3.25.76` (GHSA-mrhx-c7xc-m3w5, patched in >=4.6.6) is pre-existing and is **not** fixed here (zod 3 -> 4 is a migration; not in scope). Full output not committed (machine-local).
 `pnpm audit` (2026-11-16): 18 findings (1 low, 13 moderate, 1 high, 3 critical), **all in the dev/test toolchain** (vitest, vite, tinypool, launch-editor, esbuild) — none from a shipped runtime dependency of Intent. The zod advisory is closed.
+`pnpm audit` (2026-11-16, later): **No known vulnerabilities found.** Closed via: zod 3.25.76 → ^4.6.7 (GHSA-mrhx-c7xc-m3w5); vitest 2.1.9 → 5.1.0 + @vitest/coverage-v8 5.1.0; vite 5.4.21 → 8.3.8 (root + studio); @types/node → ^22; @typescript-eslint → 8.72.2; pnpm override `minimatch@>=7 <11 → ^11.0.1`. All bumps are dev/test toolchain; zero changes to shipped runtime deps. Commit 9ff7419.
 
 ## UNVERIFIED — do not claim until checked
 

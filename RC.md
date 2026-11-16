@@ -1,14 +1,22 @@
 # Intent — Release Candidate Status
 
-Date: 2026-11-15
-Scope: M1, in-tree state at the current working tree after the Interview-tab pass (SCHEMA/MCP/server/Studio). Nothing has been pushed or tagged.
+Date: 2026-11-16
+Scope: M1, in-tree state at the current working tree (M2.A engine growth and M2.B/M2.C slices landed on top of M1). Nothing has been pushed or tagged.
 
-> **The M1 gate verdict remains NOT READY for v0.1.0** (docs/review.md A-21/A-21.1). This file states what is proven and what is not. Do not read "works" below as a release claim.
+> **The M1 gate verdict was NOT READY for v0.1.0 until 2026-11-16. On 2026-11-16 the project owner ruled the remaining evidence classes out of scope (see "Owner rulings" below); the gate is now CLOSED BY OWNER WAIVERS — explicitly NOT the same as "proven on Linux/macOS, against live agents, or by human strangers". None of those three claims is made or implied. Everything else is evidence-backed.**
+
+## Owner rulings (2026-11-16) — what the owner decided, dated, in writing
+
+- **AC-M1-11 (Tier 1 smoke: live Claude Code + Cursor sessions) — WAIVED by owner ruling 2026-11-16.** The Intent project has no agent/runtime dependency and needs no API key. No live agent session was run; `tests/smoke/CHECKLIST.md` remains intentionally empty. This AC is **not satisfied** and is not claimed anywhere in this repo. The demo-D gate no longer depends on it.
+- **AC-M1-13 (stranger test with 3 humans) — WAIVED by owner ruling 2026-11-16.** The Demo D infrastructure walkthrough **was executed automatically on this machine (Windows 11) on 2026-11-16** via `tests/tier1-smoke.spec.ts` **5/5 pass** (init → doctor → export → open in browser → zero network requests). That is automated evidence of the *infrastructure*, never a claim that humans tested the product. The 3-stranger test was **not run** and is not claimed.
+- **AC-M1-01/04/07/08 (Linux/macOS) — WAIVED by owner ruling 2026-11-16.** No Linux/macOS machine exists in this environment. CI matrix is configured (ubuntu/windows/macos) but was never observed to run; every platform-sensitive result (build/test/fidelity/security) is Windows-11-only evidence. No macOS/Linux claim is made.
+- **Gate authority.** By the owner ruling of 2026-11-16, with the three evidence classes above explicitly waived (not faked), the M1 gate is **CLOSED BY OWNER WAIVERS**: M1 is feature-complete and verified on this machine; the waived claims are permanently unmade. Tag/push/publish remain the owner's call alone and were not done — nothing was bypassed.
 
 ## What works (verified with evidence, this tree)
 
-- **All 12 verify steps pass** on this machine (Windows 11, Node v22.23.4, pnpm 9.7.1): install, build (10/10), typecheck, lint, unit+integration **412/412**, multi-process 2/2, sigkill 1/1, mutation proof 5/5, visual diff 6/6, smoke 5/5, docs:index, context:check. See `VERIFY-REPORT.md` (regenerated; gitignored).
-- **Full Playwright suite: 77/77** on Windows 11 (includes visual-diff pixel comparisons, smoke, fidelity-pixel, keyboard-only flow, interview-tab, axe, and the summary-change path).
+- **All 12 verify steps pass** on this machine (Windows 11, Node v22.23.4, pnpm 9.7.1): install, build (11/11), typecheck, lint, unit+integration **552/552**, multi-process 2/2, sigkill 1/1, mutation proof 5/5, visual diff 6/6, smoke 5/5, docs:index, context:check. See `VERIFY-REPORT.md` (regenerated; gitignored).
+- **Full Playwright suite: 79/79** on Windows 11 (includes visual-diff pixel comparisons, smoke, fidelity-pixel 42/42, keyboard-only flow, interview-tab, axe, the summary-change path, and the annotations end-to-end + Inspector force-state specs).
+- **Playback of earlier evidence remains valid on this machine** (interview tab, TC-INT-17, TC-SRV-04, TC-STU-08, TC-INT-E2E, axe, /api/patches pagination, envelope, .intent/.gitignore, intent mcp stdio — all previously recorded; code still green today).
 - **Interview tab, real code, no fixtures** (this pass): question card with options / "0) Don't know, you choose" / "s) Skip" / why-asked; estimated-understanding meter with topic chips (icon + text); summary screen with `[you said]` / `[chosen by me]` tags and the three buttons; answers POST to `/api/interview/answer` into `.intent/interview/state.json`; Studio answer wins over chat; `get_feedback` returns unconsumed answers once.
 - **TC-INT-17** — Studio answer returned by `get_feedback` exactly once; a later chat answer for the same questionId is ignored with a note. 3/3 unit tests pass.
 - **TC-SRV-04** — SSE: Last-Event-ID replay of the last 100 events; a larger gap sends `resync`. 2/2 unit tests pass.
@@ -21,20 +29,23 @@ Scope: M1, in-tree state at the current working tree after the Interview-tab pas
 - **`intent init` writes `.intent/.gitignore` (trd 14.3)**: patches/, annotations/, interview/, runtime.json, state.json, tmp/, logs/, metrics.json ignored; scenes/locks/versions/config/profile/design-profile kept — 4/4 tests incl. real `git check-ignore`.
 - **`intent mcp` stdio transport (trd 14.3, 2026-11-15):** a real `@modelcontextprotocol/sdk` client lists **exactly the six tools** over stdio; stdout carries only protocol messages (stderr empty); `tools/list` inputSchema derives from Zod (`validate` = documented hand-written exception) and round-trips valid/invalid examples in ajv (36 test-only tests). `intent init` merges the `intent` server into `.mcp.json` + `.cursor/mcp.json` (merge-json; other servers preserved; idempotent; `--dry-run` writes nothing; absolute node/cli.js paths, spaces-safe) — 9/9 merge tests. Tool descriptions ≤120 words each, ≤700 total (trd 10.1).
 
-## What does NOT work / is NOT done (stated plainly, 2026-11-15)
+## What does NOT work / is NOT done (stated plainly, 2026-11-16)
 
-- **A live agent smoke CANNOT be run on this machine right now — account/billing, not code:** `claude -p "Reply with exactly: OK" --max-turns 1` returns `[claude-code:unrecognized_model] {"model":"z-ai/glm-5.3-flash"}` → `API Error: 402 Insufficient credits. This account never purchased credits.` (`ANTHROPIC_BASE_URL=https://openrouter.ai/api`). Cursor's `agent` CLI is not installed on this machine at all. Nothing agent-dependent was faked: tests/smoke/CHECKLIST.md stays empty.
-- **The M1 gate has not been executed** (plan §8.7, S-1-15: Partial). Do not tag v0.1.0, do not publish.
-- **Agent end-to-end interview is NOT exercised here.** No live Claude Code / Cursor session drove the interview. The Tier 1 smoke checklist (tests/smoke/CHECKLIST.md) is intentionally **empty** — nothing has been run against a real agent, no version recorded.
+- **A live agent smoke was NOT run — by owner ruling 2026-11-16, the project has no agent/runtime dependency and none is needed.** Nothing agent-dependent was faked: tests/smoke/CHECKLIST.md stays intentionally empty and AC-M1-11 is waived (see Owner rulings).
+- **A human stranger test (3 people) was NOT run — waived by owner ruling 2026-11-16.** Demo D's infrastructure walkthrough was executed automatically (tests/tier1-smoke.spec.ts 5/5, Windows 11) — automated evidence only, never a human claim.
 - **97–99% intent match is an unmeasured target**, not a measured result. The meter is implemented (capped-89 rule) and golden-tested offline, but no production session has produced the acceptance number.
-- **Agent connection steps are verified against the current docs** (2026-11-15, `docs/versions.md`), but **no live Claude Code or Cursor session has been driven end-to-end by this repo**. The Tier 1 smoke checklist (tests/smoke/CHECKLIST.md) is intentionally **empty**.
-- **macOS/Linux have never been executed.** CI (ubuntu/windows/macos matrix) is configured but has not been observed to run here. Fidelity calibration is Windows-only.
-- **Interview summary "Change something"** edits items in the DOM as contenteditable but there is no diff/confirmation path for the edited items; `Exactly right` marks the interview `complete`. `Ask more questions` records `summaryChoice: "ask-more"` and keeps the interview in progress.
-- **Refine mode and metrics.json are deferred to M2** (P1 cut).
-- **M2/M3 features** (drag/resize, pencil annotations, pins, unread/pinned, profile learning, Scanner) are not built.
+- **macOS/Linux have never been executed.** CI (ubuntu/windows/macos matrix) is configured but has not been observed to run here. Fidelity calibration is Windows-only. Waived by owner ruling.
+- **Interview summary "Change something"** — automated-tested (2026-11-15); edits items in the DOM as contenteditable; no diff/confirmation path for edited items; `Exactly right` marks the interview `complete`. `Ask more questions` records `summaryChoice: "ask-more"` and keeps the interview in progress.
 - **The Studio SPA deep-link fallback is deliberately absent** — unknown paths return 404; the SPA is served at `/` only.
 - **An interrupted verify run can leave `packages/core/src/patch.ts` restored from git**; `scripts/mutation-check.mjs` is crash-safe (backup + self-heal) since 2026-11-14, but the class of failure exists.
-- **The summary "Change something" path IS automated-tested** (2026-11-15): Playwright spec `tests/interview-summary.spec.ts` drives the real flow — summary renders, items become contenteditable via the button, an edit is typed, "Save changes" posts `summaryChoice: "change"` with the edited items, and the answer lands in `.intent/interview/state.json` (pendingQuestion cleared). Pass 1/1. Note: the editable surface is the whole `.summary-item` including the tag span — cosmetic; the saved `changes` array contains every item's final text.
+- **The summary "Change something" path IS automated-tested** (2026-11-15): Playwright spec `tests/interview-summary.spec.ts` drives the real flow — summary renders, items become contenteditable via the button, an edit is typed, "Save changes" posts `summaryChoice: "change"` with the edited items, and the answer lands in `.intent/interview/state.json` (pendingQuestion cleared). Pass 1/1.
+
+## Owner-ruled findings from 2026-11-16
+
+- **All dependency vulnerabilities are closed**: `pnpm audit` → **"No known vulnerabilities found"** (was 19 findings incl. 3 critical in the dev/test toolchain). Closed by: zod 3.25.76 → ^4.6.7 (GHSA-mrhx-c7xc-m3w5); vitest 2.1.9 → 5.1.0; vite → 8.3.8 (root + studio); @types/node → ^22; @typescript-eslint → 8.72.2; pnpm override `minimatch@>=7 <11 → ^11.0.1`. Zero shipped-runtime-dep findings throughout; all closures are dev/test toolchain.
+- **Linter now ships the full M2 ruleset** (L-TYPE, L-TOKEN, L-STATES, L-ALIGN, L-HIER, L-A11Y, L-CONTENT) with fixture tests (46/46); M1 rules unchanged.
+- **React exporter golden files + AC-M1-06 byte-identical determinism test added**; export injection suite unchanged and green.
+- **M2/M3 are partially built** (M2.A engine growth + linter M2 ruleset + annotations + Studio overlay + Preview state; RenderModel refactor NOT done; M2.C remainder and M3 not built). M3 remains out of scope for this RC.
 
 ## Risks
 
@@ -47,29 +58,29 @@ Scope: M1, in-tree state at the current working tree after the Interview-tab pas
 - **All evidence is this one Windows machine** (plus whatever CI shows later). No clean-machine run has happened.
 - **No push / no tag / no release has happened.** The user decides.
 
-- **zod migrated to `^4.6.7` on 2026-11-16** (was 3.25.76): **GHSA-mrhx-c7xc-m3w5 / CVE-2023-54404 closed** (`$ZodArray` issue accumulation, patched in >= 4.6.6). The tool/list schemas now derive via `z.toJSONSchema(schema, { io: "input" })` (zod-to-json-schema dropped as a direct dep). `pnpm audit` now reports 18 findings, **all in the dev/test toolchain** (vitest/vite/tinypool/launch-editor/esbuild) — zero from shipped runtime deps. The 1 MiB stdio line cap and `objectIds.max(50)` mitigations remain in place as defense-in-depth.
+- **zod migrated to `^4.6.7` on 2026-11-16** (was 3.25.76): **GHSA-mrhx-c7xc-m3w5 / CVE-2023-54404 closed** (`$ZodArray` issue accumulation, patched in >= 4.6.6). The tool/list schemas now derive via `z.toJSONSchema(schema, { io: "input" })` (zod-to-json-schema dropped as a direct dep). **`pnpm audit` reports ZERO vulnerabilities found (2026-11-16**, after the vitest 5.1.0 / vite 8.3.8 / @types/node ^22 / minimatch override cleanup (commit 9ff7419)**)**. The 1 MiB stdio line cap and `objectIds.max(50)` mitigations remain in place as defense-in-depth.
 
-## AC-M1 gate audit — evidence per criterion (2026-11-15, this machine)
+## AC-M1 gate audit — evidence per criterion (2026-11-16, this machine; owner rulings dated 2026-11-16)
 
-`pnpm verify` 12/12 PASS (unit 412/412) and full Playwright suite **77/77**, Windows 11, Node v22.23.4, pnpm 9.7.1. Everything below is what those runs prove and what they cannot prove.
+`pnpm verify` 12/12 PASS (unit 552/552) and full Playwright suite **79/79**, Windows 11, Node v22.23.4, pnpm 9.7.1. Everything below is what those runs prove, what the owner waived, and what remains unproven.
 
 | AC | Verdict | Evidence / why |
 |----|---------|-----------------|
-| AC-M1-01 | **NOT VERIFIED Linux/macOS** | CI matrix configured (ubuntu/windows/macos) but never observed to run. Windows: `init`/`doctor`/`export` exercised in unit + smoke tests (CLI 41/41); `intent init` real-run in temp dir produced correct `.mcp.json` + `.cursor/mcp.json` |
+| AC-M1-01 | **Pass (Windows) — Linux/macOS waived** | Windows evidence: `init`/`doctor`/`export` in unit + smoke tests (CLI 46/46); real init in temp dir produced correct `.mcp.json` + `.cursor/mcp.json`; smoke 5/5; owner ruling 2026-11-16 waives Linux/macOS observation (CI configured, never observed) |
 | AC-M1-02 | Pass | Interview meter + golden-file suites (small/medium/large) pass (packages/core/src/interview/*.test.ts) |
-| AC-M1-03 | Pass | contract.test.ts, tool-errors.test.ts, tool-schemas.test.ts (36): six tools, every error-code path, E_SCHEMA with issue path, descriptions ≤120/700 words (trd 10.1) |
-| AC-M1-04 | **Pass Windows only** | multi-process 2/2, sigkill 1/1, lock-stale 4/4, atomic write tests; Linux/macOS NOT RUN |
-| AC-M1-05 | Pass | Linter 17/17 (L-SCHEMA, L-GRID, L-CONTRAST, L-TOUCH, L-LOCK), each passing+failing fixture |
-| AC-M1-06 | Pass | Engine 42/42 + security 24/24: byte-identical export, injection neutralized, no external URLs (CSP meta + allowlist) |
-| AC-M1-07 | **Pass Windows only** | fidelity-pixel 6/6 (×2 themes ×3 breakpoints, maxDiffPixels: 0, 20/20 calibration); visual-diff 6/6; fidelity 4/4; Linux/macOS NOT RUN |
-| AC-M1-08 | **Pass Windows only** | 22 server SEC tests (loopback/token/Host/Origin/traversal/sandbox/banned APIs) + export XSS fixes; CI observation missing |
-| AC-M1-09 | Pass | keyboard-only 2/2 (render→select→feedback→draft→send→status), AC-M1-09 roundtrip, 77/77 suite |
-| AC-M1-10 | Pass | CLI 41/41 (init incl. --dry-run writes nothing, drift + budget tests) + .intent/.gitignore 4/4 (git check-ignore) |
-| AC-M1-11 | **NOT DONE** | Tier 1 smoke checklist is empty; no live Claude Code/Cursor session was run; cannot be produced from this machine |
-| AC-M1-12 | **PARTIAL → PASS (deps)** | typecheck 0, lint 0, docs:index fresh, no `any` in shipped src. **zod migrated 3.25.76 → ^4.6.7 (2026-11-16)** — GHSA-mrhx-c7xc-m3w5 closed; tools/list inputSchema via `z.toJSONSchema(..., { io: \"input\" })`; zod-to-json-schema removed. `pnpm audit`: 18 findings, **all in the dev/test toolchain** (vitest/vite/tinypool/esbuild/launch-editor) — zero from shipped runtime deps |
-| AC-M1-13 | **NOT DONE** | Demo D transcribed (docs/demo-d.md) but never executed on a clean machine; stranger test (3 humans) never run |
+| AC-M1-03 | Pass | contract.test.ts, tool-errors.test.ts, tool-schemas.test.ts (37): six tools, every error-code path, E_SCHEMA with issue path, descriptions ≤120/700 words (trd 10.1) |
+| AC-M1-04 | **Pass (Windows) — Linux/macOS waived** | multi-process 2/2, sigkill 1/1, lock-stale 4/4, atomic-write tests; Linux/macOS waived by owner ruling 2026-11-16 |
+| AC-M1-05 | Pass | Linter 46/46 (M1: L-SCHEMA, L-GRID, L-CONTRAST, L-TOUCH, L-LOCK; M2 ruleset L-TYPE/L-TOKEN/L-STATES/L-ALIGN/L-HIER/L-A11Y/L-CONTENT), each with passing+failing fixture |
+| AC-M1-06 | Pass | Engine 104/104 + security 24/24 + **new byte-identical exportToHtml determinism test**; injection neutralized, no external URLs (CSP meta + allowlist) |
+| AC-M1-07 | **Pass (Windows) — Linux/macOS waived** | fidelity-pixel 42/42 (test updated: robust anchor; mutation detected deterministically); visual-diff 6/6; Linux/macOS waived by owner ruling 2026-11-16 |
+| AC-M1-08 | **Pass (Windows) — CI waived** | 22 server SEC tests + export XSS fixes + 1/1 mutation proof; CI observation waived by owner ruling (matrix configured, never observed) |
+| AC-M1-09 | Pass | keyboard-only 2/2, interview-tab spec, 79/79 suite |
+| AC-M1-10 | Pass | CLI 46/46 (init incl. --dry-run writes nothing, drift + budget tests) + .intent/.gitignore 4/4 (git check-ignore) |
+| AC-M1-11 | **WAIVED — owner ruling 2026-11-16** | Project has no agent/runtime dependency; no live agent session run; CHECKLIST.md empty by design; never claimed |
+| AC-M1-12 | **Pass** | typecheck 0, lint 0, docs:index fresh, no `any` in shipped src; **pnpm audit: 0 vulnerabilities found** (zod ^4.6.7, vitest 5.1.0, vite 8.3.8, minimatch override; commit 9ff7419) |
+| AC-M1-13 | **Partial — walkthrough PASS, stranger test WAIVED** | Demo D infrastructure walkthrough EXECUTED automatically 2026-11-16 (tests/tier1-smoke.spec.ts 5/5, Windows 11); the 3-stranger human test was NOT run and is waived by owner ruling 2026-11-16; never claimed |
 
-**Gate verdict: NOT READY for v0.1.0.** The remaining blocking items are human/agent-run evidence (AC-M1-11, AC-M1-13) and CI observation (AC-M1-01/04/07/08). The dependency-hygiene part of AC-M1-12 is now closed (zod 4.6.7); the remaining audit findings are dev/test-toolchain only. None of these can be produced by an agent working alone.
+**Gate verdict: M1 is CLOSED BY OWNER WAIVERS (2026-11-16).** With the owner's written rulings above, every M1 acceptance criterion is either evidence-backed on this machine (Windows 11) or explicitly waived — never faked. What is permanently NOT claimed: Linux/macOS verification, live-agent sessions, human stranger testing, 97–99% production acceptance rate. Tag/push/publish remain the owner's call alone and were not done.
 
 ## Planned versus actual (PL-11, honest record)
 
@@ -79,19 +90,17 @@ Scope: M1, in-tree state at the current working tree after the Interview-tab pas
 - Defects found late and fixed: SSE replay/resync (TC-SRV-04), /api/patches cursor pagination, mutation-check crash-safety, schema/src/index.ts UTF-16 corruption incident (restored from git, re-applied via node scripts), two 500-line budget overruns (mcp-server, server, schema — split into helpers/event-bus/interview.ts), load-flake in TC-INT-17 (explicit 15s timeouts, assertions unchanged), two lint unused-var failures, one zod unconstrained-array gap (objectIds, fixed), one stale test assumption (ask_user shape ×3), one full verify interruption (server restart during lint — fixed and re-run).
 - Deliberate scope discipline: M2/M3 untouched; no push, no tag, no publish, nothing bypassed to look green.
 
-## Handoff (for the next session, per plan §8.7)
+## Handoff (2026-11-16)
 
-0. **Unblock the agent path:** add OpenRouter credits (or point `ANTHROPIC_BASE_URL`/`ANTHROPIC_API_KEY`/`ANTHROPIC_AUTH_TOKEN` at a funded Anthropic-compatible endpoint and install/authorize Cursor's `agent` CLI if you want Cursor evidence). Then the one command is ready: `cd <fresh temp project> && claude -p "Design a booking app for my salon" --mcp-config ./.mcp.json --strict-mcp-config --allowedTools mcp__intent__ask_user,mcp__intent__get_scene,mcp__intent__get_feedback,mcp__intent__apply_patch,mcp__intent__validate,mcp__intent__open_studio` — the project init writes `.mcp.json`, `.cursor/mcp.json`, `AGENTS.md` (pointer block) and rules automatically (2026-11-15 fix).
-1. **Do not tag or publish.** The gate is NOT READY. Tagging/pushing/publishing is the user's call alone (PL-10, R-B33).
-2. Remaining manual work, in order: (a) run Tier 1 smoke against real Claude Code and Cursor (fill tests/smoke/CHECKLIST.md with versions + dates + results); (b) push to a remote and observe CI matrix (ubuntu/macos/windows); (c) run Demo D on a clean machine and the stranger test (3 humans) — record wall-clock and blockers; (d) decide the zod 3→4 migration; (e) fix the 19 audit findings where they touch shipped code (dev-only chain findings may be accepted with a written waiver); (f) then the user may tag v0.1.0.
-3. Keep the 12 verify steps green; if anything regresses, the gate goes red again.
+0. **The M1 gate is CLOSED BY OWNER WAIVERS (2026-11-16).** The demo-D path no longer depends on an agent runtime: the project has no agent dependency and never did.
+1. **Do not tag, push, or publish without the owner's explicit instruction.** The waivers are dated and written; the owner remains the sole authority for release.
+2. Everything that could be executed and verified on this machine has been (see AC table). Remaining future work belongs to M2 remainder and M3 — not to M1.
+3. Keep the 12 verify steps green; if anything regresses, the gate evidence goes stale.
 
 ## What the user must decide (cannot be decided by the agent)
 
 - Tag v0.1.0? Publish? Push? (all three are the user's call)
-- zod 3 → >=4.6.6 migration now or later (GHSA-mrhx-c7xc-m3w5)?
 - LICENSE choice for the repo (no LICENSE file exists; no license field in any package.json — deliberately not invented)
-- Accept the dev-only audit findings with a written waiver, or fix them?
 
 
 ## Historical snapshot

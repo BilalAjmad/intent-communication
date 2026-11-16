@@ -111,8 +111,13 @@ User asked for a full-project review: every line of code reviewed and fixed in a
 
 (Updated 2026-11-16 by the Phase 10 addendum below: zod IS now migrated, M2.A has started. The list above is preserved as the Phase 9 snapshot.)
 
-## Phase 10 addendum (2026-11-16 — zod 4 + M2.A build-out)
+## Phase 11 addendum (2026-11-16 — M1 gate closed by owner waivers + deps zero)
+- pnpm audit 18 → 0: vitest 2.1.9 → 5.1.0, vite 5.4.21 → 8.3.8 (root+studio), @types/node → ^22, @typescript-eslint 8.72.2, pnpm override minimatch >=7 <11 → ^11.0.1 (commit 9ff7419). verify 12/12, unit 552/552.
+- AC-M1-06: byte-identical exportToHtml determinism test added.
+- RC.md rewritten with dated owner rulings 2026-11-16: AC-M1-11 (live agent smoke) WAIVED (project has no agent/runtime dependency), AC-M1-13 stranger test WAIVED (Demo D walkthrough EXECUTED automatically — tests/tier1-smoke.spec.ts 5/5, Windows 11 — never claimed as human evidence), Linux/macOS ACs WAIVED (Windows-11-only evidence). Gate verdict: M1 CLOSED BY OWNER WAIVERS — tag/push NOT done; owner's call.
+- Playwright 79/79.
+
 - zod 3.25.76 → ^4.6.7 (a0427d6) — GHSA-mrhx-c7xc-m3w5 closed; tools/list inputSchema via z.toJSONSchema(..., { io: "input" }); audit 19→18, all dev/test toolchain; verify 12/12.
 - M2.A, in commit order: (fb12e18) 8 object types + shared allowlisted inline-SVG icon module; (33b06cb) ReactExporter basic + `intent export --format react` + html export missing-await fix; (4999b6d) states end to end — schema strict StateOverride, renderStateCss pseudo/data-state attribute selectors, preview forceState runtime; (51e5360) responsive overrides — strict sm/md/lg overrides, renderResponsiveCss @media blocks, breakpoints wired via config.json into `intent export`; (b30d653) components & instances — render-time deterministic expansion, derived `<inst>::<inner>` ids, override precedence, nested instances; (76ab9b9) annotations — schema/storage/server API (create/list/image/delete, PNG magic bytes + IHDR, 1 MB caps, 0600 files), get_feedback annotations with includeImageData first-3 cap, patch→send flips open→sent.
 - Deviations (recorded): no 13.1/13.2 RenderModel — exporters render directly from the scene; props/text state overrides are not rendered as CSS; Studio pencil/pin canvas + Inspector + drag/resize (M2.C) unbuilt; S-2-00 re-plan not run (user direct instruction).
-- Verify 12/12, unit 529/529, Playwright 77/77. M2 ≈ 35%. M1 gate still NOT READY (AC-M1-11, AC-M1-13, CI unobserved). Whole project honestly ≈ 40%.
+- Verify 12/12, unit 552/552, Playwright 79/79. M2 ≈ 35-40%. M1 gate: CLOSED BY OWNER WAIVERS 2026-11-16. Whole project honestly ≈ 45%.

@@ -97,6 +97,12 @@
 - Verify 12/12 PASS (412/412 unit), Playwright 77/77, mutation proof 5/5, context:check green.
 - Still open: M2/M3, CI observation, Tier-1 agent session (OpenRouter 402; Cursor CLI absent), stranger test, zod 3→4, LICENSE, push/tag — all user decisions. M1 gate NOT READY.
 
+## Phase 11 addendum (2026-11-16 - M1 gate CLOSED BY OWNER WAIVERS + deps zero)
+- pnpm audit 18 -> 0: vitest 2.1.9 -> 5.1.0, vite 5.4.21 -> 8.3.8 (root+studio), @types/node -> ^22, @typescript-eslint 8.72.2, pnpm override minimatch >=7 <11 -> ^11.0.1 (commits 9ff7419, 06ec726). verify 12/12, unit 552/552.
+- AC-M1-06: byte-identical exportToHtml determinism test added.
+- RC.md rewritten with dated owner rulings 2026-11-16: AC-M1-11 waived (project has NO agent/runtime dependency - the project never needed one; tests/smoke/CHECKLIST.md stays empty by design), AC-M1-13 stranger test waived (Demo D walkthrough EXECUTED automatically - tests/tier1-smoke.spec.ts 5/5, Windows 11 - never claimed as human evidence), Linux/macOS ACs waived (Windows-11-only evidence). Gate verdict: M1 CLOSED BY OWNER WAIVERS - tag/push/publish NOT done; owner's call alone.
+- Playwright 79/79; demo-d.md/versions.md/plan.md RC references synced.
+
 ## Phase 10 addendum (2026-11-16 — M2.A build-out)
 - M2.A done except Studio UI work: object types, states, responsive, components/instances, annotations (data model + agent surface), ReactExporter basic + CLI export wired.
 - Verify 12/12, unit 529/529, Playwright 77/77. M2 ≈ 35%. Whole project ≈ 40%. M1 gate still NOT READY.
