@@ -14,6 +14,7 @@ import { exportSceneToFile, exportToReact } from "@intent/engine";
 import { BreakpointsSchema, type Breakpoints } from "@intent/schema";
 import { mergeAgentMcpConfigs } from "./mcp-config.js";
 import { ensureAgentsIntentBlock } from "./agents-block.js";
+import { scanProject } from "./scan.js";
 
 import { runMcpStdio } from "./mcp.js";
 
@@ -384,6 +385,46 @@ export function createCLI(): Command {
       } catch (err) {
         // stderr is fine for agents; stdout must stay pure protocol.
         console.error(chalk.red("intent mcp failed: " + (err instanceof Error ? err.message : String(err))));
+        process.exitCode = 1;
+      }
+    });
+
+  program
+    .command("scan")
+    .description("Scan the project's design sources (tailwind, tokens, CSS, shadcn) into .intent/design-profile.json")
+    .action(async () => {
+      const root = resolve(program.opts()["path"] as string);
+      const spinner = ora("Scanning design sources...").start();
+      try {
+        const { profile, writtenTo } = await scanProject(root, { writeTo: root });
+        spinner.succeed(chalk.green(`Design profile written to ${writtenTo}`));
+        const colorCount = Object.keys(profile.tokens.colors).length;
+        const spacingCount = Object.keys(profile.tokens.spacing).length;
+        const totalTokens =
+          colorCount +
+          Object.keys(profile.tokens.radii).length +
+          Object.keys(profile.tokens.spacing).length +
+          Object.keys(profile.tokens.fontFamily).length +
+          Object.keys(profile.tokens.fontSize).length;
+        console.log(
+          chalk.dim(
+            `${profile.sources.length} sources, ${totalTokens} tokens (${colorCount} colors, ${spacingCount} spacing), ${profile.unresolved.length} unresolved`,
+          ),
+        );
+        for (const entry of profile.sources) {
+          console.log(chalk.dim(`  source [${entry.confidence}] ${entry.kind}: ${entry.file}`));
+        }
+        if (profile.unresolved.length > 0) {
+          console.log(chalk.yellow("Unresolved (not guessed, not executed):"));
+          for (const entry of profile.unresolved.slice(0, 10)) {
+            console.log(chalk.yellow(`  ${entry.file} → ${entry.key}: ${entry.reason}`));
+          }
+          if (profile.unresolved.length > 10) {
+            console.log(chalk.yellow(`  … and ${profile.unresolved.length - 10} more`));
+          }
+        }
+      } catch (err) {
+        spinner.fail(chalk.red("Scan failed: " + (err instanceof Error ? err.message : String(err))));
         process.exitCode = 1;
       }
     });
