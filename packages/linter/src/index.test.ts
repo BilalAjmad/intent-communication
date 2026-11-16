@@ -395,6 +395,7 @@ describe("Linter - M1 Rules", () => {
       scene.objects[containerId].style = { margin: 16, padding: 8 };
       scene.objects[textId].style = { margin: 8 };
       scene.objects[buttonId].style = { margin: 8, minWidth: 44, minHeight: 44 };
+      scene.objects[buttonId].states = { loading: { style: { opacity: 0.6 } } };
 
       const result = lintScene(scene, []);
       expect(result.pass).toBe(true);

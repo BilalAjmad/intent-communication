@@ -300,6 +300,7 @@ function generateBaseStyles(): string {
   .intent-text { display: inline-block; }
   .intent-button { border: none; cursor: pointer; font-family: inherit; font-size: inherit; padding: var(--intent-spacing-sm) var(--intent-spacing-md); border-radius: 4px; min-width: var(--intent-spacing-touchTarget); min-height: var(--intent-spacing-touchTarget); }
   .intent-button:disabled { opacity: 0.5; cursor: not-allowed; }
+  .intent-button:active:not(:disabled) { opacity: 0.85; }
   .intent-button-primary { background: var(--intent-color-primary); color: white; }
   .intent-button-primary:hover:not(:disabled) { background: var(--intent-color-primaryHover); }
   .intent-button-secondary { background: var(--intent-color-secondary); color: white; }
@@ -323,6 +324,7 @@ function generateBaseStyles(): string {
   .intent-switch input:checked + .switch-track::after { transform: translateX(16px); }
   .intent-link { color: var(--intent-color-primary); text-decoration: underline; text-underline-offset: 2px; cursor: pointer; display: inline-flex; align-items: center; min-height: var(--intent-spacing-touchTarget); }
   .intent-link:hover { color: var(--intent-color-primaryHover); }
+  .intent-link:visited { color: var(--intent-color-text-secondary); }
   .intent-list { padding-inline-start: var(--intent-spacing-lg); margin: 0; }
   .intent-list li { padding: var(--intent-spacing-xs) 0; }
   .intent-modal { border: none; border-radius: 8px; background: var(--intent-color-surface); box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3); padding: var(--intent-spacing-lg); max-width: min(480px, 90vw); }

@@ -1,4 +1,5 @@
 import { Scene, validateScene } from "@intent/schema";
+import { M2_RULES } from "./m2-rules.js";
 
 export interface LintRule {
   id: string;
@@ -327,10 +328,12 @@ const M1_RULES: LintRule[] = [
   },
 ];
 
+const ALL_RULES: LintRule[] = [...M1_RULES, ...M2_RULES];
+
 function lintScene(scene: unknown, locks: string[] = []): LintResult {
   const validated = validateScene(scene);
   const violations: LintViolation[] = [];
-  for (const rule of M1_RULES) {
+  for (const rule of ALL_RULES) {
     violations.push(...rule.check(validated, locks));
   }
   return {
@@ -340,14 +343,14 @@ function lintScene(scene: unknown, locks: string[] = []): LintResult {
 }
 
 function lintSceneWithRules(scene: unknown, ruleIds: string[], locks: string[] = []): LintResult {
-  const known = new Set(M1_RULES.map((r) => r.id));
+  const known = new Set(ALL_RULES.map((r) => r.id));
   const unknown = ruleIds.filter((id) => !known.has(id));
   if (unknown.length > 0) {
     throw new Error(`Unknown lint rule id(s): ${unknown.join(", ")}. Known ids: ${[...known].join(", ")}`);
   }
   const validated = validateScene(scene);
   const violations: LintViolation[] = [];
-  for (const rule of M1_RULES) {
+  for (const rule of ALL_RULES) {
     if (ruleIds.includes(rule.id)) {
       violations.push(...rule.check(validated, locks));
     }
@@ -358,4 +361,4 @@ function lintSceneWithRules(scene: unknown, ruleIds: string[], locks: string[] =
   };
 }
 
-export { M1_RULES, lintScene, lintSceneWithRules };
+export { M1_RULES, ALL_RULES, lintScene, lintSceneWithRules };

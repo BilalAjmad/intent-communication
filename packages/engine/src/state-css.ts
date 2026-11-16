@@ -32,6 +32,7 @@ const DATA_STATES: ReadonlySet<StateName> = new Set([
   "success",
   "submitting",
   "content",
+  "filled",
 ]);
 
 const SAFE_OBJECT_ID = /^[A-Za-z0-9_-]+$/;
