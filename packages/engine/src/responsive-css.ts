@@ -1,5 +1,5 @@
 import type { Scene, ResponsiveOverride, Breakpoints } from "@intent/schema";
-import { buildStyleString } from "./html.js";
+import { styleDeclarations } from "./style-decl.js";
 import { sanitizeCssValue } from "./sanitize.js";
 
 /**
@@ -53,14 +53,12 @@ function pxFromUnknown(value: unknown): string | null {
   return null;
 }
 
-function declarationsFor(override: ResponsiveOverride): string[] {
+/** Declarations for one responsive override (used by renderResponsiveCss and the RenderModel normalizer). */
+export function responsiveDeclarations(override: ResponsiveOverride): string[] {
   const decls: string[] = [];
 
   if (override.style) {
-    const raw = buildStyleString(override.style as Parameters<typeof buildStyleString>[0]);
-    if (raw) {
-      decls.push(...raw.split(";").map((d) => d.trim()).filter(Boolean));
-    }
+    decls.push(...styleDeclarations(override.style).map(([prop, value]) => `${prop}: ${value}`));
   }
 
   const layout = override.layout;
@@ -123,7 +121,7 @@ export function renderResponsiveCss(
       if (!SAFE_OBJECT_ID.test(obj.id)) continue;
       const override = obj.responsive?.[key];
       if (!override) continue;
-      const decls = declarationsFor(override);
+      const decls = responsiveDeclarations(override);
       if (decls.length > 0) {
         rules.push(`[data-object-id="${obj.id}"] { ${decls.join(" ")} }`);
       }

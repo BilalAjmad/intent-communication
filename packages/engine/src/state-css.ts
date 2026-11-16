@@ -1,5 +1,5 @@
 import type { Scene, SceneObject, StateName } from "@intent/schema";
-import { buildStyleString } from "./html.js";
+import { styleDeclarations } from "./style-decl.js";
 
 /**
  * trd 5.3 State CSS generation.
@@ -37,13 +37,9 @@ const DATA_STATES: ReadonlySet<StateName> = new Set([
 
 const SAFE_OBJECT_ID = /^[A-Za-z0-9_-]+$/;
 
-function declarationsFor(style: Record<string, SceneObject["style"][string]>): string[] {
-  const raw = buildStyleString(style as Parameters<typeof buildStyleString>[0]);
-  if (!raw) return [];
-  return raw
-    .split(";")
-    .map((decl) => decl.trim())
-    .filter(Boolean);
+/** Declarations for one state override (used by renderStateCss and the RenderModel normalizer). */
+export function stateDeclarations(style: Record<string, SceneObject["style"][string]>): string[] {
+  return styleDeclarations(style).map(([prop, value]) => `${prop}: ${value}`);
 }
 
 /** Returns per-object state rules for a validated scene (no em/comments). */
@@ -65,7 +61,7 @@ export function renderStateCss(scene: Scene): string {
           ? `[data-object-id="${id}"][data-state~="${name}"]`
           : null;
       if (!selector) continue;
-      const decls = override.style ? declarationsFor(override.style) : [];
+      const decls = override.style ? stateDeclarations(override.style) : [];
       if (decls.length > 0) {
         lines.push(`${selector} { ${decls.join(" ")} }`);
       }

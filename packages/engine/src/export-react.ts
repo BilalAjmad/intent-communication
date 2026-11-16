@@ -3,7 +3,8 @@ import {
   SceneObject,
   validateScene,
 } from "@intent/schema";
-import { buildStyleString, renderExportCss } from "./html.js";
+import { renderExportCss } from "./html.js";
+import { styleDeclarations } from "./style-decl.js";
 import { expandComponentInstances } from "./components.js";
 import { renderStateCss } from "./state-css.js";
 import { renderResponsiveCss, DEFAULT_BREAKPOINTS } from "./responsive-css.js";
@@ -62,15 +63,8 @@ function styleObjectFor(
   style: Record<string, unknown>,
   extra?: ReadonlyArray<readonly [string, string]>,
 ): string | null {
-  const raw = buildStyleString(style as Parameters<typeof buildStyleString>[0]);
-  const decls = raw.split(";").map((d) => d.trim()).filter(Boolean);
   const entries: string[] = [];
-  for (const decl of decls) {
-    const i = decl.indexOf(":");
-    if (i <= 0) continue;
-    const key = decl.slice(0, i).trim();
-    const value = decl.slice(i + 1).trim();
-    if (!key || !value) continue;
+  for (const [key, value] of styleDeclarations(style as Parameters<typeof styleDeclarations>[0])) {
     const camel = key.startsWith("--")
       ? key
       : key.replace(/-([a-z0-9])/g, (_, c: string) => c.toUpperCase());
