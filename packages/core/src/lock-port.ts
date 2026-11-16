@@ -18,8 +18,14 @@ export function createLockPort(storage: StoragePort, tmpDir?: string): LockPort 
   // In-memory map of sceneId -> ownerToken for scene locks acquired by this process.
   const sceneOwnerTokens = new Map<string, string>();
 
+  // Liveness tiebreaker for stale reclamation: if the recorded owner's pid is
+  // alive, the lock is held — never reclaim it, however old the entry is. The
+  // only fallback for "alive but possibly pid-recycled" is a long (60 s) age cap.
+  // A shorter age cap caused live-but-starved owners to have their locks stolen
+  // under load, admitting two writers into the critical section.
+  const STALE_AFTER_MS = 60_000;
   function isStale(timestamp: number): boolean {
-    return Date.now() - timestamp > 10000;
+    return Date.now() - timestamp > STALE_AFTER_MS;
   }
 
   function isProcessAlive(pid: number): boolean {
