@@ -127,3 +127,11 @@
 - **Remaining honest list:** S-2-00 re-plan NOT run (deviation PL-07); M3 profile→React/Tailwind class mapping not built (trd 13.7); animation authoring surface absent (reduce-motion guard exists; inline transitions pass sanitizer); undo/redo; keyboard nudge; benchmark gates (documented-not-blocking); Studio axe full-check; LICENSE + tag/push/publish remain owner decisions (never agent-decidable); 97% acceptance target unmeasured (no real sessions; fixtures only).
 
 (Updated 2026-11-17.)
+
+## Phase 14 addendum (2026-11-17 — Animation slice, keyboard nudge, 4-pass review fixes)
+
+- **Animation end-to-end (trd 13.6):** RenderModel splits animation/transition declarations into node.anim; renderAnimationCss emits them ONLY inside @media (prefers-reduced-motion: no-preference) keyed on data-object-id; includeDataIds:false keeps them inline (fallback, never dropped); base reduce guard still neutralizes everything. Wired into exportToHtml, exportToReact (tokens.css), Studio preview. Unit 4/4.
+- **Keyboard nudge (design.md 4.2):** arrows 4px, Shift 8px, 300ms coalescing into one /api/object-style op; typing targets inert; locked inert. Playwright 2/2.
+- **Review loop (this session, every package re-read):** REAL defects fixed — schema GetSceneOutputSchema.locks wrong type; linter L-ALIGN dead rule (numeric strings never parsed); linter L-CONTRAST read color from the wrong place (never fired for real scenes); lock-port transient non-EEXIST write error instant-returned false (annotations.test.ts intermittent E_LOCKED 409 under full recursive-test load; now 3 retries w/ backoff; 2x pnpm -r test green); tokenToCssVar broke on dotted paths (token.color.text.primary -> var(--intent-color-text.primary); now hyphenated); React exporter re-pointed at the RenderModel (parallel scene walker deleted; goldens regenerated; no nested <main>; .intent-app height chain fix from Phase 13).
+- **Flagged, not changed:** L-LOCK stays severity error (recorded contract + explicit test); output schemas GetSceneOutput*/GetFeedback* never parsed anywhere (dead-but-exported).
+- Verify 12/12, unit 623/623, Playwright 95/95. M2 ~75%; M3 ~25% started.
