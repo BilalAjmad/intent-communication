@@ -30,6 +30,7 @@ import { registerAnnotationRoutes } from "./annotations-api.js";
 import { registerVersionRoutes } from "./versions-api.js";
 import { registerMetricsRoutes } from "./metrics-api.js";
 import { registerProfileRoutes } from "./profile-api.js";
+import { registerObjectStyleRoutes } from "./object-style-api.js";
 import { registerLintRoutes } from "./lint-api.js";
 import { handleSSE, serveStatic, writeRuntimeFile } from "./runtime.js";
 import { SseEventBus, type SSEClient } from "./event-bus.js";
@@ -50,7 +51,6 @@ export interface ServerConfig {
   /** Idle timeout for a session cookie, in seconds (trd 11.2: Path=/api). */
   sessionMaxAgeSeconds?: number;
 }
-
 export class IntentServer {
   /** Default SPA directory: INTENT_SPA_DIR override, else walk up from cwd to the workspace root. */
   private readonly defaultStaticDir = this.resolveDefaultSpaDir();
@@ -127,7 +127,6 @@ export class IntentServer {
   getSessionToken(): string {
     return this.sessionToken;
   }
-
   getConfig(): ServerConfig {
     return this.config;
   }
@@ -294,7 +293,6 @@ export class IntentServer {
       res.end(JSON.stringify({ error: "Forbidden" }));
       return;
     }
-
     this.setSecurityHeaders(res);
     if (pathname.startsWith("/api/")) {
       res.setHeader("Cache-Control", "no-store");
@@ -405,6 +403,10 @@ export class IntentServer {
     if (await registerProfileRoutes(this.apiCtx, req, res, pathname, url)) {
       return;
     }
+    // Direct style edits from the canvas (trd 352/T9)
+    if (await registerObjectStyleRoutes(this.apiCtx, req, res, pathname)) {
+      return;
+    }
     // Lint the scene (trd 11.3)
     if (await registerLintRoutes(this.apiCtx, req, res, pathname, url)) {
       return;
@@ -447,7 +449,6 @@ export class IntentServer {
     this.revision = revision;
     this.events.send(sceneId, "revision", { revision });
   }
-
   broadcastPatch(sceneId: string, patch: Patch) {
     this.events.send(sceneId, "patch", { patch });
   }

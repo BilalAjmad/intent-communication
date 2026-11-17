@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { ObjectIdSchema, RevisionSchema, CrockfordULIDSchema, ChipSchema, SafeIdSchema } from "./primitives.js";
 import { AnnotationIdSchema } from "./annotations.js";
+import { SceneValueSchema } from "./base-object.js";
 
 // Studio server API inputs for the feedback patch queue (trd 11.3; design.md 4.3, 4.8, 4.10).
 
@@ -49,8 +50,25 @@ export const InterviewAnswerInputSchema = z.object({
   answer: z.unknown(),
 });
 
+/**
+ * trd 352/T9 — a direct user edit of an object's `style` record (drag, resize).
+ * The style value is merged by the CLIENT over the current object style and
+ * sent whole; the server applies it through the same atomic pipeline the
+ * agent uses. Values are SceneValue so token refs survive round-trips.
+ */
+export const ObjectStylePatchInputSchema = z
+  .object({
+    sceneId: SafeIdSchema.default("default"),
+    objectId: ObjectIdSchema,
+    baseRevision: RevisionSchema,
+    style: z.record(z.string(), SceneValueSchema),
+  })
+  .refine((v) => Object.keys(v.style).length <= 200, { message: "style may carry at most 200 keys" })
+  .refine((v) => JSON.stringify(v.style).length <= 64 * 1024, { message: "style payload exceeds the 64 KB limit" });
+
 export type CreatePatchInput = z.infer<typeof CreatePatchInputSchema>;
 export type UpdatePatchInput = z.infer<typeof UpdatePatchInputSchema>;
 export type SendPatchesInput = z.infer<typeof SendPatchesInputSchema>;
 export type ResolvePatchInput = z.infer<typeof ResolvePatchInputSchema>;
 export type InterviewAnswerInput = z.infer<typeof InterviewAnswerInputSchema>;
+export type ObjectStylePatchInput = z.infer<typeof ObjectStylePatchInputSchema>;

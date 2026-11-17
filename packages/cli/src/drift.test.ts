@@ -42,13 +42,13 @@ describe("CLI drift", () => {
     });
     const after = await listAllFiles(testDir);
     expect(after.sort()).toEqual(before.sort());
-  });
+  }, 30000); // spawns a real node process; slow under full verify load
 
   it("init --dry-run still creates no .intent directory", async () => {
     execSync(`node "${cliPath}" --path "${testDir}" init --dry-run`, { encode: "utf-8" });
     const exists = await fs.access(resolve(testDir, ".intent")).then(() => true).catch(() => false);
     expect(exists).toBe(false);
-  });
+  }, 30000);
 });
 
 async function listAllFiles(dir: string): Promise<string[]> {

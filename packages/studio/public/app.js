@@ -157,6 +157,7 @@
   async function loadScene() {
     var data = await fetchJson("/api/scene?scene=" + encodeURIComponent(state.sceneId));
     state.scene = data.scene;
+    state.locked = Array.isArray(data && data.locked) ? data.locked : [];
     el.projectName.textContent = (state.scene.metadata && state.scene.metadata.name) || "Intent Project";
     renderScreens();
     renderLayers();
@@ -332,6 +333,52 @@
     }
   }
 
+  function lockedObjectIds() {
+    var locked = state.locked;
+    return Array.isArray(locked) ? locked : [];
+  }
+
+  function mergedStyleValue(objectId, additions) {
+    var obj = state.scene && state.scene.objects ? state.scene.objects[objectId] : null;
+    var base = obj && obj.style ? Object.assign({}, obj.style) : {};
+    return Object.assign(base, additions || {});
+  }
+
+  async function commitStyleEdit(objectId, additions, done) {
+    try {
+      await fetchJson("/api/object-style", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          sceneId: state.sceneId,
+          objectId: objectId,
+          baseRevision: state.scene ? state.scene.revision : 0,
+          style: mergedStyleValue(objectId, additions),
+        }),
+      });
+      await loadScene();
+      await renderPreview();
+      renderSelection();
+      if (typeof done === "function") done(true);
+    } catch (err) {
+      var message = err && err.message ? err.message : "Could not apply the edit.";
+      if (message.indexOf("E_CONFLICT") !== -1 || /changed/i.test(message)) {
+        showToast("The scene changed since you last saw it — reloaded it. Try again.");
+        await loadScene();
+        await renderPreview();
+        renderSelection();
+      } else {
+        showToast(message);
+      }
+      if (typeof done === "function") done(false);
+    }
+  }
+
+  function snapToGrid(value, event) {
+    if (event && event.altKey) return Math.round(value);
+    return Math.round(value / 4) * 4;
+  }
+
   function renderOverlay(rects) {
     el.overlay.innerHTML = "";
     Object.keys(rects).forEach(function (id) {
@@ -347,7 +394,113 @@
       label.className = "selection-label";
       label.textContent = id;
       box.appendChild(label);
+
+      var dragEnabled =
+        !state.pinMode &&
+        !state.annotating &&
+        lockedObjectIds().indexOf(id) === -1;
+      if (dragEnabled) {
+        box.classList.add("drag-enabled");
+        attachDragHandlers(box, id, r);
+        var handle = document.createElement("div");
+        handle.className = "resize-handle";
+        handle.setAttribute("title", "Resize");
+        attachResizeHandlers(handle, box, id, r);
+        box.appendChild(handle);
+      }
       el.overlay.appendChild(box);
+    });
+  }
+
+  function attachDragHandlers(box, id, rect) {
+    box.addEventListener("pointerdown", function (event) {
+      if (event.button !== 0) return;
+      if (event.target && event.target.classList && event.target.classList.contains("resize-handle")) return;
+      var base = { x: rect.x, y: rect.y };
+      var start = { x: event.clientX, y: event.clientY };
+      var moved = false;
+      box.setPointerCapture(event.pointerId);
+      document.body.classList.add("resizing-active");
+      function onMove(ev) {
+        var dx = ev.clientX - start.x;
+        var dy = ev.clientY - start.y;
+        var snappedDx = snapToGrid(dx, ev);
+        var snappedDy = snapToGrid(dy, ev);
+        if (Math.abs(snappedDx) < 2 && Math.abs(snappedDy) < 2) return;
+        moved = true;
+        box.style.left = (base.x + snappedDx) + "px";
+        box.style.top = (base.y + snappedDy) + "px";
+      }
+      function onUp(ev) {
+        box.removeEventListener("pointermove", onMove);
+        box.removeEventListener("pointerup", onUp);
+        box.removeEventListener("pointercancel", onUp);
+        document.body.classList.remove("resizing-active");
+        try {
+          box.releasePointerCapture(event.pointerId);
+        } catch (err) {
+          // capture may already be released
+        }
+        if (!moved) return;
+        var dx = snapToGrid(ev.clientX - start.x, ev);
+        var dy = snapToGrid(ev.clientY - start.y, ev);
+        var left = Math.max(0, base.x + dx);
+        var top = Math.max(0, base.y + dy);
+        var obj = state.scene && state.scene.objects ? state.scene.objects[id] : null;
+        var additions = { left: Math.round(left) + "px", top: Math.round(top) + "px" };
+        var alreadyAbsolute = obj && obj.style && String(obj.style.position || "") === "absolute";
+        if (!alreadyAbsolute) additions.position = "absolute";
+        void commitStyleEdit(id, additions, function () {
+          postToPreview({ t: "select", channel: state.channel, ids: [id] });
+        });
+      }
+      box.addEventListener("pointermove", onMove);
+      box.addEventListener("pointerup", onUp);
+      box.addEventListener("pointercancel", onUp);
+    });
+  }
+
+  function attachResizeHandlers(handle, box, id, rect) {
+    handle.addEventListener("pointerdown", function (event) {
+      if (event.button !== 0) return;
+      event.stopPropagation();
+      var base = { w: rect.w, h: rect.h };
+      var start = { x: event.clientX, y: event.clientY };
+      var moved = false;
+      handle.setPointerCapture(event.pointerId);
+      document.body.classList.add("resizing-active");
+      function onMove(ev) {
+        var dw = ev.clientX - start.x;
+        var dh = ev.clientY - start.y;
+        var snappedW = Math.max(24, snapToGrid(base.w + dw, ev));
+        var snappedH = Math.max(24, snapToGrid(base.h + dh, ev));
+        if (Math.abs(snappedW - base.w) < 2 && Math.abs(snappedH - base.h) < 2) return;
+        moved = true;
+        box.style.width = snappedW + "px";
+        box.style.height = snappedH + "px";
+      }
+      function onUp(ev) {
+        handle.removeEventListener("pointermove", onMove);
+        handle.removeEventListener("pointerup", onUp);
+        handle.removeEventListener("pointercancel", onUp);
+        document.body.classList.remove("resizing-active");
+        try {
+          handle.releasePointerCapture(event.pointerId);
+        } catch (err) {
+          // capture may already be released
+        }
+        if (!moved) return;
+        var dw = ev.clientX - start.x;
+        var dh = ev.clientY - start.y;
+        var width = Math.max(24, snapToGrid(base.w + dw, ev));
+        var height = Math.max(24, snapToGrid(base.h + dh, ev));
+        void commitStyleEdit(id, { width: Math.round(width) + "px", height: Math.round(height) + "px" }, function () {
+          postToPreview({ t: "select", channel: state.channel, ids: [id] });
+        });
+      }
+      handle.addEventListener("pointermove", onMove);
+      handle.addEventListener("pointerup", onUp);
+      handle.addEventListener("pointercancel", onUp);
     });
   }
 

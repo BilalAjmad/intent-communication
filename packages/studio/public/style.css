@@ -789,6 +789,36 @@ textarea:focus {
   color: #c6cfdf;
 }
 
+.resizing-active {
+  user-select: none;
+  cursor: move;
+}
+
+.selection-box.drag-enabled {
+  cursor: move;
+  touch-action: none;
+  /* The overlay container is pointer-events:none (click-through); opt back in
+     only for draggable selection boxes. Locked objects stay click-through. */
+  pointer-events: auto;
+}
+
+.resize-handle {
+  position: absolute;
+  right: -7px;
+  bottom: -7px;
+  width: 14px;
+  height: 14px;
+  border-radius: 3px;
+  background: var(--accent);
+  border: 2px solid var(--bg-canvas);
+  cursor: nwse-resize;
+  touch-action: none;
+}
+
+.resize-handle:hover {
+  background: var(--accent-hover);
+}
+
 .pins-layer {
   position: absolute;
   inset: 0;
