@@ -17,6 +17,11 @@
         <select id="screen-select" aria-label="Select screen"></select>
       </label>
       <span class="mode" id="mode-label" aria-live="polite">Edit mode</span>
+      <div class="frame-switcher" role="group" aria-label="Viewport width">
+        <button type="button" class="ghost frame-btn" id="frame-phone" aria-pressed="false" title="Phone width (375 px)">Phone</button>
+        <button type="button" class="ghost frame-btn" id="frame-tablet" aria-pressed="false" title="Tablet width (834 px)">Tablet</button>
+        <button type="button" class="ghost frame-btn" id="frame-desktop" aria-pressed="true" title="Desktop width">Desktop</button>
+      </div>
       <span class="spacer"></span>
       <button id="lint-chip" class="ghost lint-chip" type="button" aria-expanded="false" aria-controls="lint-panel" hidden title="Lint this scene (trd 11.3)">Lint</button>
       <button id="annotate-toggle" class="ghost" type="button" aria-pressed="false" title="Draw on the preview (pencil annotations)">Annotate</button>

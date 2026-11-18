@@ -2188,6 +2188,50 @@
     });
   }
 
+  function wireFrameSwitcher() {
+    var buttons = {
+      phone: document.getElementById("frame-phone"),
+      tablet: document.getElementById("frame-tablet"),
+      desktop: document.getElementById("frame-desktop"),
+    };
+    function setFrame(name) {
+      document.body.classList.remove("frame-phone", "frame-tablet", "frame-desktop");
+      document.body.classList.add("frame-" + name);
+      Object.keys(buttons).forEach(function (key) {
+        if (buttons[key]) buttons[key].setAttribute("aria-pressed", String(key === name));
+      });
+    }
+    Object.keys(buttons).forEach(function (key) {
+      if (buttons[key]) buttons[key].addEventListener("click", function () { setFrame(key); });
+    });
+    setFrame("desktop");
+  }
+
+  // design.md 4.7: Undo = restore the latest named snapshot. Real history
+  // lives in .intent/versions/ (before-send). Ctrl+Z asks the user to confirm,
+  // then calls the same restoreVersion path the Inspector button uses.
+  function wireUndoKey() {
+    document.addEventListener("keydown", function (event) {
+      if (!((event.ctrlKey || event.metaKey) && !event.shiftKey && !event.altKey && (event.key === "z" || event.key === "Z"))) return;
+      var target = event.target;
+      if (target && target.closest && target.closest('input, textarea, select, [contenteditable="true"], [role="textbox"]')) return;
+      if (state.pinMode || state.annotating) return;
+      event.preventDefault();
+      fetchJson("/api/versions?sceneId=" + encodeURIComponent(state.sceneId))
+        .then(function (data) {
+          var versions = Array.isArray(data && data.versions) ? data.versions : [];
+          if (versions.length === 0) {
+            showToast("Nothing to undo — snapshots are created on Send.");
+            return null;
+          }
+          return restoreVersion(versions[0].file);
+        })
+        .catch(function () {
+          showToast("Could not load snapshots for undo.");
+        });
+    });
+  }
+
   // ---------- wiring ----------
 
   function wireTabs() {
@@ -2335,6 +2379,8 @@
 
     wireChips();
     wireTabs();
+    wireFrameSwitcher();
+    wireUndoKey();
     wireSendButton();
     wireTray();
     wireCopyPrompt();
