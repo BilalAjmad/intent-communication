@@ -19,7 +19,9 @@ const steps = [
   { name: 'build', cmd: 'pnpm -r build', cwd: ROOT },
   { name: 'typecheck', cmd: 'pnpm -r typecheck', cwd: ROOT },
   { name: 'lint', cmd: 'pnpm -r lint', cwd: ROOT },
-  { name: 'unit+integration tests', cmd: 'pnpm -r test', cwd: ROOT },
+  // Serialized: parallel packages contend for CPU on this machine and flake
+  // intermittently (2026-11). Same total suite, same assertions — just 1 package at a time.
+  { name: 'unit+integration tests', cmd: 'pnpm -r test --workspace-concurrency=1', cwd: ROOT },
   { name: 'multi-process tests (different objects)', cmd: 'pnpm --filter @intent/core exec vitest run src/multi-process.test.ts --reporter=json --testTimeout=30000', cwd: ROOT },
   { name: 'sigkill test', cmd: 'pnpm --filter @intent/core exec vitest run src/sigkill.test.ts --reporter=json --testTimeout=30000', cwd: ROOT },
   { name: 'mutation proof', cmd: 'node scripts/mutation-check.mjs', cwd: ROOT },
