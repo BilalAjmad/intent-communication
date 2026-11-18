@@ -112,11 +112,21 @@ For design or UI work, interview me with the ask_user tool, one question at a ti
 
 The Studio is a local web app served by `packages/server` at `http://127.0.0.1:<port>/`. It is the same shell the agent opens with `open_studio`.
 
-1. Start the server (or say "open the studio" to the agent):
+1. Start the server against your project root (the folder with `.intent/` — see `intent init`):
 
    ```powershell
-   pnpm --filter @intent/server start   # prints the URL; .intent/runtime.json holds port + token
+   cd path\to\your-project
+   $env:INTENT_PROJECT_ROOT = "."
+   node path\to\intent-communication\packages\server\dist\start.js
    ```
+
+   or from the intent repo root itself (as a workspace script):
+
+   ```powershell
+   pnpm --filter @intent/server start
+   ```
+
+   It prints the Studio URL with the session token in the URL fragment, writes `.intent/runtime.json`, and stays up until Ctrl+C.
 
 2. Paste the URL with the token fragment from `.intent/runtime.json` (the token arrives via the URL fragment; never via query string).
 3. The shell has three right-panel tabs: **Inspector** (read-only object summary), **Feedback** (text + chips -> draft queue -> Send), and **Interview**.
