@@ -27,17 +27,19 @@ afterEach(async () => {
 const SCREEN = "s_01ARZ3NDEKTSV4RRFFQ69G5FAV";
 const BUTTON = "o_01ARZ3NDEKTSV4RRFFQ69G5FAV";
 const INPUT = "o_02ARZ3NDEKTSV4RRFFQ69G5FAV";
+const CHECK = "o_03ARZ3NDEKTSV4RRFFQ69G5FAV";
 
 function scene(): Scene {
   return {
     version: 1, revision: 1, createdAt: "2026-11-13T00:00:00.000Z", updatedAt: "2026-11-13T00:00:00.000Z",
     screens: {
-      [SCREEN]: { id: SCREEN, type: "screen" as const, parentId: null, children: [BUTTON, INPUT], props: { title: "Home", width: 390, height: 844 }, style: {}, meta: {} },
+      [SCREEN]: { id: SCREEN, type: "screen" as const, parentId: null, children: [BUTTON, INPUT, CHECK], props: { title: "Home", width: 390, height: 844 }, style: {}, meta: {} },
     },
     objects: {
-      [SCREEN]: { id: SCREEN, type: "screen" as const, parentId: null, children: [BUTTON, INPUT], props: { title: "Home", width: 390, height: 844 }, style: {}, meta: {} },
+      [SCREEN]: { id: SCREEN, type: "screen" as const, parentId: null, children: [BUTTON, INPUT, CHECK], props: { title: "Home", width: 390, height: 844 }, style: {}, meta: {} },
       [BUTTON]: { id: BUTTON, type: "button" as const, parentId: SCREEN, children: [], props: { label: "Ship it", variant: "primary", disabled: true }, style: { backgroundColor: "#2563eb" }, meta: {} },
       [INPUT]: { id: INPUT, type: "input" as const, parentId: SCREEN, children: [], props: { placeholder: "Email", required: true }, style: {}, meta: {} },
+      [CHECK]: { id: CHECK, type: "checkbox" as const, parentId: SCREEN, children: [], props: { label: "Agree", checked: true }, style: {}, meta: {} },
     },
     screenOrder: [SCREEN],
     metadata: { name: "Home", tags: [] },
@@ -63,6 +65,10 @@ describe("trd 13.7 shadcn component mapping end-to-end", () => {
     expect(home).toContain('aria-label={"Email"}');
     expect(home).toContain("required");
     expect(home).not.toContain('className="intent-button intent-button');
+    // The synthesized checkbox input must stay a native checkbox — never a
+    // text-oriented shadcn <Input> (regression: it dropped `checked`).
+    expect(home).toContain('type={"checkbox"}');
+    expect(home).not.toContain('<Input type={"checkbox"}');
   });
 
   it("without a profile, output falls back to CSS-var inline styles", async () => {

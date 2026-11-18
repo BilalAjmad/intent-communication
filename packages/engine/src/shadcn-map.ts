@@ -7,6 +7,20 @@ import type { DesignProfileLike } from "./tailwind-map.js";
  *   node.tag === "button"  -> profile.components[].role === "button"
  *   node.tag === "input"   -> profile.components[].role === "input"
  * Everything else falls back to the existing CSS-var renderer.
+ *
+ * Synthesized control inputs are NOT mapped: the model renders checkbox /
+ * radio / switch as a native <input type="checkbox"|"radio"> (or role="switch")
+ * inside a label wrapper; those inputs carry the scene's state. Mapping them
+ * to the text-oriented shadcn <Input> would silently drop `checked` and the
+ * control semantics. Only scene-level (keyboard-focusable, text-entry) inputs
+ * map. Roles that are NOT mechanical maps are deliberately unmapped:
+ *   - checkbox/radio-group/switch: subtree replacement with controlled
+ *     components (checked + onCheckedChange), not a per-node swap;
+ *   - select/card: no scene-model tag exists to map them onto;
+ *   - dialog: shadcn Dialog is a composed trigger/content pair, not a
+ *     drop-in for the scene's <dialog> node;
+ *   - textarea: no textarea object type exists in the scene schema,
+ *     so no model node ever carries that tag.
  */
 
 export interface ShadcnImport {
@@ -29,6 +43,14 @@ function camelClass(cls: string | undefined): string | null {
   return match ? match[1]! : null;
 }
 
+/** True for the model's synthesized checkbox/radio/switch inner inputs (id `<parent>::input`). */
+function isSynthesizedControlInput(node: RenderNode): boolean {
+  if (/::(input|track)$/.test(node.id)) return true;
+  const type = node.attrs["type"];
+  if (type === "checkbox" || type === "radio") return true;
+  return node.attrs["role"] === "switch";
+}
+
 /** Builds the <Button>/<Input> JSX for a node given the matched profile component, or returns null. */
 export function mapNodeToShadcn(node: RenderNode, profile: DesignProfileLike | undefined): ShadcnMapped {
   if (!profile) return { imports: [], jsx: null, used: [] };
@@ -47,6 +69,7 @@ export function mapNodeToShadcn(node: RenderNode, profile: DesignProfileLike | u
   }
 
   if (node.tag === "input") {
+    if (isSynthesizedControlInput(node)) return { imports: [], jsx: null, used: [] };
     const type = node.attrs["type"] ?? "text";
     const placeholder = node.attrs["placeholder"];
     const aria = node.attrs["aria-label"];
