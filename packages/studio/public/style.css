@@ -966,6 +966,30 @@ textarea:focus {
   font-size: 12px;
 }
 
+.watch-notice {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.watch-notice[hidden] {
+  display: none;
+}
+
+.watch-notice-dismiss {
+  background: none;
+  border: 0;
+  color: var(--draft);
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1;
+  padding: 2px 6px;
+}
+
+.watch-notice-dismiss:hover {
+  color: var(--text);
+}
+
 .toast {
   padding: 6px 16px 10px;
   min-height: 1.4em;

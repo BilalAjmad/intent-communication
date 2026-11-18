@@ -1971,6 +1971,10 @@
         loadPatches();
       } else if (data.type === "interview.changed") {
         loadInterview();
+      } else if (data.type === "watch.degraded") {
+        // trd 9.4 — the fs watcher is unavailable; the server polls every 1 s.
+        var watchNotice = $("watch-notice");
+        if (watchNotice) watchNotice.hidden = false;
       }
     };
     source.onopen = function () {
@@ -1980,6 +1984,16 @@
       setTrayNotice("Live updates paused — retrying…");
     };
   }
+
+  (function wireWatchNoticeDismiss() {
+    var dismiss = $("watch-notice-dismiss");
+    var notice = $("watch-notice");
+    if (dismiss && notice) {
+      dismiss.addEventListener("click", function () {
+        notice.hidden = true;
+      });
+    }
+  })();
 
   async function loadSceneSoft() {
     try {

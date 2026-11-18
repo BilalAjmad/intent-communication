@@ -27,6 +27,7 @@ import { registerProfileRoutes } from "./profile-api.js";
 import { registerObjectStyleRoutes } from "./object-style-api.js";
 import { registerKeyframesRoutes } from "./keyframes-api.js";
 import { registerLintRoutes } from "./lint-api.js";
+import { startIntentWatcher } from "./watch-wiring.js";
 import { handleSSE, serveStatic, writeRuntimeFile } from "./runtime.js";
 import { SseEventBus, type SSEClient } from "./event-bus.js";
 export type { SSEClient } from "./event-bus.js";
@@ -100,6 +101,8 @@ export class IntentServer {
       broadcastRevision: (sceneId, revision) => this.broadcastRevision(sceneId, revision),
       broadcastInterviewChanged: (status) => this.broadcastInterviewChanged(status),
     };
+    const stopWatcher = startIntentWatcher(config.projectRoot, this.apiCtx, () => this.events.sendAll("watch.degraded", { mode: "poll" }));
+    this.httpServer.on("close", stopWatcher);
   }
 
   private runtimeCtx() {
@@ -402,9 +405,7 @@ export class IntentServer {
     if (await registerObjectStyleRoutes(this.apiCtx, req, res, pathname)) {
       return;
     }
-    if (await registerKeyframesRoutes(this.apiCtx, req, res, pathname, url)) {
-      return;
-    }
+    if (await registerKeyframesRoutes(this.apiCtx, req, res, pathname, url)) return;
     // Lint the scene (trd 11.3)
     if (await registerLintRoutes(this.apiCtx, req, res, pathname, url)) {
       return;

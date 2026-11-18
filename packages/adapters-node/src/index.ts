@@ -454,6 +454,8 @@ export function createNodeCryptoPort(): CryptoPort {
 }
 
 export { IntentError, ErrorCodes, isIntentError, createLockPort };
+export { createFileWatcher } from "./watch.js";
+export type { FileWatcher, FileWatcherOptions } from "./watch.js";
 export type { StoragePort, LockPort, CryptoPort };
 export { findFirstRenderBaseline } from "./versions-baseline.js";
 export type { FirstRenderBaseline } from "./versions-baseline.js";
