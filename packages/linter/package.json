@@ -1,8 +1,8 @@
 {
   "name": "@intent/linter",
   "license": "MIT",
-  "version": "0.1.0",
-  "description": "Intent linter: M1 rules from design.md \u00c2\u00a79",
+  "version": "1.0.0",
+  "description": "Intent linter: M1 rules from design.md Â§9",
   "type": "module",
   "main": "dist/index.js",
   "module": "dist/index.mjs",

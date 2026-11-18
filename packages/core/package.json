@@ -1,7 +1,7 @@
 {
   "name": "@intent/core",
   "license": "MIT",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "Intent core: write pipeline, ports, atomic writes, normalization",
   "type": "module",
   "main": "dist/index.js",

@@ -1,7 +1,7 @@
 {
   "name": "@intent/studio",
   "license": "MIT",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "Intent Studio: SPA shell, iframe preview, tool bar",
   "type": "module",
   "main": "dist/index.js",
