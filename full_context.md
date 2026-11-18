@@ -184,3 +184,19 @@
 - **Studio:** Keyframes section in Inspector (add/delete keyframes, offset rows, declaration rows with CSS-prop datalist, per-card "Animate selected" → `animation: <name> 600ms ease infinite` via the /api/object-style pipeline); "Remove animation" in the Animation row. **Bugfix:** `.force-state-row` CSS block had lost its selector in 9ead598 (orphaned declarations, dead CSS) — selector restored.
 - **Studio preview** carries the keyframes (includeDataIds=true path; React export carries them in tokens.css even with includeDataIds=false since anim declarations inline in JSX there).
 - Tests: engine +3 (emission + sorted steps, value-sanitization drop, keyframes-without-ids), server +5 (GET/PUT/409 stale/400 out-of-grammar), Playwright +1 (`tests/keyframes-editor.spec.ts`: UI → storage → preview document chain). Verify 12/12; unit 645/645; Playwright 102/102.
+
+## Phase 20 addendum (2026-11-18 — trd 9.4 file watcher with polling fallback → closes AQ1)
+
+- **FileAdapter.watch was entirely missing** (M1 deliverable, trd 9.4, architecture 10.2). Implemented zero-dependency on built-in `fs.watch(..., { recursive: true })` (Node ≥ 20 on Linux/macOS/Windows — AQ1 resolution recorded; owner may swap in chokidar later).
+- **adapters-node/src/watch.ts** — 50 ms trailing debounce per path (atomic tmp+rename fires twice), containment check, tmp/logs/node_modules/.git and `*.tmp-*` ignored; polling fallback (mtime+size every 1 000 ms, depth ≤6, ≤1000 files) engages when fs.watch fails to start OR errors at runtime; poller retries the fs watcher every ~5 s and upgrades in place; `onFallback` fires once ("Live updates are slower on this folder" notice).
+- **server/src/watch-wiring.ts** — maps paths to the existing SSE broadcasts: `scenes/<id>.json` → revision broadcast (Studio refetches; idempotent); `interview/state.json` → `interview.changed`; `feedback/<id>.json` → `patch.changed`. Locks intentionally not broadcast (they surface via `/api/scene`'s `locked` field on the next revision-driven refetch — documented gap).
+- **Studio** — `watch.degraded` SSE event shows a persistent dismissible notice with the exact trd wording; `.watch-notice[hidden]` guard added (flex override).
+- Tests: adapter unit +5, server integration +1 (hand-edit scenes file → `revision` SSE event, TC-WRT-11 spirit). Verify 12/12, unit 651/651, Playwright 102/102.
+
+## Phase 21 addendum (2026-11-18 — MCP output-schema enforcement, review flag cleared)
+
+- The review-2026-11-16 flag "output schemas GetSceneOutput*/GetFeedback* never parsed anywhere (dead-but-exported)" is now **resolved**:
+- **Schemas updated to the real wire contract** (they were stale): `GetSceneOutputSchema` gains `pendingPatches`, `metadata.profileSummary` (trd 17.1), `_truncated`/`message` optionals; `revision` optional (truncation-fallback payload carries none). `ApplyPatchOutputSchema` — `revision` and `conflict.currentRevision` are `min(-1)` ("revision unknown" sentinel from pipeline early-return paths; documented). `GetFeedbackOutputSchema` passed as-is.
+- **Enforced in `handleMCPRequest`:** get_scene / apply_patch / get_feedback payloads are safeParse'd at the MCP boundary; a handler producing a payload its own output schema rejects throws `E_INTERNAL` with the first 5 issue paths only (never echoes scene data). Unknown tools unchanged; unlisted tools pass through unvalidated (e.g. `ask_user`, `validate`).
+- **Core:** additive `E_INTERNAL` error code (no exhaustive switches on ErrorCodes exist).
+- Tests: `packages/mcp-server/src/output-schemas.test.ts` +4 (anti-strip of profileSummary/pendingPatches, subset shape, get_feedback contract keys, stale-apply_patch does not trip the validator). Verify 12/12, unit 655/655, Playwright 102/102.
