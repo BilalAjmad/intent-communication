@@ -51,6 +51,38 @@ function makeScene(withViolation: boolean) {
   };
 }
 
+/** A text object with a raw hex color — used to exercise the design-profile wiring. */
+function makeColorScene() {
+  return {
+    version: 1,
+    revision: 1,
+    createdAt: "2026-11-16T00:00:00.000Z",
+    updatedAt: "2026-11-16T00:00:00.000Z",
+    screens: {
+      [SCREEN]: {
+        id: SCREEN, type: "screen", parentId: null, children: [BUTTON],
+        props: { title: "S", width: 1280, height: 720 },
+        style: {}, meta: {},
+      },
+    },
+    objects: {
+      [SCREEN]: {
+        id: SCREEN, type: "screen", parentId: null, children: [BUTTON],
+        props: { title: "S", width: 1280, height: 720 },
+        style: {}, meta: {},
+      },
+      [BUTTON]: {
+        id: BUTTON, type: "text", parentId: SCREEN, children: [],
+        props: { content: "Hello", fontSize: 16 },
+        style: { color: "#2464ec" },
+        meta: {},
+      },
+    },
+    screenOrder: [SCREEN],
+    metadata: { name: "Lint Color Test", tags: [] },
+  };
+}
+
 async function seed(scene: object): Promise<void> {
   await fs.rm(testDir, { recursive: true, force: true }).catch(() => {});
   await fs.mkdir(resolve(testDir, ".intent", "scenes"), { recursive: true });
@@ -78,6 +110,25 @@ afterEach(async () => {
 });
 
 describe("Lint API (trd 11.3)", () => {
+  it("with a design profile, suggests the nearest profile token for a raw color", async () => {
+    await fs.rm(testDir, { recursive: true, force: true }).catch(() => {});
+    await fs.mkdir(resolve(testDir, ".intent", "scenes"), { recursive: true });
+    await fs.writeFile(resolve(testDir, ".intent", "scenes", "default.json"), JSON.stringify(makeColorScene()), "utf-8");
+    await fs.writeFile(
+      resolve(testDir, ".intent", "design-profile.json"),
+      JSON.stringify({ schemaVersion: 1, generatedAt: "2026-11-16T00:00:00.000Z", sources: [], tokens: { colors: { primary: "#2563eb" }, spacing: {}, radii: {}, fontFamily: {}, fontSize: {} }, components: [], unresolved: [] }),
+      "utf-8",
+    );
+    server = createServer({ projectRoot: testDir, previewPort: 0, studioPort: 0, mcpPort: 0 });
+    port = await server.start();
+    const cookie = await exchange();
+    const response = await fetch(url("/api/lint?sceneId=default"), { headers: { Cookie: cookie } });
+    expect(response.status).toBe(200);
+    const body = (await response.json()) as { violations: { ruleId: string; suggestion?: string }[] };
+    const token = body.violations.find((v) => v.ruleId === "L-TOKEN");
+    expect(token?.suggestion).toContain("token.color.primary");
+  });
+
   it("returns lint violations with rule ids for a broken scene", async () => {
     await seed(makeScene(true));
     const cookie = await exchange();

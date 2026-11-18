@@ -1,11 +1,24 @@
 import { Scene, validateScene } from "@intent/schema";
 import { M2_RULES } from "./m2-rules.js";
+import { hexToRgb } from "./color.js";
+
+/**
+ * Optional design-profile context for rules that need it (L-TOKEN, L-CONTRAST).
+ * Mirrors .intent/design-profile.json as written by `intent scan` (trd 16).
+ */
+export interface LintProfile {
+  tokens?: {
+    colors?: Record<string, string>;
+    spacing?: Record<string, string>;
+    radii?: Record<string, string>;
+  };
+}
 
 export interface LintRule {
   id: string;
   name: string;
   severity: "error" | "warning" | "info";
-  check: (scene: Scene, locks?: string[]) => LintViolation[];
+  check: (scene: Scene, locks?: string[], profile?: LintProfile) => LintViolation[];
 }
 
 export interface LintViolation {
@@ -36,19 +49,6 @@ const TOKEN_COLORS: Record<string, string> = {
   "token.color.success": "#28a745",
   "token.color.warning": "#ffc107",
 };
-
-function hexToRgb(hex: string): [number, number, number] | null {
-  const m = /^#([0-9a-fA-F]{3,4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/.exec(hex);
-  if (!m) return null;
-  let h = m[1]!;
-  if (h.length === 3 || h.length === 4) {
-    h = h.slice(0, 3).split("").map((c) => c + c).join("");
-  } else if (h.length === 8) {
-    h = h.slice(0, 6); // drop alpha
-  }
-  const n = (i: number) => parseInt(h.slice(i * 2, i * 2 + 2), 16);
-  return [n(0), n(1), n(2)];
-}
 
 function luminance(rgb: [number, number, number]): number {
   const [r, g, b] = rgb;
@@ -93,11 +93,24 @@ function tokenString(val: unknown): string | null {
   return null;
 }
 
-function resolveColor(val: unknown): [number, number, number] | null {
+/** Merge the profile's hex color tokens over the built-in reference palette (profile wins). */
+function buildColorMap(profile?: LintProfile): Record<string, string> {
+  const map: Record<string, string> = { ...TOKEN_COLORS };
+  const colors = profile?.tokens?.colors;
+  if (!colors) return map;
+  for (const [key, value] of Object.entries(colors)) {
+    if (typeof value !== "string") continue;
+    const trimmed = value.trim();
+    if (hexToRgb(trimmed)) map[`token.color.${key}`] = trimmed;
+  }
+  return map;
+}
+
+function resolveColor(val: unknown, colorMap: Record<string, string>): [number, number, number] | null {
   const s = tokenString(val);
   if (!s) return null;
   if (s.startsWith("token.color.")) {
-    const hex = TOKEN_COLORS[s];
+    const hex = colorMap[s];
     return hex ? hexToRgb(hex) : null;
   }
   return hexToRgb(s);
@@ -224,7 +237,7 @@ function checkTouch(scene: Scene, violations: LintViolation[]): void {
   }
 }
 
-function checkContrast(scene: Scene, violations: LintViolation[]): void {
+function checkContrast(scene: Scene, violations: LintViolation[], colorMap: Record<string, string>): void {
   for (const [id, obj] of Object.entries(scene.objects)) {
     if (obj.type !== "text") continue;
     const style = obj.style ?? {};
@@ -233,8 +246,8 @@ function checkContrast(scene: Scene, violations: LintViolation[]): void {
     const colorVal = style["color"] ?? props["color"];
     const bgVal = style["background"] ?? style["backgroundColor"] ?? props["background"];
     if (!colorVal || !bgVal) continue;
-    const color = resolveColor(colorVal);
-    const bg = resolveColor(bgVal);
+    const color = resolveColor(colorVal, colorMap);
+    const bg = resolveColor(bgVal, colorMap);
     if (!color || !bg) {
       violations.push({
         ruleId: "L-CONTRAST",
@@ -303,9 +316,9 @@ const M1_RULES: LintRule[] = [
     id: "L-CONTRAST",
     name: "WCAG AA Contrast",
     severity: "warning",
-    check: (scene) => {
+    check: (scene, _locks, profile) => {
       const v: LintViolation[] = [];
-      checkContrast(scene, v);
+      checkContrast(scene, v, buildColorMap(profile));
       return v;
     },
   },
@@ -333,11 +346,11 @@ const M1_RULES: LintRule[] = [
 
 const ALL_RULES: LintRule[] = [...M1_RULES, ...M2_RULES];
 
-function lintScene(scene: unknown, locks: string[] = []): LintResult {
+function lintScene(scene: unknown, locks: string[] = [], profile?: LintProfile): LintResult {
   const validated = validateScene(scene);
   const violations: LintViolation[] = [];
   for (const rule of ALL_RULES) {
-    violations.push(...rule.check(validated, locks));
+    violations.push(...rule.check(validated, locks, profile));
   }
   return {
     violations,
@@ -345,7 +358,7 @@ function lintScene(scene: unknown, locks: string[] = []): LintResult {
   };
 }
 
-function lintSceneWithRules(scene: unknown, ruleIds: string[], locks: string[] = []): LintResult {
+function lintSceneWithRules(scene: unknown, ruleIds: string[], locks: string[] = [], profile?: LintProfile): LintResult {
   const known = new Set(ALL_RULES.map((r) => r.id));
   const unknown = ruleIds.filter((id) => !known.has(id));
   if (unknown.length > 0) {
@@ -355,7 +368,7 @@ function lintSceneWithRules(scene: unknown, ruleIds: string[], locks: string[] =
   const violations: LintViolation[] = [];
   for (const rule of ALL_RULES) {
     if (ruleIds.includes(rule.id)) {
-      violations.push(...rule.check(validated, locks));
+      violations.push(...rule.check(validated, locks, profile));
     }
   }
   return {

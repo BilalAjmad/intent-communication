@@ -1,5 +1,6 @@
 import type { Scene, SceneObject } from "@intent/schema";
-import type { LintRule, LintViolation } from "./index.js";
+import type { LintRule, LintViolation, LintProfile } from "./index.js";
+import { hexToRgb } from "./color.js";
 
 /**
  * M2 linter rules (design.md §9 M2 column, §10 required states, §11 hierarchy).
@@ -87,7 +88,32 @@ function checkType(scene: Scene, violations: LintViolation[]): void {
   }
 }
 
-function checkToken(scene: Scene, locks: string[], violations: LintViolation[]): void {
+/** Nearest hex token in the design profile to `hex`, by squared RGB distance. */
+function nearestProfileColor(hex: string, profile: LintProfile | undefined): { key: string; hex: string } | null {
+  const rgb = hexToRgb(hex);
+  const colors = profile?.tokens?.colors;
+  if (!rgb || !colors) return null;
+  let best: { key: string; hex: string; distance: number } | null = null;
+  for (const [key, value] of Object.entries(colors)) {
+    if (typeof value !== "string") continue;
+    const candidate = value.trim();
+    const other = hexToRgb(candidate);
+    if (!other) continue;
+    const dx = other[0] - rgb[0];
+    const dy = other[1] - rgb[1];
+    const dz = other[2] - rgb[2];
+    const distance = dx * dx + dy * dy + dz * dz;
+    if (!best || distance < best.distance) best = { key, hex: candidate, distance };
+  }
+  return best ? { key: best.key, hex: best.hex } : null;
+}
+
+function checkToken(
+  scene: Scene,
+  locks: string[],
+  violations: LintViolation[],
+  profile?: LintProfile,
+): void {
   const locked = new Set(locks ?? []);
   for (const [id, obj] of Object.entries(scene.objects)) {
     if (locked.has(id)) continue; // locked = user-supplied asset, raw allowed (design.md §9)
@@ -96,13 +122,16 @@ function checkToken(scene: Scene, locks: string[], violations: LintViolation[]):
       const key = path.split(".").pop() ?? "";
       if (!COLOR_KEYS.has(key) && !/background/i.test(key)) return;
       if (RAW_COLOR.test(val.trim())) {
+        const nearest = nearestProfileColor(val.trim(), profile);
         violations.push({
           ruleId: "L-TOKEN",
           objectId: id,
           message: `Raw color "${val.trim().slice(0, 40)}" at ${path}; use a token.color.* reference`,
           severity: "warning",
           path,
-          suggestion: "Reference a named color token instead of a raw value",
+          suggestion: nearest
+            ? `Use token.color.${nearest.key} (${nearest.hex})`
+            : "Reference a named color token instead of a raw value",
         });
       }
     };
@@ -283,7 +312,7 @@ function checkContent(scene: Scene, violations: LintViolation[]): void {
 
 export const M2_RULES: LintRule[] = [
   { id: "L-TYPE", name: "Type Scale", severity: "warning", check: (scene) => { const v: LintViolation[] = []; checkType(scene, v); return v; } },
-  { id: "L-TOKEN", name: "Token References", severity: "warning", check: (scene, locks) => { const v: LintViolation[] = []; checkToken(scene, locks ?? [], v); return v; } },
+  { id: "L-TOKEN", name: "Token References", severity: "warning", check: (scene, locks, profile) => { const v: LintViolation[] = []; checkToken(scene, locks ?? [], v, profile); return v; } },
   { id: "L-STATES", name: "Required States", severity: "error", check: (scene) => { const v: LintViolation[] = []; checkStates(scene, v); return v; } },
   { id: "L-ALIGN", name: "Alignment Edges", severity: "warning", check: (scene) => { const v: LintViolation[] = []; checkAlign(scene, v); return v; } },
   { id: "L-HIER", name: "Hierarchy", severity: "warning", check: (scene) => { const v: LintViolation[] = []; checkHier(scene, v); return v; } },

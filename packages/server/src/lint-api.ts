@@ -1,9 +1,24 @@
 import { IncomingMessage, ServerResponse } from "node:http";
-import { lintScene } from "@intent/linter";
+import { promises as fs } from "node:fs";
+import { resolve } from "node:path";
+import { lintScene, type LintProfile } from "@intent/linter";
 import {
   ApiContext,
   sendJson,
 } from "./api-helpers.js";
+
+/** Read .intent/design-profile.json if the project was scanned (trd 16); never errors. */
+async function readLintProfile(projectRoot: string): Promise<LintProfile | undefined> {
+  try {
+    const raw = await fs.readFile(resolve(projectRoot, ".intent", "design-profile.json"), "utf-8");
+    const parsed = JSON.parse(raw) as { tokens?: { colors?: unknown; spacing?: unknown; radii?: unknown } };
+    const colors = parsed?.tokens?.colors;
+    if (!colors || typeof colors !== "object" || Array.isArray(colors)) return undefined;
+    return { tokens: { colors: colors as Record<string, string> } };
+  } catch {
+    return undefined; // no scan yet — the linter falls back to its built-in reference palette
+  }
+}
 
 /**
  * GET /api/lint (trd 11.3): run the full M1+M2 linter against the current
@@ -26,7 +41,8 @@ export async function handleApiLint(ctx: ApiContext, req: IncomingMessage, res: 
     return;
   }
   const locks = await ctx.lockPort.getLockedObjects(sceneId);
-  const result = lintScene(scene, locks);
+  const profile = await readLintProfile(ctx.projectRoot);
+  const result = lintScene(scene, locks, profile);
   sendJson(res, 200, { revision: scene.revision, ...result });
 }
 
