@@ -1,6 +1,6 @@
 # Documentation Index
 
-Generated: 2026-11-18T20:07:07.341Z
+Generated: 2026-11-18T20:35:05.485Z
 
 ## Plan
 
@@ -79,6 +79,10 @@ Generated: 2026-11-18T20:07:07.341Z
   - 23 23. Open Questions (to resolve in later docs)
   - 24 24. Flags for Later Documents
   - 25 25. Change Log
+
+## Benchmark
+
+- Path: `docs/benchmark.md`
 
 ## Change Log M1
 
