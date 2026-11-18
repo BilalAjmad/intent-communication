@@ -181,3 +181,13 @@ User asked for a full-project review: every line of code reviewed and fixed in a
 - **Keyboard undo (Ctrl/Cmd+Z, design.md 4.7):** restores latest before-send snapshot (the feedback-based model's real undo = version restore, never rewrite history); Playwright 1/1.
 - **Honest remaining (agent-doable):** full shadcn component-by-role import mapping in React export (trd 13.7 tail); animation keyframes authoring UI (today = simple transition setter); the 97% acceptance target needs a real agent session (never measured); Linux/macOS ACs unobserved; tag/push/publish = owner decision; watch mode = agent dependent.
 - **Verify 12/12, unit 635/635, Playwright 101/101, audit 1 accepted-high (docs/security.md).**
+
+## Phase 18 addendum (2026-11-18 — shadcn mapping end-to-end)
+
+- **trd 13.7 shadcn half DONE:** scanner now fills profile.components from the aliased
+  ui directory (.tsx/.jsx; button/input/textarea/checkbox/switch/radio-group/select/label/card/dialog),
+  importPath uses the alias as-is (user tsconfig resolves it); exporter maps button/input roles to
+  imported shadcn components with prop forwarding (variant from className suffix; required/disabled/placeholder
+  passthrough; data-object-id flows for selection). No profile -> existing CSS-var output.
+  2 e2e tests prove scan -> export pipeline.
+- Verify 12/12; unit 637/637; Playwright 101/101. M2 ≈ 90%, M3 ≈ 80%.
