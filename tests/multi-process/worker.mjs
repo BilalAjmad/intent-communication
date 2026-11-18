@@ -43,7 +43,11 @@ async function main() {
     let expectedContentMap = initialExpectedContent ? { [objectId]: initialExpectedContent } : undefined;
 
     let lastResult = { success: false, revision: -1, error: "unknown" };
-    for (let attempt = 0; attempt < 50; attempt++) {
+    // Retry budget widened 2026-11-18 (was 50): under full parallel-test load on
+    // Windows, 17 vitest workers + spawned subprocesses can starve a writer past
+    // 50 linear-backoff attempts. Widening the budget does not weaken the
+    // assertion (all 4 must succeed; revisions stay sequential).
+    for (let attempt = 0; attempt < 150; attempt++) {
       log(`attempt ${attempt} start baseRevision=${patchBaseRevision}`);
       try {
         const result = await writePipeline(storage, lockPort, sceneId, [

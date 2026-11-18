@@ -171,13 +171,40 @@ export function createLockPort(storage: StoragePort, tmpDir?: string): LockPort 
           }
         }
 
-        // Lock file exists — inspect it. Unparseable/torn content is treated as stale.
+        // Lock file exists — inspect it. Unparseable/torn content is treated as stale,
+        // but TRANSIENT read errors (Windows AV/indexer: EPERM/EACCES/UNKNOWN) must not
+        // be mistaken for torn content — a live lock would be quarantined and unlinked,
+        // admitting a second writer into the critical section. Retry those a few times
+        // before concluding anything.
         let data: { pid?: number; createdAt?: number; ownerToken?: string } | null = null;
-        try {
-          const content = await fsp.readFile(lockPath, "utf-8");
-          data = JSON.parse(content) as { pid?: number; createdAt?: number; ownerToken?: string };
-        } catch {
-          data = null;
+        let transientErr: NodeJS.ErrnoException | null = null;
+        for (let r = 0; r < 3 && data === null && !transientErr; r++) {
+          try {
+            const content = await fsp.readFile(lockPath, "utf-8");
+            data = JSON.parse(content) as { pid?: number; createdAt?: number; ownerToken?: string };
+          } catch (readErr) {
+            const code = (readErr as NodeJS.ErrnoException).code;
+            if (code === "ENOENT") {
+              data = null; // torn/missing — treated as stale by design
+              break;
+            }
+            if (readErr instanceof SyntaxError) {
+              // Persistent parse failure across retries is still ambiguous with a
+              // crashed writer; one retry then accept as torn (below, after loop).
+              if (r === 2) data = null;
+              else await new Promise((r2) => setTimeout(r2, 25 * (r + 1)));
+              continue;
+            }
+            transientErr = readErr as NodeJS.ErrnoException;
+          }
+        }
+        if (transientErr) {
+          // Live-or-unknown owner we cannot verify: back off, never reclaim. The
+          // attempt budget bounds the wait; far better a slow acquire than two owners.
+          debugLog(`acquireSceneLock unreadable ${sceneId} ${transientErr.code} — treating as live, waiting`);
+          await new Promise((r) => setTimeout(r, backoff(delay)));
+          delay = Math.min(delay * 1.6, 250);
+          continue;
         }
         const stale =
           data === null || data.createdAt === undefined || isStale(data.createdAt) || !isProcessAlive(data.pid as number);
@@ -199,9 +226,23 @@ export function createLockPort(storage: StoragePort, tmpDir?: string): LockPort 
             const stillStale =
               qc.createdAt === undefined || isStale(qc.createdAt) || !isProcessAlive(qc.pid as number);
             if (!stillStale) {
+            // A live owner's lock ended up in quarantine. Put it back ONLY if the
+            // slot is free — renaming over an existing file would clobber a third
+            // owner (Node maps rename to MOVEFILE_REPLACE_EXISTING on Windows).
+            try {
+              await fsp.access(lockPath);
+              // lockPath is occupied by a third party — do not clobber it. Leave the
+              // stranded live lock orphaned (its owner will time out instead of ever
+              // sharing the critical section with two owners) and keep waiting.
+              await new Promise((r) => setTimeout(r, backoff(delay)));
+              delay = Math.min(delay * 1.6, 250);
+            } catch {
               try { await fsp.rename(quarantine, lockPath); } catch { /* leave quarantine orphaned */ }
-              drop = false;
+              await new Promise((r) => setTimeout(r, backoff(delay)));
+              delay = Math.min(delay * 1.6, 250);
             }
+            drop = false;
+          }
           } catch {
             drop = true;
           }
