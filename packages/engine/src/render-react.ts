@@ -1,6 +1,7 @@
 import type { RenderNode } from "./model.js";
 import { renderIconJsx } from "./icons.js";
 import { mapStyleToClasses, type DesignProfileLike } from "./tailwind-map.js";
+import { mapNodeToShadcn, type ShadcnImport } from "./shadcn-map.js";
 import { IntentError, ErrorCodes } from "@intent/core";
 
 /**
@@ -72,6 +73,7 @@ export function renderModelNodeJsx(
   budget: { remaining: number } = { remaining: REACT_MAX_NODES },
   includeDataIds: boolean = false,
   designProfile?: DesignProfileLike,
+  collector?: Set<ShadcnImport>,
 ): string {
   if (depth > MAX_DEPTH || budget.remaining <= 0) {
     throw new IntentError(ErrorCodes.E_LIMIT, "Scene exceeds render depth/size budget");
@@ -101,6 +103,18 @@ export function renderModelNodeJsx(
     })}`;
   }
 
+  // trd 13.7 (shadcn half): map button/input roles to the profile's imported components
+  // when the profile provides them. Selection identifiers still flow in via data-object-id.
+  if (designProfile) {
+    const mapped = mapNodeToShadcn(node, designProfile);
+    if (mapped.jsx) {
+      for (const imp of mapped.used) collector?.add(imp);
+      const dataIdAttr = includeDataIds && node.id ? ` data-object-id={${JSON.stringify(node.id)}}` : "";
+      const injected = mapped.jsx.replace(/^<(\w+)/, (_, tag) => `<${tag}${dataIdAttr}`);
+      return `${pad}${injected}`;
+    }
+  }
+
   const attrs = jsxAttrs(attrsForRender, node.tag);
 
   if (VOID_TAGS.has(node.tag)) {
@@ -108,7 +122,7 @@ export function renderModelNodeJsx(
   }
 
   const children = node.children
-    .map((child) => renderModelNodeJsx(child, depth + 1, budget, includeDataIds, designProfile))
+    .map((child) => renderModelNodeJsx(child, depth + 1, budget, includeDataIds, designProfile, collector))
     .join("\n");
 
   const text = node.text !== undefined ? `{${JSON.stringify(node.text)}}` : "";

@@ -18,6 +18,7 @@ export interface DesignProfileLike {
     spacing: Record<string, string>;
     radii: Record<string, string>;
   };
+  components?: Array<{ role: string; importPath: string; exportName: string; propMap: Record<string, string>; confidence?: string }>;
 }
 
 export type ClassTarget = { prefix: string; prop: RegExp };

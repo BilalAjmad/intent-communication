@@ -7,6 +7,7 @@ import { normalizeSceneToModel, type RenderModel } from "./model.js";
 import { renderModelNodeJsx } from "./render-react.js";
 import { expandComponentInstances } from "./components.js";
 import type { DesignProfileLike } from "./tailwind-map.js";
+import type { ShadcnImport } from "./shadcn-map.js";
 import { renderStateCss } from "./state-css.js";
 import { renderResponsiveCss, DEFAULT_BREAKPOINTS } from "./responsive-css.js";
 import { renderAnimationCss } from "./animation-css.js";
@@ -79,10 +80,16 @@ function buildScreenFiles(model: RenderModel, includeDataIds: boolean, designPro
     const screen = byId.get(entry.id);
     if (!screen) continue;
     const budget = { remaining: MAX_NODES };
-    const body = renderModelNodeJsx(screen.root, 3, budget, includeDataIds, designProfile);
+    const imports = new Set<ShadcnImport>();
+    const body = renderModelNodeJsx(screen.root, 3, budget, includeDataIds, designProfile, imports);
+    const importLines = [...imports]
+      .sort((a, b) => a.name.localeCompare(b.name))
+      .map((imp) => `import { ${imp.name} } from ${JSON.stringify(imp.from)};`)
+      .join("\n");
+    const header = importLines ? `${importLines}\n` : "";
     files[`intent-export/screens/${entry.name}.tsx`] =
 `${GENERATOR_BANNER}
-export default function ${entry.name}() {
+${header}export default function ${entry.name}() {
   return (
 ${body}
   );

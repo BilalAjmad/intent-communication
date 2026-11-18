@@ -37,6 +37,7 @@ interface Ctx {
   tokens: DesignProfile["tokens"];
   tailwind: NonNullable<DesignProfile["tailwind"]>;
   sourceFiles: string[];
+  components: DesignProfile["components"];
 }
 
 function pushSource(ctx: Ctx, source: DesignSource): void {
@@ -225,7 +226,8 @@ async function scanShadcn(ctx: Ctx): Promise<void> {
     ctx.unresolved.push({ file: relOf(ctx.projectRoot, file), key: "(json)", reason: "invalid JSON" });
     return;
   }
-  if (!parsed || typeof parsed !== "object" || (parsed as Record<string, unknown>)["style"] === undefined) {
+  const record = parsed as Record<string, unknown> | null;
+  if (!record || typeof record !== "object" || record["style"] === undefined) {
     ctx.unresolved.push({
       file: relOf(ctx.projectRoot, file),
       key: "(schema)",
@@ -235,6 +237,74 @@ async function scanShadcn(ctx: Ctx): Promise<void> {
   }
   pushSource(ctx, { kind: "shadcn", file: relOf(ctx.projectRoot, file), confidence: "high" });
   ctx.sourceFiles.push(file);
+
+  // Resolve the aliased ui directory from components.json (aliases.ui or aliases.components + /ui).
+  const aliases = record["aliases"] as Record<string, unknown> | undefined;
+  const uiAlias = typeof aliases?.["ui"] === "string" ? (aliases["ui"] as string) : null;
+  const componentsAlias = typeof aliases?.["components"] === "string" ? (aliases["components"] as string) : null;
+  const uiDir = uiAlias ?? (componentsAlias ? `${(componentsAlias as string).replace(/\/+$/, "")}/ui` : null);
+  if (!uiDir) return;
+
+  const relUi = uiDir.replace(/^@\//, "").split("/");
+  const dirCandidates = [join(ctx.projectRoot, "src", ...relUi), join(ctx.projectRoot, ...relUi)];
+  let uiDirFull: string | null = null;
+  for (const cand of dirCandidates) {
+    try {
+      await fs.access(cand);
+      uiDirFull = cand;
+      break;
+    } catch {
+      continue;
+    }
+  }
+  if (!uiDirFull) return;
+
+  const ROLE_FILES: Record<string, string> = {
+    button: "button",
+    input: "input",
+    textarea: "textarea",
+    checkbox: "checkbox",
+    switch: "switch",
+    "radio-group": "radio-group",
+    select: "select",
+    label: "label",
+    card: "card",
+    dialog: "dialog",
+  };
+  const exportName = (base: string) =>
+    base
+      .split(/[-_]/)
+      .filter(Boolean)
+      .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+      .join("");
+
+  let names: string[] = [];
+  try {
+    names = (await fs.readdir(uiDirFull)).filter((n) => /\.(tsx|jsx)$/.test(n)).map((n) => n.replace(/\.(tsx|jsx)$/, ""));
+  } catch {
+    return;
+  }
+  for (const name of names) {
+    const role = ROLE_FILES[name] ?? null;
+    if (!role) continue;
+    const importPath = `${uiDir}/${name}`;
+    ctx.components.push({
+      role,
+      importPath,
+      exportName: exportName(name),
+      propMap: defaultPropMapFor(role),
+      confidence: "high",
+    });
+  }
+}
+
+function defaultPropMapFor(role: string): Record<string, string> {
+  switch (role) {
+    case "button": return { variant: "variant", size: "size", disabled: "disabled" };
+    case "input": return { type: "type", placeholder: "placeholder", disabled: "disabled", required: "required" };
+    case "textarea": return { placeholder: "placeholder", disabled: "disabled", required: "required" };
+    default: return {};
+  }
 }
 
 async function scanStorybook(ctx: Ctx): Promise<void> {
@@ -295,6 +365,7 @@ export async function scanProject(projectRoot: string, options: ScanOptions = {}
     tokens: { colors: {}, spacing: {}, radii: {}, fontFamily: {}, fontSize: {} },
     tailwind: { colorMap: {}, spacingMap: {}, radiusMap: {} },
     sourceFiles: [],
+    components: [],
   };
 
   await scanTailwind(ctx);
@@ -332,7 +403,7 @@ export async function scanProject(projectRoot: string, options: ScanOptions = {}
     sources: ctx.sources,
     tokens: ctx.tokens,
     ...(hasTailwindMaps ? { tailwind: ctx.tailwind } : {}),
-    components: [],
+    components: ctx.components,
     unresolved: ctx.unresolved,
   };
 

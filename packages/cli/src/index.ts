@@ -269,6 +269,10 @@ async function readDesignProfile(projectRoot: string): Promise<DesignProfileLike
         spacing: spacing as Record<string, string>,
         radii: radii as Record<string, string>,
       },
+      components: (() => {
+        const rawComponents = (parsed as Record<string, unknown>)["components"];
+        return Array.isArray(rawComponents) ? (rawComponents as NonNullable<DesignProfileLike["components"]>) : [];
+      })(),
     };
   } catch {
     return undefined; // no profile yet — Tailwind mapping stays off, CSS vars keep working
