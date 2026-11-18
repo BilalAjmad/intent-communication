@@ -310,13 +310,19 @@ export const GetSceneInputSchema = z.object({
 
 export type GetSceneInput = z.infer<typeof GetSceneInputSchema>;
 
+// GetScene: revision is absent on the truncation-fallback payload (data = { _truncated, message });
+// pendingPatches/metadata appear since the M3.B/trd-17.1 agent contract.
 export const GetSceneOutputSchema = z.object({
   scene: SceneSchema.optional(),
   summary: SceneSummarySchema.optional(),
   objects: z.record(ObjectIdSchema, SceneObjectSchema).optional(),
   locks: z.array(ObjectIdSchema).max(2000).default([]),
+  pendingPatches: z.number().int().nonnegative().optional(),
   truncated: z.boolean().default(false),
-  revision: RevisionSchema,
+  revision: RevisionSchema.optional(),
+  metadata: z.object({ profileSummary: z.string().max(500) }).optional(),
+  _truncated: z.literal(true).optional(),
+  message: z.string().max(1000).optional(),
 });
 
 export type GetSceneOutput = z.infer<typeof GetSceneOutputSchema>;
@@ -327,13 +333,15 @@ export const ApplyPatchInputSchema = z.object({
 
 export type ApplyPatchInput = z.infer<typeof ApplyPatchInputSchema>;
 
+// ApplyPatch: revision/currentRevision may be -1 on pipeline paths that bail
+// before reading the scene ("revision unknown" sentinel); documented wire contract.
 export const ApplyPatchOutputSchema = z.object({
   success: z.boolean(),
-  revision: RevisionSchema,
+  revision: z.number().int().min(-1),
   conflict: z.object({
     patchId: CrockfordULIDSchema,
-    objectId: ObjectIdSchema,
-    currentRevision: RevisionSchema,
+    objectId: CrockfordULIDSchema,
+    currentRevision: z.number().int().min(-1),
     baseRevision: RevisionSchema,
   }).nullable().default(null),
   error: z.string().nullable().default(null),

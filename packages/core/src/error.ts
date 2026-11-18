@@ -22,6 +22,8 @@ export const ErrorCodes = {
   E_VERSION: "E_VERSION",
   E_AUTH: "E_AUTH",
   E_LIMIT: "E_LIMIT",
+  // An internal failure that is not the caller's fault (e.g. a tool produced a payload its own output schema rejects).
+  E_INTERNAL: "E_INTERNAL",
 
   // Storage-level codes.
   E_INVALID_PATCH: "E_INVALID_PATCH",

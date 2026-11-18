@@ -19,6 +19,9 @@ import {
   GetFeedbackInputSchema,
   AskUserInputSchema,
   OpenStudioInputSchema,
+  GetSceneOutputSchema,
+  ApplyPatchOutputSchema,
+  GetFeedbackOutputSchema,
 } from "@intent/schema";
 import { createFileStoragePort, createFileLockPort, createNodeCryptoPort } from "@intent/adapters-node";
 import { z } from "zod";
@@ -440,6 +443,16 @@ function zodToIntentError(err: unknown): IntentError | null {
   return null;
 }
 
+// Output contracts (trd 14.3): the three tools whose output schemas live in
+// @intent/schema are enforced here — a handler that produced a payload its own
+// output schema rejects is a bug, not agent error. Fails loudly with issue
+// paths only (never echoes the payload — it may contain scene data).
+const OUTPUT_SCHEMAS: Record<string, z.ZodTypeAny> = {
+  get_scene: GetSceneOutputSchema,
+  apply_patch: ApplyPatchOutputSchema,
+  get_feedback: GetFeedbackOutputSchema,
+};
+
 export async function handleMCPRequest(
   toolName: string,
   input: unknown,
@@ -450,7 +463,19 @@ export async function handleMCPRequest(
     throw new IntentError(ErrorCodes.E_NOT_FOUND, `Tool ${toolName} not found`);
   }
   try {
-    return await tool.handler(input, context);
+    const result = await tool.handler(input, context);
+    const outputSchema = OUTPUT_SCHEMAS[tool.name];
+    if (!outputSchema) return result;
+    const parsed = outputSchema.safeParse(result);
+    if (!parsed.success) {
+      const detail = parsed.error.issues
+        .slice(0, 5)
+        .map((issue) => `${issue.path.join(".") || "(root)"}: ${issue.message}`)
+        .join("; ")
+        .slice(0, 500);
+      throw new IntentError(ErrorCodes.E_INTERNAL, `Tool ${tool.name} produced an invalid payload — ${detail}`);
+    }
+    return parsed.data;
   } catch (err) {
     const ze = zodToIntentError(err);
     if (ze) throw ze;
