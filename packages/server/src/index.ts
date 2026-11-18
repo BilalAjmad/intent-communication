@@ -2,14 +2,8 @@ import { createServer as createHttpServer, IncomingMessage, ServerResponse } fro
 import { existsSync } from "node:fs";
 import { randomBytes, timingSafeEqual } from "node:crypto";
 import { resolve, dirname } from "node:path";
-import {
-  StoragePort,
-  LockPort,
-  CryptoPort,
-} from "@intent/core";
-import {
-  Patch,
-} from "@intent/schema";
+import { StoragePort, LockPort, CryptoPort } from "@intent/core";
+import { Patch } from "@intent/schema";
 import { createFileStoragePort, createFileLockPort, createNodeCryptoPort } from "@intent/adapters-node";
 import { previewScriptHashes } from "@intent/studio";
 import { ApiContext } from "./api-helpers.js";
@@ -31,6 +25,7 @@ import { registerVersionRoutes } from "./versions-api.js";
 import { registerMetricsRoutes } from "./metrics-api.js";
 import { registerProfileRoutes } from "./profile-api.js";
 import { registerObjectStyleRoutes } from "./object-style-api.js";
+import { registerKeyframesRoutes } from "./keyframes-api.js";
 import { registerLintRoutes } from "./lint-api.js";
 import { handleSSE, serveStatic, writeRuntimeFile } from "./runtime.js";
 import { SseEventBus, type SSEClient } from "./event-bus.js";
@@ -405,6 +400,9 @@ export class IntentServer {
     }
     // Direct style edits from the canvas (trd 352/T9)
     if (await registerObjectStyleRoutes(this.apiCtx, req, res, pathname)) {
+      return;
+    }
+    if (await registerKeyframesRoutes(this.apiCtx, req, res, pathname, url)) {
       return;
     }
     // Lint the scene (trd 11.3)

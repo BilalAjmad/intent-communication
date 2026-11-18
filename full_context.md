@@ -176,3 +176,11 @@
   passthrough; data-object-id flows for selection). No profile -> existing CSS-var output.
   2 e2e tests prove scan -> export pipeline.
 - Verify 12/12; unit 637/637; Playwright 101/101. M2 ≈ 90%, M3 ≈ 80%.
+
+## Phase 19 addendum (2026-11-18 — @keyframes authoring end-to-end)
+
+- **trd 13.6 scene keyframes table:** `scene.metadata.keyframes` is schema-validated (closed grammars: name `^[A-Za-z_][A-Za-z0-9_-]{0,63}$`, offset `from|to|N%`, property kebab/custom, values ≤200 chars, 64 KB cap) — additive, defaults to `{}` so old scenes parse unchanged. Engine sanitizes again at render (`sanitizeKeyframes`, defense in depth). `renderAnimationCss` emits `@keyframes` INSIDE `@media (prefers-reduced-motion: no-preference)`, steps sorted (from<to, numeric offsets), names sorted — deterministic; keyframes emit even when `includeDataIds: false`; the `[data-object-id]` animation rules still require ids.
+- **Server:** `GET/PUT /api/keyframes` (full-replace, `baseRevision` stale → 409 E_CONFLICT, scene revision bump + SSE broadcast — versions-restore precedent; scene-level so no object lock).
+- **Studio:** Keyframes section in Inspector (add/delete keyframes, offset rows, declaration rows with CSS-prop datalist, per-card "Animate selected" → `animation: <name> 600ms ease infinite` via the /api/object-style pipeline); "Remove animation" in the Animation row. **Bugfix:** `.force-state-row` CSS block had lost its selector in 9ead598 (orphaned declarations, dead CSS) — selector restored.
+- **Studio preview** carries the keyframes (includeDataIds=true path; React export carries them in tokens.css even with includeDataIds=false since anim declarations inline in JSX there).
+- Tests: engine +3 (emission + sorted steps, value-sanitization drop, keyframes-without-ids), server +5 (GET/PUT/409 stale/400 out-of-grammar), Playwright +1 (`tests/keyframes-editor.spec.ts`: UI → storage → preview document chain). Verify 12/12; unit 645/645; Playwright 102/102.

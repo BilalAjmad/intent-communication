@@ -1,13 +1,14 @@
 import { z } from "zod";
 import { CrockfordULIDSchema, ISODateTimeSchema, RevisionSchema, ObjectIdSchema, ScreenIdSchema, SafeIdSchema, ChipSchema } from "./primitives.js";
 import { InterviewQuestionCoreSchema, PendingInterviewQuestionSchema, InterviewAnswerSchema, AskUserInputSchema, type AskUserInput } from "./interview.js";
-import { CreatePatchInputSchema, UpdatePatchInputSchema, SendPatchesInputSchema, ResolvePatchInputSchema, PatchListQuerySchema, InterviewAnswerInputSchema, ObjectStylePatchInputSchema } from "./studio-api.js";
+import { CreatePatchInputSchema, UpdatePatchInputSchema, SendPatchesInputSchema, ResolvePatchInputSchema, PatchListQuerySchema, InterviewAnswerInputSchema, ObjectStylePatchInputSchema, KeyframesPutInputSchema } from "./studio-api.js";
 import { SceneValueSchema, BaseObjectSchema } from "./base-object.js";
 import { CheckboxSchema, RadioSchema, SwitchSchema, LinkSchema, ListSchema, ModalSchema, IconSchema, DividerSchema } from "./object-types.js";
 import { ComponentDefSchema } from "./components.js";
 import { AnnotationIdSchema, AnnotationSummarySchema, AnnotationSchema, type Annotation } from "./annotations.js";
+import { KeyframesSchema } from "./keyframes.js";
 
-export { CrockfordULIDSchema, ISODateTimeSchema, RevisionSchema, ObjectIdSchema, ScreenIdSchema, SafeIdSchema, ChipSchema, CreatePatchInputSchema, UpdatePatchInputSchema, SendPatchesInputSchema, ResolvePatchInputSchema, PatchListQuerySchema, InterviewAnswerInputSchema, ObjectStylePatchInputSchema };
+export { CrockfordULIDSchema, ISODateTimeSchema, RevisionSchema, ObjectIdSchema, ScreenIdSchema, SafeIdSchema, ChipSchema, CreatePatchInputSchema, UpdatePatchInputSchema, SendPatchesInputSchema, ResolvePatchInputSchema, PatchListQuerySchema, InterviewAnswerInputSchema, ObjectStylePatchInputSchema, KeyframesPutInputSchema, KeyframesSchema };
 export { InterviewQuestionCoreSchema, PendingInterviewQuestionSchema, InterviewAnswerSchema, AskUserInputSchema };
 export { PrimitiveValueSchema, TokenValueSchema, SceneValueSchema, BaseObjectSchema, StateNameSchema, StateOverrideSchema, STATE_NAMES, ResponsiveOverrideSchema, ResponsiveSchema, ComponentRefSchema } from "./base-object.js";
 export type { StateName, StateOverride, ResponsiveOverride, Responsive, ComponentRef } from "./base-object.js";
@@ -19,8 +20,9 @@ export { IntentProfileSchema, IntentProfileEntrySchema, IntentProfileEntrySource
 export type { IntentProfile, IntentProfileEntry, IntentProfileKey, IntentProfileEntrySource } from "./intent-profile.js";
 export { CheckboxSchema, RadioSchema, SwitchSchema, LinkSchema, ListSchema, ModalSchema, IconSchema, DividerSchema } from "./object-types.js";
 export type { Chip } from "./primitives.js";
+export type { Keyframes } from "./keyframes.js";
 export type { InterviewQuestionCore, PendingInterviewQuestion, InterviewAnswer, AskUserInput } from "./interview.js";
-export type { CreatePatchInput, UpdatePatchInput, SendPatchesInput, ResolvePatchInput, ObjectStylePatchInput } from "./studio-api.js";
+export type { CreatePatchInput, UpdatePatchInput, SendPatchesInput, ResolvePatchInput, ObjectStylePatchInput, KeyframesPutInput } from "./studio-api.js";
 
 export const ScreenSchema = BaseObjectSchema.extend({
   type: z.literal("screen"),
@@ -122,7 +124,8 @@ export const SceneSchema = z.object({
     name: z.string().default("Untitled Project"),
     description: z.string().optional(),
     tags: z.array(z.string()).max(50).default([]),
-  }).default({ name: "Untitled Project", tags: [] }),
+    keyframes: KeyframesSchema.default({}),
+  }).default({ name: "Untitled Project", tags: [], keyframes: {} }),
 });
 
 export type Scene = z.infer<typeof SceneSchema>;

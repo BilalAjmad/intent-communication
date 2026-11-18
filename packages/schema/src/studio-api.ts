@@ -2,6 +2,7 @@ import { z } from "zod";
 import { ObjectIdSchema, RevisionSchema, CrockfordULIDSchema, ChipSchema, SafeIdSchema } from "./primitives.js";
 import { AnnotationIdSchema } from "./annotations.js";
 import { SceneValueSchema } from "./base-object.js";
+import { KeyframesSchema } from "./keyframes.js";
 
 // Studio server API inputs for the feedback patch queue (trd 11.3; design.md 4.3, 4.8, 4.10).
 
@@ -66,9 +67,22 @@ export const ObjectStylePatchInputSchema = z
   .refine((v) => Object.keys(v.style).length <= 200, { message: "style may carry at most 200 keys" })
   .refine((v) => JSON.stringify(v.style).length <= 64 * 1024, { message: "style payload exceeds the 64 KB limit" });
 
+/**
+ * trd 13.6 — replace the whole scene keyframes table. Full-replace, never a
+ * merge: the Studio sends its working copy wholesale, one edit = one revision.
+ * No object lock applies (scene-level metadata), matching the versions-restore
+ * precedent. baseRevision guards against a stale client.
+ */
+export const KeyframesPutInputSchema = z.object({
+  sceneId: SafeIdSchema.default("default"),
+  baseRevision: RevisionSchema,
+  keyframes: KeyframesSchema,
+});
+
 export type CreatePatchInput = z.infer<typeof CreatePatchInputSchema>;
 export type UpdatePatchInput = z.infer<typeof UpdatePatchInputSchema>;
 export type SendPatchesInput = z.infer<typeof SendPatchesInputSchema>;
 export type ResolvePatchInput = z.infer<typeof ResolvePatchInputSchema>;
 export type InterviewAnswerInput = z.infer<typeof InterviewAnswerInputSchema>;
 export type ObjectStylePatchInput = z.infer<typeof ObjectStylePatchInputSchema>;
+export type KeyframesPutInput = z.infer<typeof KeyframesPutInputSchema>;

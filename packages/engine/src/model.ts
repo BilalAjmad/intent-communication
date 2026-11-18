@@ -1,7 +1,9 @@
 import { Scene, SceneObject, validateScene } from "@intent/schema";
+import type { Keyframes } from "@intent/schema";
 import { IntentError, ErrorCodes } from "@intent/core";
 import { expandComponentInstances } from "./components.js";
 import { styleDeclarations, resolveSceneValue } from "./style-decl.js";
+import { sanitizeKeyframes } from "./keyframes.js";
 import { responsiveDeclarations } from "./responsive-css.js";
 import { sanitizeUrl, safeClassToken } from "./sanitize.js";
 import { sanitizeCssValue } from "./sanitize.js";
@@ -39,6 +41,8 @@ export interface RenderModel {
   vars: { light: Record<string, string>; dark: Record<string, string> };
   breakpoints: { sm: number; md: number; lg: number };
   screens: { id: string; name: string; root: RenderNode }[];
+  /** Scene keyframes (trd 13.6), sanitized at normalization; emitted inside the reduced-motion media block. */
+  keyframes?: Keyframes;
 }
 
 const MAX_DEPTH = 200;
@@ -466,11 +470,13 @@ export function normalizeSceneToModel(scene: Scene, options: RenderModelOptions 
   });
 
   const startScreenId = allIds[0] ?? "";
+  const keyframes = sanitizeKeyframes(validated.metadata?.keyframes);
 
   return {
     formatVersion: 1,
     title: validated.metadata.name ?? "Untitled Project",
     startScreenId,
+    ...(keyframes ? { keyframes } : {}),
     vars: {
       light: { ...LIGHT_VARS },
       dark: { ...DARK_VARS },

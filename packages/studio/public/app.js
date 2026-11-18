@@ -835,15 +835,306 @@
     removeBtn.textContent = "Remove transition";
     removeBtn.addEventListener("click", function () {
       // Unset via empty value; the engine drops empty declarations so the
-      // transition stops rendering. Any future full @keyframes editor lands here.
+      // transition stops rendering. Keyframes are managed in the Keyframes section below.
       void commitStyleEdit(id, { transition: "" }, function () {
+        postToPreview({ t: "select", channel: state.channel, ids: [id] });
+      });
+    });
+    var removeAnimBtn = document.createElement("button");
+    removeAnimBtn.type = "button";
+    removeAnimBtn.className = "chip";
+    removeAnimBtn.textContent = "Remove animation";
+    removeAnimBtn.addEventListener("click", function () {
+      // Empty value is dropped by the engine's style splitter, so the
+      // animation rule stops rendering inside the no-preference media block.
+      void commitStyleEdit(id, { animation: "" }, function () {
         postToPreview({ t: "select", channel: state.channel, ids: [id] });
       });
     });
     actions.appendChild(applyBtn);
     actions.appendChild(removeBtn);
+    actions.appendChild(removeAnimBtn);
     wrap.appendChild(actions);
     body.appendChild(wrap);
+  }
+
+  // ---------- keyframes editor (trd 13.6) ----------
+  var KF_NAME_RE = /^[A-Za-z_][A-Za-z0-9_-]{0,63}$/;
+  var KF_OFFSET_RE = /^(from|to|(100|[0-9]{1,2})(\.\d+)?%)$/;
+  var KF_PROP_RE = /^(--[a-zA-Z0-9_-]+|-?[a-z][a-z0-9-]*)$/;
+  var KF_PROP_SUGGEST = ["opacity", "transform", "background-color", "color", "border-color", "letter-spacing", "width", "height"];
+
+  function kfStepSort(a, b) {
+    var ka = a === "from" ? -1 : a === "to" ? 101 : Number(String(a).replace("%", ""));
+    var kb = b === "from" ? -1 : b === "to" ? 101 : Number(String(b).replace("%", ""));
+    return ka - kb;
+  }
+
+  function kfClone(table) {
+    return JSON.parse(JSON.stringify(table || {}));
+  }
+
+  function kfCurrentTable() {
+    var md = state.scene && state.scene.metadata;
+    return kfClone(md && md.keyframes ? md.keyframes : {});
+  }
+
+  function renderKeyframesRow(body, inspectedId) {
+    var wrap = document.createElement("div");
+    wrap.className = "keyframes-row";
+    var title = document.createElement("span");
+    title.className = "panel-title";
+    title.textContent = "Keyframes";
+    wrap.appendChild(title);
+    var list = document.createElement("div");
+    list.className = "keyframes-list";
+    wrap.appendChild(list);
+    body.appendChild(wrap);
+
+    if (!document.getElementById("kf-props")) {
+      var datalist = document.createElement("datalist");
+      datalist.id = "kf-props";
+      KF_PROP_SUGGEST.forEach(function (p) {
+        var opt = document.createElement("option");
+        opt.value = p;
+        datalist.appendChild(opt);
+      });
+      document.body.appendChild(datalist);
+    }
+
+    var working = kfCurrentTable();
+
+    function save() {
+      fetchJson("/api/keyframes?sceneId=" + encodeURIComponent(state.sceneId), {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          sceneId: state.sceneId,
+          baseRevision: state.scene ? state.scene.revision : 0,
+          keyframes: working,
+        }),
+      }).then(function (data) {
+        if (data && data.keyframes) working = kfClone(data.keyframes);
+        return loadScene();
+      }).then(function () {
+        renderList();
+        renderPreview();
+        renderSelection();
+      }).catch(function (err) {
+        var message = err && err.message ? err.message : "Could not save keyframes.";
+        if (message.indexOf("E_CONFLICT") !== -1 || /changed/i.test(message)) {
+          showToast("The scene changed since you last saw it — reloaded. Your edit was not saved.");
+          void loadScene().then(function () {
+            working = kfCurrentTable();
+            renderList();
+            renderPreview();
+            renderSelection();
+          });
+        } else {
+          showToast(message);
+        }
+      });
+    }
+
+    function mkInput(value, placeholder, maxLen, extraClass) {
+      var input = document.createElement("input");
+      input.type = "text";
+      input.value = value;
+      input.placeholder = placeholder || "";
+      if (maxLen) input.maxLength = maxLen;
+      if (extraClass) input.className = extraClass;
+      return input;
+    }
+
+    function renderList() {
+      list.innerHTML = "";
+      var names = Object.keys(working).sort(function (a, b) { return a.localeCompare(b); });
+      if (names.length === 0) {
+        var empty = document.createElement("div");
+        empty.className = "keyframes-empty";
+        empty.textContent = "No keyframes yet — add one below, then apply it to the selected object.";
+        list.appendChild(empty);
+      }
+      names.forEach(function (name) { list.appendChild(cardFor(name)); });
+
+      var addRow = document.createElement("div");
+      addRow.className = "keyframes-add";
+      var nameInput = mkInput("", "Name (e.g. fade-up)", 64, "");
+      var addBtn = document.createElement("button");
+      addBtn.type = "button";
+      addBtn.className = "chip";
+      addBtn.textContent = "Add keyframe";
+      addBtn.addEventListener("click", function () {
+        var name = nameInput.value.trim();
+        if (!KF_NAME_RE.test(name)) { showToast("Names: letters, digits, _ or - (no leading digit)."); return; }
+        if (working[name]) { showToast("That keyframe already exists."); return; }
+        working[name] = { from: { opacity: "0" }, to: { opacity: "1" } };
+        nameInput.value = "";
+        renderList();
+        save();
+      });
+      addRow.appendChild(nameInput);
+      addRow.appendChild(addBtn);
+      list.appendChild(addRow);
+    }
+
+    function cardFor(name) {
+      var card = document.createElement("div");
+      card.className = "keyframe-card";
+      var head = document.createElement("div");
+      head.className = "keyframe-head";
+      var code = document.createElement("code");
+      code.textContent = name;
+      var animateBtn = document.createElement("button");
+      animateBtn.type = "button";
+      animateBtn.className = "chip";
+      animateBtn.textContent = "Animate selected";
+      animateBtn.title = "Apply this keyframe to the selected object";
+      animateBtn.addEventListener("click", function () {
+        void commitStyleEdit(inspectedId, { animation: name + " 600ms ease infinite" }, function (ok) {
+          if (ok) showToast('Applied "' + name + '" to the selected object.');
+        });
+      });
+      var delBtn = document.createElement("button");
+      delBtn.type = "button";
+      delBtn.className = "chip";
+      delBtn.textContent = "Delete";
+      delBtn.setAttribute("aria-label", "Delete keyframe " + name);
+      delBtn.addEventListener("click", function () {
+        delete working[name];
+        renderList();
+        save();
+      });
+      head.appendChild(code);
+      head.appendChild(animateBtn);
+      head.appendChild(delBtn);
+      card.appendChild(head);
+
+      Object.keys(working[name] || {}).sort(kfStepSort).forEach(function (offset) {
+        card.appendChild(offsetFor(name, offset));
+      });
+
+      var addOffsetBtn = document.createElement("button");
+      addOffsetBtn.type = "button";
+      addOffsetBtn.className = "chip";
+      addOffsetBtn.textContent = "+ offset";
+      addOffsetBtn.addEventListener("click", function () {
+        var used = Object.keys(working[name] || {});
+        var candidates = ["25%", "50%", "75%", "from", "to"];
+        var target = null;
+        for (var i = 0; i < candidates.length; i++) {
+          if (used.indexOf(candidates[i]) === -1) { target = candidates[i]; break; }
+        }
+        if (!target) { showToast("This keyframe is full."); return; }
+        working[name][target] = { opacity: "1" };
+        renderList();
+        save();
+      });
+      card.appendChild(addOffsetBtn);
+      return card;
+    }
+
+    function offsetFor(name, offset) {
+      var box = document.createElement("div");
+      box.className = "keyframe-steps";
+      var head = document.createElement("div");
+      head.className = "keyframe-step-row";
+      var offsetInput = mkInput(offset, "offset", 16, "");
+      offsetInput.setAttribute("aria-label", "Step offset for " + name);
+      offsetInput.addEventListener("change", function () {
+        var next = offsetInput.value.trim();
+        if (!KF_OFFSET_RE.test(next)) { showToast("Offset must be from, to, or N% (0–100)."); offsetInput.value = offset; return; }
+        if (next !== offset && working[name][next]) { showToast("That offset already exists in this keyframe."); offsetInput.value = offset; return; }
+        if (next === offset) return;
+        var decls = working[name][offset];
+        delete working[name][offset];
+        working[name][next] = decls;
+        renderList();
+        save();
+      });
+      var removeOffsetBtn = document.createElement("button");
+      removeOffsetBtn.type = "button";
+      removeOffsetBtn.className = "chip";
+      removeOffsetBtn.textContent = "× offset";
+      removeOffsetBtn.setAttribute("aria-label", "Remove offset " + offset);
+      removeOffsetBtn.addEventListener("click", function () {
+        delete working[name][offset];
+        if (Object.keys(working[name]).length === 0) delete working[name];
+        renderList();
+        save();
+      });
+      head.appendChild(offsetInput);
+      head.appendChild(removeOffsetBtn);
+      box.appendChild(head);
+
+      var decls = working[name][offset] || {};
+      Object.keys(decls).sort().forEach(function (prop) {
+        box.appendChild(declFor(name, offset, prop, decls[prop]));
+      });
+
+      var addDeclBtn = document.createElement("button");
+      addDeclBtn.type = "button";
+      addDeclBtn.className = "chip";
+      addDeclBtn.textContent = "+ declaration";
+      addDeclBtn.addEventListener("click", function () {
+        var existing = working[name][offset] || {};
+        var prop = "opacity";
+        if (existing[prop]) prop = "transform";
+        if (existing[prop]) { showToast("Edit the existing declarations instead."); return; }
+        existing[prop] = "1";
+        working[name][offset] = existing;
+        renderList();
+        save();
+      });
+      box.appendChild(addDeclBtn);
+      return box;
+    }
+
+    function declFor(name, offset, prop, value) {
+      var row = document.createElement("div");
+      row.className = "keyframe-step-row";
+      var propInput = mkInput(prop, "property", 64, "");
+      propInput.setAttribute("list", "kf-props");
+      propInput.setAttribute("aria-label", "CSS property");
+      var valueInput = mkInput(value, "value", 200, "");
+      valueInput.setAttribute("aria-label", "CSS value");
+      var removeBtn = document.createElement("button");
+      removeBtn.type = "button";
+      removeBtn.className = "chip";
+      removeBtn.textContent = "×";
+      removeBtn.setAttribute("aria-label", "Remove declaration " + prop);
+      removeBtn.addEventListener("click", function () {
+        delete working[name][offset][prop];
+        if (Object.keys(working[name][offset]).length === 0) delete working[name][offset];
+        if (working[name] && Object.keys(working[name]).length === 0) delete working[name];
+        renderList();
+        save();
+      });
+      propInput.addEventListener("change", function () {
+        var nextProp = propInput.value.trim();
+        if (!KF_PROP_RE.test(nextProp)) { showToast("Property must be kebab-case (or a --custom-property)."); propInput.value = prop; return; }
+        if (nextProp === prop) return;
+        var current = working[name][offset][prop];
+        if (working[name][offset][nextProp]) { showToast("That property already exists in this step."); propInput.value = prop; return; }
+        delete working[name][offset][prop];
+        working[name][offset][nextProp] = current;
+        renderList();
+        save();
+      });
+      valueInput.addEventListener("change", function () {
+        var nextValue = valueInput.value.trim();
+        if (!nextValue) { showToast("Value cannot be empty (clear the step instead)."); valueInput.value = value; return; }
+        if (nextValue.length > 200) { showToast("Value is too long."); valueInput.value = value; return; }
+        working[name][offset][prop] = nextValue;
+        save();
+      });
+      row.appendChild(propInput);
+      row.appendChild(valueInput);
+      row.appendChild(removeBtn);
+      return row;
+    }
+
+    renderList();
   }
 
   function statesForType(type) {
@@ -939,6 +1230,7 @@
     body.appendChild(dl);
     if (obj) renderForceStateRow(body, obj, id);
     if (obj) renderAnimationRow(body, obj, id);
+    if (obj) renderKeyframesRow(body, id);
     renderVersionsSection(body);
     renderMetricsSection(body);
   }

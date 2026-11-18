@@ -644,6 +644,8 @@ textarea:focus {
   display: flex;
   gap: 8px;
 }
+
+.force-state-row {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -1244,3 +1246,36 @@ textarea:focus {
   text-align: center;
   color: var(--applied);
 }
+
+/* trd 13.6 — scene keyframes editor */
+.keyframes-row { display: flex; flex-direction: column; gap: 6px; }
+.keyframes-list { display: flex; flex-direction: column; gap: 8px; }
+.keyframes-empty { font-size: 12px; color: var(--text-muted); }
+.keyframes-add { display: flex; gap: 8px; margin-top: 2px; }
+.keyframes-add input,
+.keyframe-card input {
+  background: var(--bg-canvas);
+  color: var(--text);
+  border: 1px solid var(--line-strong);
+  border-radius: 6px;
+  padding: 6px 8px;
+  font: inherit;
+  font-size: 12px;
+  min-width: 0;
+}
+.keyframes-add input:focus,
+.keyframe-card input:focus { border-color: var(--accent); outline: none; }
+.keyframe-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--bg-item);
+}
+.keyframe-head { display: flex; align-items: center; gap: 8px; }
+.keyframe-head code { font-size: 12px; color: var(--text); overflow: hidden; text-overflow: ellipsis; }
+.keyframe-head .chip { margin-left: auto; }
+.keyframe-step-row { display: grid; grid-template-columns: 64px minmax(0, 1fr) minmax(0, 1.3fr) auto; gap: 6px; align-items: center; }
+.keyframe-actions { display: flex; gap: 6px; flex-wrap: wrap; }

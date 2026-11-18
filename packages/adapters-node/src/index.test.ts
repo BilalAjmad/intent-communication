@@ -29,7 +29,7 @@ describe("Adapters-Node package", () => {
         screens: {},
         objects: {},
         components: [], screenOrder: [],
-        metadata: { name: "Test", tags: [] },
+        metadata: { name: "Test", tags: [], keyframes: {} },
       };
       await storage.writeScene("scene-1", scene);
       const read = await storage.readScene("scene-1");
@@ -214,7 +214,7 @@ describe("Adapters-Node package", () => {
         screens: {},
         objects: {},
         components: [], screenOrder: [],
-        metadata: { name: "Test", tags: [] },
+        metadata: { name: "Test", tags: [], keyframes: {} },
       };
       await expect(storage.writeScene("../etc/passwd", scene)).rejects.toThrow();
     });

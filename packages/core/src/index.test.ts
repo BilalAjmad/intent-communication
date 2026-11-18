@@ -40,7 +40,7 @@ describe("Core package", () => {
         screens: {},
         objects: {},
         components: [], screenOrder: [],
-        metadata: { name: "Test", tags: [] },
+        metadata: { name: "Test", tags: [], keyframes: {} },
       };
       await storage.writeScene("scene-1", scene);
       const read = await storage.readScene("scene-1");
@@ -222,7 +222,7 @@ describe("Core package", () => {
         screens: {},
         objects: {},
         components: [], screenOrder: [],
-        metadata: { name: "Test", tags: [] },
+        metadata: { name: "Test", tags: [], keyframes: {} },
       };
       const result = normalizeScene(scene);
       expect(result.scene).toEqual(scene);
@@ -254,7 +254,7 @@ describe("Core package", () => {
           },
         },
         components: [], screenOrder: [],
-        metadata: { name: "Test", tags: [] },
+        metadata: { name: "Test", tags: [], keyframes: {} },
       };
       const patch: Patch = {
         id: patchId,
@@ -295,7 +295,7 @@ describe("Core package", () => {
           },
         },
         components: [], screenOrder: [],
-        metadata: { name: "Test", tags: [] },
+        metadata: { name: "Test", tags: [], keyframes: {} },
       };
       const patch: Patch = {
         id: patchId,
@@ -324,7 +324,7 @@ describe("Core package", () => {
         screens: {},
         objects: {},
         components: [], screenOrder: [],
-        metadata: { name: "Test", tags: [] },
+        metadata: { name: "Test", tags: [], keyframes: {} },
       };
       const patch: Patch = {
         id: patchId,
@@ -365,7 +365,7 @@ describe("Core package", () => {
           },
         },
         components: [], screenOrder: [],
-        metadata: { name: "Test", tags: [] },
+        metadata: { name: "Test", tags: [], keyframes: {} },
       };
       await storage.writeScene(sceneId, scene);
 
@@ -398,7 +398,7 @@ describe("Core package", () => {
         screens: {},
         objects: {},
         components: [], screenOrder: [],
-        metadata: { name: "Test", tags: [] },
+        metadata: { name: "Test", tags: [], keyframes: {} },
       };
       await storage.writeScene(sceneId, scene);
 
@@ -441,7 +441,7 @@ describe("Core package", () => {
           },
         },
         components: [], screenOrder: [],
-        metadata: { name: "Test", tags: [] },
+        metadata: { name: "Test", tags: [], keyframes: {} },
       };
       await storage.writeScene(sceneId, scene);
 
