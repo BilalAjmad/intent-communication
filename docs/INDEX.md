@@ -1,6 +1,6 @@
 # Documentation Index
 
-Generated: 2026-11-18T10:12:46.659Z
+Generated: 2026-11-18T11:37:22.262Z
 
 ## Plan
 
@@ -470,6 +470,10 @@ Generated: 2026-11-18T10:12:46.659Z
   - 3 3. Confirmed and fixed — the Studio server's authentication was a stub
   - 4 4. Recorded, understood, deliberately not "fixed" by this audit
   - 5 5. Summary
+
+## Security
+
+- Path: `docs/security.md`
 
 ## Test
 

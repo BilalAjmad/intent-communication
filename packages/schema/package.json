@@ -1,5 +1,6 @@
 {
   "name": "@intent/schema",
+  "license": "MIT",
   "version": "0.1.0",
   "description": "Zod schemas for Intent: Scene, Patch, Lock, Config, Profile, InterviewState, Brief",
   "main": "dist/index.js",

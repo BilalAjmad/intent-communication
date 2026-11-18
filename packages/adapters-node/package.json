@@ -1,5 +1,6 @@
 {
   "name": "@intent/adapters-node",
+  "license": "MIT",
   "version": "0.1.0",
   "description": "Intent Node.js adapters: FileStorage, FileLock, NodeCrypto",
   "type": "module",

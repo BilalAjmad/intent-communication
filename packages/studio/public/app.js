@@ -757,6 +757,95 @@
 
   // ---------- inspector ----------
 
+  // ---------- animation editor (trd 13.6) ----------
+
+  var ANIM_PROPERTIES = ["background-color", "color", "opacity", "transform", "border-color"];
+  var ANIM_DURATIONS = [100, 150, 200, 300, 500];
+  var ANIM_EASINGS = ["ease", "ease-in", "ease-out", "linear", "cubic-bezier(0.2, 0, 0, 1)"];
+
+  function renderAnimationRow(body, obj, id) {
+    var wrap = document.createElement("div");
+    wrap.className = "animation-row";
+    var title = document.createElement("span");
+    title.className = "panel-title";
+    title.textContent = "Animation";
+    wrap.appendChild(title);
+
+    var grid = document.createElement("div");
+    grid.className = "anim-grid";
+
+    var propLabel = document.createElement("label");
+    propLabel.className = "anim-field";
+    propLabel.textContent = "Property";
+    var propSelect = document.createElement("select");
+    ANIM_PROPERTIES.forEach(function (p) {
+      var opt = document.createElement("option");
+      opt.value = p;
+      opt.textContent = p;
+      propSelect.appendChild(opt);
+    });
+    propLabel.appendChild(propSelect);
+
+    var durLabel = document.createElement("label");
+    durLabel.className = "anim-field";
+    durLabel.textContent = "Duration";
+    var durSelect = document.createElement("select");
+    ANIM_DURATIONS.forEach(function (ms) {
+      var opt = document.createElement("option");
+      opt.value = String(ms);
+      opt.textContent = ms + "ms";
+      durSelect.appendChild(opt);
+    });
+    durSelect.value = "200";
+    durLabel.appendChild(durSelect);
+
+    var easLabel = document.createElement("label");
+    easLabel.className = "anim-field";
+    easLabel.textContent = "Easing";
+    var easSelect = document.createElement("select");
+    ANIM_EASINGS.forEach(function (e) {
+      var opt = document.createElement("option");
+      opt.value = e;
+      opt.textContent = e;
+      easSelect.appendChild(opt);
+    });
+    easLabel.appendChild(easSelect);
+
+    grid.appendChild(propLabel);
+    grid.appendChild(durLabel);
+    grid.appendChild(easLabel);
+    wrap.appendChild(grid);
+
+    var actions = document.createElement("div");
+    actions.className = "anim-actions";
+    var applyBtn = document.createElement("button");
+    applyBtn.type = "button";
+    applyBtn.className = "chip anim-apply";
+    applyBtn.textContent = "Apply transition";
+    applyBtn.addEventListener("click", function () {
+      var value = propSelect.value + " " + Number(durSelect.value) + "ms " + easSelect.value;
+      var additions = { transition: value };
+      void commitStyleEdit(id, additions, function () {
+        postToPreview({ t: "select", channel: state.channel, ids: [id] });
+      });
+    });
+    var removeBtn = document.createElement("button");
+    removeBtn.type = "button";
+    removeBtn.className = "chip";
+    removeBtn.textContent = "Remove transition";
+    removeBtn.addEventListener("click", function () {
+      // Unset via empty value; the engine drops empty declarations so the
+      // transition stops rendering. Any future full @keyframes editor lands here.
+      void commitStyleEdit(id, { transition: "" }, function () {
+        postToPreview({ t: "select", channel: state.channel, ids: [id] });
+      });
+    });
+    actions.appendChild(applyBtn);
+    actions.appendChild(removeBtn);
+    wrap.appendChild(actions);
+    body.appendChild(wrap);
+  }
+
   function statesForType(type) {
     switch (type) {
       case "button": return ["hover", "pressed", "focus", "loading", "error"];
@@ -849,6 +938,7 @@
     }
     body.appendChild(dl);
     if (obj) renderForceStateRow(body, obj, id);
+    if (obj) renderAnimationRow(body, obj, id);
     renderVersionsSection(body);
     renderMetricsSection(body);
   }

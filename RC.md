@@ -100,7 +100,7 @@ Scope: M1, in-tree state at the current working tree (M2.A engine growth and M2.
 ## What the user must decide (cannot be decided by the agent)
 
 - Tag v0.1.0? Publish? Push? (all three are the user's call)
-- LICENSE choice for the repo (no LICENSE file exists; no license field in any package.json — deliberately not invented)
+- LICENSE: MIT (completely free for everyone) chosen 2026-11-18 (owner directive)
 
 
 ## Historical snapshot

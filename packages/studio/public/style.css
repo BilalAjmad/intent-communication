@@ -589,7 +589,46 @@ textarea:focus {
   margin-top: 4px;
 }
 
-.force-state-row {
+.animation-row {
+  display: flex;
+  flex-direction: column;
+}
+
+.anim-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.anim-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.anim-field select {
+  background: var(--bg-canvas);
+  color: var(--text);
+  border: 1px solid var(--line-strong);
+  border-radius: 6px;
+  padding: 6px 8px;
+  font: inherit;
+  font-size: 12px;
+  min-width: 130px;
+}
+
+.anim-field select:focus {
+  border-color: var(--accent);
+  outline: none;
+}
+
+.anim-actions {
+  display: flex;
+  gap: 8px;
+}
   display: flex;
   flex-wrap: wrap;
   align-items: center;

@@ -1,5 +1,6 @@
 {
   "name": "@intent/mcp-server",
+  "license": "MIT",
   "version": "0.1.0",
   "description": "Intent MCP Server: 6 tools (get_scene, apply_patch, get_feedback, ask_user, open_studio, read_config)",
   "type": "module",

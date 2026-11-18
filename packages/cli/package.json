@@ -1,5 +1,6 @@
 {
   "name": "@intent/cli",
+  "license": "MIT",
   "version": "0.1.0",
   "description": "Intent CLI: intent init, intent doctor, intent export, intent mcp (MCP stdio server)",
   "type": "module",

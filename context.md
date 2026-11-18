@@ -163,3 +163,12 @@ User asked for a full-project review: every line of code reviewed and fixed in a
 - **S-3-00 re-plan** (docs/s3-00-replan.md) — executed; M3 ~ 70%; remaining is owner-gated release work.
 - **RC:** axe/pipeline/bench + profile mapping landed AFTER the M1 gate waiver review cycle; M1 gate verdict unchanged (closed by owner waivers 2026-11-16).
 - Unit 635/635; Playwright 98/98; verify 12/12 at b9a816a + this docs commit.
+
+## Phase 16 addendum (2026-11-17/18 — LICENSE + security evidence + animation editor)
+
+- **LICENSE: MIT (completely free for everyone)** added. Owner rules still hold: no tag/push/publish before 100/100; owner drives those calls.
+- **Security evidence (this session):** trivy fs scan (pnpm-lock.yaml) = 0 vulnerabilities; pnpm audit = 0; nuclei (t1-headers, t2-exposure) = security headers present (CSP with 2 script sha256, nosniff, DENY, no-store, Referrer-Policy, COOP); sensitive files (/.git/config, /.env, /.intent/config.json) NOT 200-served. Evidence captured from local scan of the Studio; the repo has never been published.
+- **Animation authoring UI (trd 13.6):** Inspector gains an "Animation" row — Property/Duration/Easing select; Apply to /api/object-style pipeline; Remove unsets via empty value (engine drops it). Playwright 1/1 new spec.
+- **Axe full tab coverage** (Interview/Profile/Feedback) passes; profile tab added to matrix.
+- **Files audit:** my own one-off test-ID migration helpers (fix_test_ids.mjs, fix_all_test_ids.mjs) deleted; .tmp cleanup done.
+- Verify 12/12 (635/635 unit, Playwright 99/99).

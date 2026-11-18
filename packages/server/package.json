@@ -1,5 +1,6 @@
 {
   "name": "@intent/server",
+  "license": "MIT",
   "version": "0.1.0",
   "description": "Intent Server: HTTP + SSE, static Studio SPA",
   "type": "module",

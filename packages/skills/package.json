@@ -1,5 +1,6 @@
 {
   "name": "@intent/skills",
+  "license": "MIT",
   "version": "0.1.0",
   "description": "Intent Skills: Generator for canonical rule files",
   "type": "module",

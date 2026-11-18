@@ -24,7 +24,7 @@
 
 ## Personalize next step (owner decisions — cannot be agent-decided)
 
-- **LICENSE** — none exists anywhere. MIT/Apache-2.0 = maximum reach; all rights reserved = protect IP; proprietary agents consuming = typical choice MIT + commercial add-on. Decide before any publish.
+ - **LICENSE** — MIT chosen (completely free for everyone, owner directive 2026-11-18). Tag/push/publish remain owner-only per R-B33/PL-10.
 - **v0.1.0 tag + push + npm publish** — repo is ~75 commits ahead of origin, never pushed. Push is yours to authorize.
 - **Moveable** — still not added; drag/resize is hand-rolled (shipsped, tested). Add Moveable only if you want library help.
 - **Benchmark targets** — CI-host measurement now documented; tighten on laptop-class hardware before claiming trd 21.
