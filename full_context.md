@@ -157,3 +157,12 @@
 - **Axe full tab coverage** (Interview/Profile/Feedback) passes; profile tab added to matrix.
 - **Files audit:** my own one-off test-ID migration helpers (fix_test_ids.mjs, fix_all_test_ids.mjs) deleted; .tmp cleanup done.
 - Verify 12/12 (635/635 unit, Playwright 99/99).
+
+## Phase 17 addendum (2026-11-18 — device frames + keyboard undo + MIT + security scan evidence)
+
+- **LICENSE: MIT** — picked by owner directive (completely free for everyone); all 11 package.jsons carry the field; RC/plan/replan docs synced.
+- **Security evidence run (local):** trivy fs (pnpm-lock.yaml) = 0 findings; pnpm audit = 1 high, ACCEPTED (picomatch ReDoS, dev-toolchain only via @typescript-eslint → tinyglobby → fdir, no patch available in registry, no remote-input path); nuclei (t1 headers / t2 sensitive exposure) = headers present, sensitive files not 200-served. Documented in docs/security.md.
+- **Device frames (design.md 4.2):** Phone 375 / Tablet 834 / Desktop buttons in topbar; body classes .frame-* resize .iframe-wrap; aria-pressed group; Playwright 1/1.
+- **Keyboard undo (Ctrl/Cmd+Z, design.md 4.7):** restores latest before-send snapshot (the feedback-based model's real undo = version restore, never rewrite history); Playwright 1/1.
+- **Honest remaining (agent-doable):** full shadcn component-by-role import mapping in React export (trd 13.7 tail); animation keyframes authoring UI (today = simple transition setter); the 97% acceptance target needs a real agent session (never measured); Linux/macOS ACs unobserved; tag/push/publish = owner decision; watch mode = agent dependent.
+- **Verify 12/12, unit 635/635, Playwright 101/101, audit 1 accepted-high (docs/security.md).**
