@@ -16,7 +16,7 @@ MCP tools — no API keys, no LLM calls inside the repo, no cloud. The
 
 ## Verification
 
-All 12 verify steps pass on this machine (Windows 11, Node v22.23.4, pnpm 9.7.1). CI (Windows/macOS/Ubuntu) is configured but has not been observed to run; only Windows evidence exists:
+All 12 verify steps pass on this machine (Windows 11, Node v22.23.4, pnpm 9.7.1), and CI (Ubuntu/macOS/Windows × Node 20) was **observed green on this repo as of 2026-11-18** (run `44371953296`: install → build → typecheck → test on all three OS images, Playwright e2e on Ubuntu — after root-causing a Linux build-order failure and two Linux-specific e2e defects; `44369132170` had the e2e failure, `44368167556` the build-order failure). Earlier snapshots claiming Windows-only evidence are outdated.
 
 | Step | Status | Evidence |
 |------|--------|----------|
@@ -24,14 +24,14 @@ All 12 verify steps pass on this machine (Windows 11, Node v22.23.4, pnpm 9.7.1)
 | build | PASS | 10/10 packages build clean |
 | typecheck | PASS | 0 errors |
 | lint | PASS | 0 errors |
-| unit+integration tests | PASS | **412/412 across 10 packages** (2026-11-16) |
+| unit+integration tests | PASS | **683/683 across 10 packages** (2026-11-18) |
 | multi-process tests | PASS | 2/2 different-objects, 2/2 same-object |
 | sigkill test | PASS | SIGKILLed stale scene lock reclaimed |
-| mutation proof | PASS | 5/5 mutations detected (lock, conflict, scope, descendant-lock, schema); crash-safe backup + self-heal added 2026-11-14 |
-| visual diff (Playwright) | PASS | 6/6 real pixel-comparison tests (threshold 0, no stored baselines); full Playwright suite **76/76** (2026-11-15) |
-| smoke test (Playwright) | PASS | 5/5 tier-1 smoke pass, incl. init→doctor→export→open-with-no-network |
+| mutation proof | PASS | 5/5 mutations detected (lock, conflict, scope, descendant-lock, schema) |
+| visual diff (Playwright) | PASS | visual pixel-comparison tests pass (threshold 0, no stored baselines); full Playwright suite **102/102** (2026-11-18) |
+| smoke test (Playwright) | PASS | tier-1 smoke pass, incl. init→doctor→export→open-with-no-network |
 | docs:index | PASS | docs/INDEX.md regenerated |
-| context:check | PASS | 500-line budget respected (schema 476, mcp-server 464, server 472; index split into api-routes/api-helpers/runtime/event-bus) |
+| context:check | PASS | 500-line budget respected (run `pnpm context:check` for the live report) |
 
 Interview-tab evidence (2026-11-15): TC-INT-17 (Studio answer wins, returned once) 3/3; TC-SRV-04 (SSE Last-Event-ID replay of 100, `resync` on larger gap) 2/2; TC-STU-08 (tab card content equals plain-text card) pass; TC-INT-E2E (agent asks via ask_user → answer clicked in Studio → get_feedback returns it once) pass; axe-core 0 critical/serious on the tab.
 
@@ -48,9 +48,9 @@ Run `pnpm verify` to regenerate `VERIFY-REPORT.md` (gitignored).
 ### What we don't claim (honest limits)
 
 - **Intent's "97–99% intent match" target is not verified by any test in this repo.** The meter computes a weighted understanding score from slot evidence only (it cannot be inflated by the agent), but no production session with a real user has produced the 97–99% acceptance-rate number here. It is a target, not a measured result.
-- **No macOS or Linux CI runs have been observed by this session.** CI is configured for ubuntu-latest, windows-latest, macos-latest; only Windows execution has been measured.
-- **Interview completion has not been driven end-to-end by a real agent in this session.** The `ask_user` tool persists the pending question and the Studio Interview tab renders it; the real-UI roundtrip (agent asks → user answers in Studio → `get_feedback` returns it once) is tested at the HTTP/Playwright layer. No live Claude Code / Cursor conversation was executed. The Tier 1 smoke checklist (`tests/smoke/CHECKLIST.md`) is empty for the same reason.
-- **The Studio SPA shell is built and tested** (Inspector / Feedback / Interview tabs, Playwright suite 76/76 on Windows); what does NOT exist yet is the measured acceptance-rate story — the 97–99% target is unproven by this repo.
+- **CI is observed green, but only for the runs listed above.** GitHub forces Actions onto the Node 24 runtime (Node 20 deprecated) and prints annotations to that effect; these are warnings, not failures. No macOS/Ubuntu benchmark re-measurement has been done (the bench tripwires are CI-host-relative, see `bench.test.ts` and `docs/security.md`).
+- **Interview completion has not been driven end-to-end by a real agent in this session.** The `ask_user` tool persists the pending question and the Studio Interview tab renders it; the real-UI roundtrip (agent asks → user answers in Studio → `get_feedback` returns it once) is tested at the HTTP/Playwright layer, and a scripted-agent simulator runs full interviews through the real handler (`interview-simulator.test.ts`). No live Claude Code / Cursor conversation was executed. The Tier 1 smoke checklist (`tests/smoke/CHECKLIST.md`) is empty for the same reason.
+- **The Studio SPA shell is built and tested** (Inspector / Feedback / Interview tabs, Playwright suite 102/102); what does NOT exist yet is the measured acceptance-rate story — the 97–99% target is unproven by this repo.
 - **No live Claude Code or Cursor session has been driven end-to-end by this repo.** The connection steps are verified against the official docs (2026-11-15, see `docs/versions.md`), and `intent mcp` round-trips tools with a real MCP client over stdio — but the agents themselves have not been observed running this repo's tools; the Tier 1 checklist (`tests/smoke/CHECKLIST.md`) is empty.
 
 ## Install
@@ -106,9 +106,13 @@ See `docs/USAGE.md` for the first-session script and the manual trigger line.
 - Intent makes no network requests. Your coding agent may send scene and
   interview content to its own model provider.
 - No API key is needed for Intent.
-- Not done yet: M2/M3 features (drag/resize, pencil, Scanner, profile learning,
-  React export).
-- Windows/macOS CI evidence is pending.
+- M2/M3 features are all landed and tested (drag/resize, animations +
+  @keyframes editor, React export, Scanner + design profile, Intent Profile
+  learning, acceptance-rate metric, interview metrics, file watcher,
+  output-schema enforcement). What's left: publish/release (owner-gated),
+  the human-trial acceptance measurement, and npm publishing (not done).
+- CI (Ubuntu/macOS/Windows) is green on this repo as of 2026-11-18; see the
+  verification table for the exact runs.
 
 ## Uninstall
 
