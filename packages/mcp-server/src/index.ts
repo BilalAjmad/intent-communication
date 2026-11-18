@@ -320,7 +320,9 @@ export const askUserTool: MCPTool = {
         if (state.pendingQuestion?.questionId === paId) {
           state.pendingQuestion = null;
         }
-        state.status = "in_progress";
+        // Chat answer approving the summary flips status complete — mirrors the Studio path (handleApiInterviewAnswer).
+        const paSummaryChoice = paAnswer && typeof paAnswer === "object" ? (paAnswer as { summaryChoice?: unknown }).summaryChoice : undefined;
+        state.status = answeredKind === "summary" && paSummaryChoice === "exactly-right" ? "complete" : "in_progress";
         state.answeredTopics = dedupe([...state.answeredTopics, ...(validated.requiredTopics ?? [])]);
         state.updatedAt = now;
         // trd 17.1: learn from the answer (best effort; never blocks the question).
@@ -456,10 +458,7 @@ function zodToIntentError(err: unknown): IntentError | null {
   return null;
 }
 
-// Output contracts (trd 14.3): the three tools whose output schemas live in
-// @intent/schema are enforced here — a handler that produced a payload its own
-// output schema rejects is a bug, not agent error. Fails loudly with issue
-// paths only (never echoes the payload — it may contain scene data).
+// Output contracts (trd 14.3): get_scene / apply_patch / get_feedback payloads are parsed at the MCP boundary — a handler returning a payload outside its schema is a bug, throws E_INTERNAL with issue paths only (never echoes the payload — it may contain scene data).
 const OUTPUT_SCHEMAS: Record<string, z.ZodTypeAny> = {
   get_scene: GetSceneOutputSchema,
   apply_patch: ApplyPatchOutputSchema,
