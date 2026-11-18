@@ -10,6 +10,9 @@ import {
   Feedback,
   Annotation,
   IntentProfileSchema,
+  validateInterviewMetrics,
+  type IntentProfile,
+  type InterviewMetrics,
   validateScene,
   validateConfig,
   validateProfile,
@@ -17,7 +20,6 @@ import {
   validateBrief,
   validateFeedback,
   validateAnnotation,
-  type IntentProfile,
 } from "@intent/schema";
 import {
   StoragePort,
@@ -29,7 +31,14 @@ import {
   createLockPort,
   assertSafeId,
   writeAtomic,
+  checkDocumentVersion,
 } from "@intent/core";
+
+function parseChecked(content: string, kind: string): unknown {
+  const parsed = JSON.parse(content) as unknown;
+  checkDocumentVersion(parsed, kind, 1);
+  return parsed;
+}
 
 export function createFileStoragePort(projectRoot: string): StoragePort {
   const intentDir = resolve(projectRoot, ".intent");
@@ -39,6 +48,7 @@ export function createFileStoragePort(projectRoot: string): StoragePort {
   const profilePath = resolve(intentDir, "profile.json");
   const intentProfilePath = resolve(intentDir, "intent-profile.json");
   const interviewPath = resolve(intentDir, "interview", "state.json");
+  const metricsPath = resolve(intentDir, "metrics.json");
   const briefsDir = resolve(intentDir, "briefs");
   const feedbackDir = resolve(intentDir, "feedback");
   const annotationsDir = resolve(intentDir, "annotations");
@@ -90,7 +100,7 @@ export function createFileStoragePort(projectRoot: string): StoragePort {
           throw new IntentError(ErrorCodes.E_BAD_REQUEST, "Scene file exceeds the 5 MB hard limit");
         }
         const content = await fs.readFile(scenePath, "utf-8");
-        return validateScene(JSON.parse(content));
+        return validateScene(parseChecked(content, "scene"));
       } catch (err) {
         if (isNotFound(err)) return null;
         if (isIntentError(err)) throw err;
@@ -117,6 +127,7 @@ export function createFileStoragePort(projectRoot: string): StoragePort {
       try {
         const content = await fs.readFile(locksPath, "utf-8");
         const data = JSON.parse(content) as Partial<LocksFile> & { lockedObjects?: unknown; owners?: unknown; locks?: unknown };
+        checkDocumentVersion(data, "locks", 1);
         // Legacy registry form ({ locks: { <objectId>: owner } }): migrate in-memory to lockedObjects.
         if (data.lockedObjects === undefined && data.locks && typeof data.locks === "object" && !Array.isArray(data.locks)) {
           data.lockedObjects = Object.keys(data.locks as Record<string, unknown>);
@@ -161,7 +172,7 @@ export function createFileStoragePort(projectRoot: string): StoragePort {
     async readConfig(): Promise<Config> {
       try {
         const content = await fs.readFile(configPath, "utf-8");
-        return validateConfig(JSON.parse(content));
+        return validateConfig(parseChecked(content, "config"));
       } catch (err) {
         if (isNotFound(err)) {
           return {
@@ -193,7 +204,7 @@ export function createFileStoragePort(projectRoot: string): StoragePort {
     async readProfile(): Promise<Profile | null> {
       try {
         const content = await fs.readFile(profilePath, "utf-8");
-        return validateProfile(JSON.parse(content));
+        return validateProfile(parseChecked(content, "profile"));
       } catch (err) {
         if (isNotFound(err)) return null;
         if (isIntentError(err)) throw err;
@@ -207,7 +218,7 @@ export function createFileStoragePort(projectRoot: string): StoragePort {
     async readIntentProfile(): Promise<IntentProfile> {
       try {
         const content = await fs.readFile(intentProfilePath, "utf-8");
-        return IntentProfileSchema.parse(JSON.parse(content));
+        return IntentProfileSchema.parse(parseChecked(content, "intent-profile"));
       } catch (err) {
         if (isNotFound(err)) return { schemaVersion: 1, entries: [] };
         if (isIntentError(err)) throw err;
@@ -233,7 +244,7 @@ export function createFileStoragePort(projectRoot: string): StoragePort {
     async readInterviewState(): Promise<InterviewState | null> {
       try {
         const content = await fs.readFile(interviewPath, "utf-8");
-        return validateInterviewState(JSON.parse(content));
+        return validateInterviewState(parseChecked(content, "interview-state"));
       } catch (err) {
         if (isNotFound(err)) return null;
         if (isIntentError(err)) throw err;
@@ -250,13 +261,33 @@ export function createFileStoragePort(projectRoot: string): StoragePort {
       await writeAtomic(interviewPath, JSON.stringify(state, null, 0));
     },
 
+    async readInterviewMetrics(): Promise<InterviewMetrics> {
+      try {
+        const content = await fs.readFile(metricsPath, "utf-8");
+        return validateInterviewMetrics(parseChecked(content, "interview-metrics"));
+      } catch (err) {
+        if (isNotFound(err)) return { schemaVersion: 1, sessions: [] };
+        if (isIntentError(err)) throw err;
+        throw new IntentError(
+          ErrorCodes.E_SCHEMA,
+          `Metrics file .intent/metrics.json is unreadable or invalid: ${(err as Error).message}`
+        );
+      }
+    },
+
+    async writeInterviewMetrics(metrics: InterviewMetrics): Promise<void> {
+      await ensureDirs();
+      await checkPathSafety(metricsPath, intentDir);
+      await writeAtomic(metricsPath, JSON.stringify(validateInterviewMetrics(metrics), null, 0));
+    },
+
     async readBrief(briefId: string): Promise<Brief | null> {
       assertSafeId(briefId, "briefId");
       const briefPath = resolve(briefsDir, `${briefId}.json`);
       await checkPathSafety(briefPath, briefsDir);
       try {
         const content = await fs.readFile(briefPath, "utf-8");
-        return validateBrief(JSON.parse(content));
+        return validateBrief(parseChecked(content, "brief"));
       } catch (err) {
         if (isNotFound(err)) return null;
         if (isIntentError(err)) throw err;
@@ -328,8 +359,10 @@ export function createFileStoragePort(projectRoot: string): StoragePort {
         }
         return data.map((item, i) => {
           try {
+            checkDocumentVersion(item, "annotation", 1);
             return validateAnnotation(item);
           } catch (err) {
+            if (isIntentError(err)) throw err; // E_VERSION propagates as-is; never rewritten to E_SCHEMA
             throw new IntentError(
               ErrorCodes.E_SCHEMA,
               `Annotations file .intent/annotations/${sceneId}.json: entry ${i} is invalid: ${(err as Error).message}`

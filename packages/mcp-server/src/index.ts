@@ -9,6 +9,7 @@ import {
   summarizeProfile,
   preFilledForTopic,
   recordAnswerLearning,
+  recordInterviewMetrics,
 } from "@intent/core";
 import {
   Feedback,
@@ -288,6 +289,10 @@ export const askUserTool: MCPTool = {
       state = freshInterviewState();
     }
 
+    // Question kind being answered by this call's previousAnswer (captured before pendingQuestion is overwritten) — for metrics.
+    const answeredKind = state.pendingQuestion?.kind ?? null;
+    let recordedAnswer: { answer: unknown; questionKind: string | null } | null = null;
+
     // 1) A previous answer (chat, passed via previousAnswer) is recorded — unless a
     //    Studio answer for the same questionId exists, in which case the Studio answer wins (TC-INT-17).
     let note: string | undefined;
@@ -311,6 +316,7 @@ export const askUserTool: MCPTool = {
           consumed: false,
         });
         recordedQuestionId = paId;
+        recordedAnswer = { answer: paAnswer, questionKind: answeredKind };
         if (state.pendingQuestion?.questionId === paId) {
           state.pendingQuestion = null;
         }
@@ -348,6 +354,13 @@ export const askUserTool: MCPTool = {
     await context.storage.writeInterviewState(state);
 
     const preFilled = preFilledForTopic(await context.storage.readIntentProfile(), validated.topic);
+    await recordInterviewMetrics(context.storage, {
+      kind: validated.kind,
+      ...(typeof validated.questionNumber === "number" ? { questionNumber: validated.questionNumber } : {}),
+      currentQuestionIndex: state.currentQuestionIndex,
+      meterAfter: state.meter,
+      capped, preFilledShown: Boolean(preFilled), recordedAnswer, now,
+    });
     const config = await context.storage.readConfig();
     const renderedText = renderPlainTextCard(validated, state.meter);
     context.notify?.("interview.changed", { status: state.status });

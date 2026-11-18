@@ -620,6 +620,57 @@
     }
   }
 
+  async function renderInterviewMetricsSection(body) {
+    var wrap = document.createElement("div");
+    wrap.className = "versions-section";
+    var title = document.createElement("span");
+    title.className = "panel-title";
+    title.textContent = "Interview efficiency";
+    wrap.appendChild(title);
+    var line = document.createElement("p");
+    line.className = "muted";
+    line.textContent = "Loading…";
+    wrap.appendChild(line);
+    body.appendChild(wrap);
+    try {
+      var data = await fetchJson("/api/interview-metrics");
+      var report = data && data.report ? data.report : null;
+      wrap.innerHTML = "";
+      wrap.appendChild(title);
+      if (!report || !report.sessions) {
+        var empty = document.createElement("p");
+        empty.className = "muted";
+        empty.textContent = "No interview sessions recorded yet. Efficiency appears here after the next interview completes.";
+        wrap.appendChild(empty);
+        return;
+      }
+      var rows = [
+        ["Sessions tracked", String(report.sessions)],
+        ["Avg. questions asked", report.avgAsked === null ? "—" : (Math.round(report.avgAsked * 10) / 10).toFixed(1)],
+        ["Delegation rate", report.delegateRate === null ? "— (not reported by agents)" : (report.delegateRate * 100).toFixed(1) + "%"],
+        ["Prefill acceptance", report.prefillAcceptance === null ? "— (not collected)" : (report.prefillAcceptance * 100).toFixed(1) + "%"],
+        ["Approved at first summary", report.firstSummaryApprovalShare === null ? "—" : (report.firstSummaryApprovalShare * 100).toFixed(1) + "%"],
+      ];
+      var dl = document.createElement("dl");
+      dl.className = "kv";
+      rows.forEach(function (pair) {
+        var dt = document.createElement("dt");
+        dt.textContent = pair[0];
+        var dd = document.createElement("dd");
+        dd.textContent = pair[1];
+        dl.appendChild(dt);
+        dl.appendChild(dd);
+      });
+      wrap.appendChild(dl);
+      var note = document.createElement("p");
+      note.className = "muted";
+      note.textContent = "Computed locally from this project's .intent/metrics.json; never sent anywhere. Delegation counts answers the agent reported as delegated.";
+      wrap.appendChild(note);
+    } catch (err) {
+      line.textContent = "Could not load interview efficiency.";
+    }
+  }
+
   // ---------- profile (trd 17.1) ----------
 
   async function renderProfilePanel() {
@@ -1189,6 +1240,7 @@
       body.innerHTML = '<p class="muted">Select an object on the canvas or in Layers to see its details.</p>';
       renderVersionsSection(body);
       renderMetricsSection(body);
+      renderInterviewMetricsSection(body);
       return;
     }
     var id = state.selectedId;
@@ -1233,6 +1285,7 @@
     if (obj) renderKeyframesRow(body, id);
     renderVersionsSection(body);
     renderMetricsSection(body);
+    renderInterviewMetricsSection(body);
   }
 
   // ---------- annotations (trd 9.7) ----------

@@ -3,9 +3,10 @@ import { resolve, dirname, relative, isAbsolute } from "node:path";
 import {
   Scene, LocksFile, Config, Profile, InterviewState, Brief, Feedback, Annotation,
   validateScene, validateConfig, validateProfile, validateInterviewState, validateBrief, validateFeedback, validateAnnotation,
-  IntentProfileSchema, type IntentProfile,
+  IntentProfileSchema, validateInterviewMetrics, type InterviewMetrics, type IntentProfile,
 } from "@intent/schema";
 import { IntentError, ErrorCodes } from "./error.js";
+import { checkDocumentVersion } from "./migrations.js";
 import { assertSafeId } from "./paths.js";
 import { writeAtomic } from "./atomic.js";
 import type { StoragePort } from "./port-types.js";
@@ -18,6 +19,7 @@ export function createStoragePort(testDir: string): StoragePort {
   const profilePath = resolve(intentDir, "profile.json");
   const intentProfilePath = resolve(intentDir, "intent-profile.json");
   const interviewPath = resolve(intentDir, "interview", "state.json");
+  const metricsPath = resolve(intentDir, "metrics.json");
   const briefsDir = resolve(intentDir, "briefs");
   const feedbackDir = resolve(intentDir, "feedback");
   const annotationsDir = resolve(intentDir, "annotations");
@@ -70,7 +72,9 @@ export function createStoragePort(testDir: string): StoragePort {
           throw new IntentError(ErrorCodes.E_BAD_REQUEST, "Scene file exceeds the 5 MB hard limit");
         }
         const content = await fs.readFile(scenePath, "utf-8");
-        return validateScene(JSON.parse(content));
+        const parsedScene = JSON.parse(content) as unknown;
+        checkDocumentVersion(parsedScene, "scene", 1);
+        return validateScene(parsedScene);
       } catch (err) {
         if ((err as NodeJS.ErrnoException)?.code === "ENOENT") return null;
         if (err instanceof IntentError) throw err;
@@ -100,6 +104,7 @@ export function createStoragePort(testDir: string): StoragePort {
       try {
         const content = await fs.readFile(locksPath, "utf-8");
         const data = JSON.parse(content) as Partial<LocksFile> & { lockedObjects?: unknown; owners?: unknown; locks?: unknown };
+        checkDocumentVersion(data, "locks", 1);
         if (data.lockedObjects === undefined && data.locks && typeof data.locks === "object" && !Array.isArray(data.locks)) {
           data.lockedObjects = Object.keys(data.locks as Record<string, unknown>);
         }
@@ -142,7 +147,9 @@ export function createStoragePort(testDir: string): StoragePort {
     async readConfig(): Promise<Config> {
       try {
         const content = await fs.readFile(configPath, "utf-8");
-        return validateConfig(JSON.parse(content));
+        const parsedConfig = JSON.parse(content) as unknown;
+        checkDocumentVersion(parsedConfig, "config", 1);
+        return validateConfig(parsedConfig);
       } catch (err) {
         if ((err as NodeJS.ErrnoException)?.code === "ENOENT") {
         return {
@@ -170,7 +177,9 @@ export function createStoragePort(testDir: string): StoragePort {
     async readProfile(): Promise<Profile | null> {
       try {
         const content = await fs.readFile(profilePath, "utf-8");
-        return validateProfile(JSON.parse(content));
+        const parsedProfile = JSON.parse(content) as unknown;
+        checkDocumentVersion(parsedProfile, "profile", 1);
+        return validateProfile(parsedProfile);
       } catch (err) {
         if ((err as NodeJS.ErrnoException)?.code === "ENOENT") return null;
         if (err instanceof IntentError) throw err;
@@ -186,7 +195,9 @@ export function createStoragePort(testDir: string): StoragePort {
     async readIntentProfile(): Promise<IntentProfile> {
       try {
         const content = await fs.readFile(intentProfilePath, "utf-8");
-        return IntentProfileSchema.parse(JSON.parse(content));
+        const parsedIntentProfile = JSON.parse(content) as unknown;
+        checkDocumentVersion(parsedIntentProfile, "intent-profile", 1);
+        return IntentProfileSchema.parse(parsedIntentProfile);
       } catch (err) {
         if ((err as NodeJS.ErrnoException)?.code === "ENOENT") return { schemaVersion: 1, entries: [] };
         if (err instanceof IntentError) throw err;
@@ -203,7 +214,9 @@ export function createStoragePort(testDir: string): StoragePort {
     async readInterviewState(): Promise<InterviewState | null> {
       try {
         const content = await fs.readFile(interviewPath, "utf-8");
-        return validateInterviewState(JSON.parse(content));
+        const parsedInterview = JSON.parse(content) as unknown;
+        checkDocumentVersion(parsedInterview, "interview-state", 1);
+        return validateInterviewState(parsedInterview);
       } catch (err) {
         if ((err as NodeJS.ErrnoException)?.code === "ENOENT") return null;
         if (err instanceof IntentError) throw err;
@@ -216,12 +229,32 @@ export function createStoragePort(testDir: string): StoragePort {
       await writeAtomic(interviewPath, JSON.stringify(state, null, 0));
     },
 
+    async readInterviewMetrics(): Promise<InterviewMetrics> {
+      try {
+        const content = await fs.readFile(metricsPath, "utf-8");
+        const parsed = JSON.parse(content) as unknown;
+        checkDocumentVersion(parsed, "interview-metrics", 1);
+        return validateInterviewMetrics(parsed);
+      } catch (err) {
+        if ((err as NodeJS.ErrnoException)?.code === "ENOENT") return { schemaVersion: 1, sessions: [] };
+        if (err instanceof IntentError) throw err;
+        throw new IntentError(ErrorCodes.E_SCHEMA, `Metrics file .intent/metrics.json is unreadable or invalid: ${(err as Error).message}`);
+      }
+    },
+
+    async writeInterviewMetrics(metrics: InterviewMetrics): Promise<void> {
+      await ensureDirs();
+      await writeAtomic(metricsPath, JSON.stringify(validateInterviewMetrics(metrics), null, 0));
+    },
+
     async readBrief(briefId: string): Promise<Brief | null> {
       assertSafeId(briefId, "briefId");
       const briefPath = resolve(briefsDir, `${briefId}.json`);
       try {
         const content = await fs.readFile(briefPath, "utf-8");
-        return validateBrief(JSON.parse(content));
+        const parsedBrief = JSON.parse(content) as unknown;
+        checkDocumentVersion(parsedBrief, "brief", 1);
+        return validateBrief(parsedBrief);
       } catch (err) {
         if ((err as NodeJS.ErrnoException)?.code === "ENOENT") return null;
         if (err instanceof IntentError) throw err;
@@ -280,8 +313,10 @@ export function createStoragePort(testDir: string): StoragePort {
         }
         return data.map((item, i) => {
           try {
+            checkDocumentVersion(item, "annotation", 1);
             return validateAnnotation(item);
           } catch (err) {
+            if (err instanceof IntentError) throw err;
             throw new IntentError(ErrorCodes.E_SCHEMA, `Annotations file .intent/annotations/${sceneId}.json: entry ${i} is invalid: ${(err as Error).message}`);
           }
         });

@@ -1,5 +1,5 @@
 import { handleMCPRequest } from "@intent/mcp-server";
-import { withProjectLock, recordAnswerLearning } from "@intent/core";
+import { withProjectLock, recordAnswerLearning, recordInterviewMetrics } from "@intent/core";
 import { IncomingMessage, ServerResponse } from "node:http";
 import {
   CreatePatchInputSchema,
@@ -444,6 +444,7 @@ export async function handleApiInterviewAnswer(ctx: ApiContext, req: IncomingMes
     sendJson(res, 200, { state });
     return;
   }
+  const answeredKind = state.pendingQuestion?.kind ?? null;
   const now = new Date().toISOString();
   state.answers.push({ questionId: input.questionId, answer: input.answer, via: "studio", answeredAt: now, consumed: false });
   if (state.pendingQuestion?.questionId === input.questionId) {
@@ -460,6 +461,16 @@ export async function handleApiInterviewAnswer(ctx: ApiContext, req: IncomingMes
   }
   state.updatedAt = now;
   await ctx.storage.writeInterviewState(state);
+  // intent.md §12 — record session telemetry (best effort; never blocks the answer).
+  await recordInterviewMetrics(ctx.storage, {
+    kind: answeredKind,
+    currentQuestionIndex: state.currentQuestionIndex,
+    meterAfter: state.meter,
+    capped: false,
+    preFilledShown: false,
+    recordedAnswer: { answer: input.answer, questionKind: answeredKind },
+    now,
+  });
   ctx.broadcastInterviewChanged(state.status);
   sendJson(res, 201, { state });
 

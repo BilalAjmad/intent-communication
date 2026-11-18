@@ -41,6 +41,28 @@ describe("Adapters-Node package", () => {
       expect(read).toBeNull();
     });
 
+    it("throws E_VERSION for a scene file written by a newer version and never modifies it", async () => {
+      const dir = os.tmpdir() + "/.test-intent-adapters";
+      const scenesDir = dir + "/.intent/scenes";
+      await fs.mkdir(scenesDir, { recursive: true });
+      const newer = {
+        version: 2,
+        revision: 0,
+        createdAt: "2026-11-18T00:00:00.000Z",
+        updatedAt: "2026-11-18T00:00:00.000Z",
+        screens: {},
+        objects: {},
+        components: [],
+        screenOrder: [],
+        metadata: { name: "Future", tags: [] },
+      };
+      const target = scenesDir + "/newer-scene.json";
+      await fs.writeFile(target, JSON.stringify(newer), "utf-8");
+      await expect(storage.readScene("newer-scene")).rejects.toThrowError(/newer version/i);
+      const after = JSON.parse(await fs.readFile(target, "utf-8")) as { version: number };
+      expect(after.version).toBe(2); // the file is untouched by the read
+    });
+
     it("reads and writes locks", async () => {
       const locks: LocksFile = {
         version: 1,

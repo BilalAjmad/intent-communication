@@ -28,6 +28,7 @@ import { registerObjectStyleRoutes } from "./object-style-api.js";
 import { registerKeyframesRoutes } from "./keyframes-api.js";
 import { registerLintRoutes } from "./lint-api.js";
 import { startIntentWatcher } from "./watch-wiring.js";
+import { registerInterviewMetricsRoutes } from "./interview-metrics-api.js";
 import { handleSSE, serveStatic, writeRuntimeFile } from "./runtime.js";
 import { SseEventBus, type SSEClient } from "./event-bus.js";
 export type { SSEClient } from "./event-bus.js";
@@ -406,6 +407,7 @@ export class IntentServer {
       return;
     }
     if (await registerKeyframesRoutes(this.apiCtx, req, res, pathname, url)) return;
+    if (await registerInterviewMetricsRoutes(this.apiCtx, req, res, pathname, url)) return;
     // Lint the scene (trd 11.3)
     if (await registerLintRoutes(this.apiCtx, req, res, pathname, url)) {
       return;
@@ -422,14 +424,8 @@ export class IntentServer {
     const patchMatch = /^\/api\/patches\/([^/]+)(\/resolve)?$/.exec(pathname);
     const patchId = patchMatch?.[1] ?? '';
     const patchSuffix = patchMatch?.[2];
-    if (patchMatch && req.method === "PATCH" && !patchSuffix) {
-      await handleApiPatchUpdate(this.apiCtx, req, res, patchId);
-      return;
-    }
-    if (patchMatch && req.method === "DELETE" && !patchSuffix) {
-      await handleApiPatchDelete(this.apiCtx, req, res, patchId);
-      return;
-    }
+    if (patchMatch && req.method === "PATCH" && !patchSuffix) return handleApiPatchUpdate(this.apiCtx, req, res, patchId);
+    if (patchMatch && req.method === "DELETE" && !patchSuffix) return handleApiPatchDelete(this.apiCtx, req, res, patchId);
     if (patchMatch && patchSuffix === "/resolve" && req.method === "POST") {
       await handleApiPatchResolve(this.apiCtx, req, res, patchId);
       return;

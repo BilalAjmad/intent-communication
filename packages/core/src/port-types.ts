@@ -1,5 +1,5 @@
 import type {
-  Scene, LocksFile, Config, Profile, InterviewState, Brief, Feedback, Annotation, IntentProfile,
+  Scene, LocksFile, Config, Profile, InterviewState, Brief, Feedback, Annotation, IntentProfile, InterviewMetrics,
 } from "@intent/schema";
 
 export interface StoragePort {
@@ -22,6 +22,9 @@ export interface StoragePort {
   writeIntentProfile(profile: IntentProfile): Promise<void>;
   readInterviewState(): Promise<InterviewState | null>;
   writeInterviewState(state: InterviewState): Promise<void>;
+  /** intent.md §12 — `.intent/metrics.json` (gitignored). */
+  readInterviewMetrics(): Promise<InterviewMetrics>;
+  writeInterviewMetrics(metrics: InterviewMetrics): Promise<void>;
   readBrief(briefId: string): Promise<Brief | null>;
   writeBrief(brief: Brief): Promise<void>;
   readFeedback(sceneId: string): Promise<Feedback[]>;

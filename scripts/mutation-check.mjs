@@ -53,8 +53,8 @@ const MUTATIONS = [
   {
     name: 'Schema validation (E_SCHEMA)',
     file: 'storage-port.ts',
-    oldString: 'return validateScene(JSON.parse(content));',
-    newString: 'return JSON.parse(content) as Scene; // MUTATED: schema validation removed',
+    oldString: 'return validateScene(parsedScene);',
+    newString: 'return parsedScene as Scene; // MUTATED: schema validation removed',
     expectedFailingTest: 'M5: Schema validation',
   },
 ];

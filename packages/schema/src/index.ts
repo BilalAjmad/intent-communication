@@ -21,6 +21,8 @@ export type { IntentProfile, IntentProfileEntry, IntentProfileKey, IntentProfile
 export { CheckboxSchema, RadioSchema, SwitchSchema, LinkSchema, ListSchema, ModalSchema, IconSchema, DividerSchema } from "./object-types.js";
 export type { Chip } from "./primitives.js";
 export type { Keyframes } from "./keyframes.js";
+export { InterviewMetricsSchema, validateInterviewMetrics } from "./interview-metrics.js";
+export type { InterviewMetrics, InterviewMetricsSession } from "./interview-metrics.js";
 export type { InterviewQuestionCore, PendingInterviewQuestion, InterviewAnswer, AskUserInput } from "./interview.js";
 export type { CreatePatchInput, UpdatePatchInput, SendPatchesInput, ResolvePatchInput, ObjectStylePatchInput, KeyframesPutInput } from "./studio-api.js";
 
