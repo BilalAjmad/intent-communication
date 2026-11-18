@@ -24,7 +24,7 @@ server
     console.log(`Intent Studio running at http://127.0.0.1:${port}/#t=${token}`);
     console.log("(.intent/runtime.json also holds the port + token; Ctrl+C to stop)");
     process.on("SIGINT", () => {
-      void server.stop().then(() => process.exit(0));
+      void server.stop().then(() => process.exit(0), () => process.exit(1));
     });
   })
   .catch((err: unknown) => {
