@@ -65,6 +65,10 @@ test("arrow keys nudge the selected object 4px, Shift+Arrow 8px, coalesced to on
   await expect(page.locator("#project-name")).toHaveText("Nudge Test", { timeout: 8000 });
 
   await page.locator(".layer-item", { hasText: OBJECT }).first().click();
+  // The nudge input path needs state.lastRects (the preview overlay) — on a slow
+  // CI box the iframe may publish it a beat after the click, and keydowns are
+  // silently dropped until then. Wait for the overlay to confirm selection.
+  await expect(page.locator(".selection-box").first()).toBeVisible({ timeout: 8000 });
   // 4 + 4 + 8 = 16 px right in one burst.
   await page.keyboard.press("ArrowRight");
   await page.keyboard.press("ArrowRight");

@@ -1,8 +1,8 @@
 import { test, expect } from "@playwright/test";
 import { promises as fs } from "node:fs";
 import { resolve } from "node:path";
-import { execFileSync } from "node:child_process";
 import { pathToFileURL } from "node:url";
+import { buildSync } from "esbuild";
 import { exportToReact, exportToHtml } from "../packages/engine/dist/index.js";
 
 // trd 13.7/13.8 companion: the React exporter is golden-file + TS syntax
@@ -68,12 +68,16 @@ test.beforeEach(async () => {
   await fs.writeFile(resolve(tmpDir, "export.html"), exportToHtml(makeScene(), { includeDataIds: true }), "utf8");
 
   // Bundle the exported folder with the workspace's esbuild (devDependency of the root).
-  const esbuildBin = resolve(process.cwd(), "node_modules", "esbuild", "bin", "esbuild");
-  execFileSync(
-    process.execPath,
-    [esbuildBin, resolve(tmpDir, "main.tsx"), "--bundle", "--jsx=automatic", `--outfile=${resolve(tmpDir, "bundle.js")}`, "--format=iife"],
-    { stdio: "pipe", timeout: 60_000 },
-  );
+  // Use the JS API rather than execFileSync(bin/esbuild): under pnpm on Linux the
+  // `bin/esbuild` shim is a shell script, and feeding it to `node` throws
+  // SyntaxError — good on Windows only, not CI's ubuntu runner.
+  buildSync({
+    entryPoints: [resolve(tmpDir, "main.tsx")],
+    bundle: true,
+    jsx: "automatic",
+    outfile: resolve(tmpDir, "bundle.js"),
+    format: "iife",
+  });
 });
 
 test.afterEach(async () => {
