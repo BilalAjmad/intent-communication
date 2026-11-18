@@ -200,3 +200,9 @@
 - **Enforced in `handleMCPRequest`:** get_scene / apply_patch / get_feedback payloads are safeParse'd at the MCP boundary; a handler producing a payload its own output schema rejects throws `E_INTERNAL` with the first 5 issue paths only (never echoes scene data). Unknown tools unchanged; unlisted tools pass through unvalidated (e.g. `ask_user`, `validate`).
 - **Core:** additive `E_INTERNAL` error code (no exhaustive switches on ErrorCodes exist).
 - Tests: `packages/mcp-server/src/output-schemas.test.ts` +4 (anti-strip of profileSummary/pendingPatches, subset shape, get_feedback contract keys, stale-apply_patch does not trip the validator). Verify 12/12, unit 655/655, Playwright 102/102.
+
+## Phase 22 addendum (2026-11-18 — shadcn mapping correctness fix)
+
+- **Regression fixed (self-found, from 6ef9cc9):** the trd 13.7 shadcn mapping keyed only on `node.tag === "input"`, so the model's *synthesized* checkbox/radio/switch inner inputs (id `<parent>::input`, native checkboxes/radios) became the text-oriented shadcn `<Input>` — silently dropping `checked` and control semantics. Now excluded via `isSynthesizedControlInput` (id suffix `::input|::track`, type checkbox|radio, or role=switch); scene-level text-entry inputs still map.
+- Non-mechanical roles are **explicitly unmapped and documented** in `shadcn-map.ts`: checkbox/switch/radio-group (controlled-component subtree replacement), select/card (no model tag), dialog (composed trigger/content pair), textarea (no textarea object type in the scene schema).
+- E2E fixture locks the regression (native checkbox in export; no `<Input type="checkbox">`). Verify 12/12, unit 655/655, Playwright 102/102.
