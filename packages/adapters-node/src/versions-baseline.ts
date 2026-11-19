@@ -43,7 +43,9 @@ export async function findFirstRenderBaseline(projectRoot: string): Promise<Firs
   const candidates: { name: string; match: RegExpExecArray }[] = [];
   for (const name of names) {
     const match = FIRST_RENDER_FILE.exec(name);
-    if (match) candidates.push({ name, match });
+    // Skip candidates whose stamp is unparseable — a bogus filename must not
+    // sort ahead of every real baseline and null the whole function.
+    if (match && Date.parse(stampToIso(match[1] ?? "")) > 0) candidates.push({ name, match });
   }
   if (candidates.length === 0) return null;
 

@@ -61,30 +61,48 @@ async function main() {
   console.log('\n2. Package structure:');
   const pkgs = ['schema', 'core', 'linter', 'adapters-node', 'engine', 'mcp-server', 'server', 'studio', 'skills', 'cli'];
   for (const pkg of pkgs) {
-    const pkgDir = 'packages/' + pkg;
-    const hasPkgJson = existsSync('packages/' + pkg + '/package.json');
-    const hasSrc = existsSync('packages/' + pkg + '/src');
+    const pkgDir = resolve(ROOT, 'packages', pkg);
+    const hasPkgJson = existsSync(resolve(ROOT, 'packages', pkg, 'package.json'));
+    const hasSrc = existsSync(resolve(ROOT, 'packages', pkg, 'src'));
     if (hasPkgJson && hasSrc) ok('packages/' + pkg);
     else fail('packages/' + pkg + ' missing package.json or src/');
   }
 
-  // 3. No banned imports in packages/*/src
-  console.log('\n3. No banned imports (fs, path, child_process, crypto, http, https, net, dgram, dns):');
+  // 3. No banned imports — scoped to the pure kernels that must stay
+  // portable across runtimes (browser-safe). Server/adapters/cli are Node
+  // by design and MUST use fs/path/etc.
+  // Policy: STATIC module-graph imports are banned (the kernel must LOAD in a
+  // browser). A dynamic `await import("node:fs")` inside a function body is the
+  // documented lazy-load escape hatch (see engine's exportSceneToFile) — it is
+  // not part of the module graph, so it is a WARN, not a FAIL. Test files are
+  // exempt entirely (they exercise the disk and never ship).
+  console.log('\n3. No static banned imports in the portable kernels (schema, linter, engine):');
   const bannedImports = ['fs', 'path', 'child_process', 'crypto', 'http', 'https', 'net', 'dgram', 'dns'];
-  const bannedRegex = new RegExp('(require|from)\\s*[\\x27\\x22](' + bannedImports.join('|') + ')[\\x27\\x22]', 'g');
+  const staticBanned = new RegExp('(?:^|[\\s;])(?:import\\s+(?:[^\'"]*?\\sfrom\\s+)?|export\\s+[^\'"]*?\\sfrom\\s+|require\\s*\\()\\s*[\\x27\\x22](?:node:)?(' + bannedImports.join('|') + ')(?:[/\\x27\\x22]|$)', 'gm');
+  const dynamicBanned = new RegExp('import\\s*\\(\\s*[\\x27\\x22](?:node:)?(' + bannedImports.join('|') + ')', 'g');
   let bannedCount = 0;
-  for (const pkg of pkgs) {
+  let dynamicCount = 0;
+  const pureKernels = ['schema', 'linter', 'engine'];
+  for (const pkg of pureKernels) {
     const files = scanDirectory(resolve(ROOT, 'packages/' + pkg + '/src'));
     for (const file of files) {
+      if (/\.(test|spec)\.[cm]?[jt]sx?$/.test(file)) continue;
       const content = readFileSync(file, 'utf-8');
       let match;
-      while ((match = bannedRegex.exec(content)) !== null) {
+      while ((match = staticBanned.exec(content)) !== null) {
         bannedCount++;
-        fail('Banned import \'' + match[0] + '\' in ' + relative(ROOT, file));
+        fail('Static banned import \'' + match[0].trim() + '\' in ' + relative(ROOT, file));
+      }
+      dynamicBanned.lastIndex = 0;
+      while ((match = dynamicBanned.exec(content)) !== null) {
+        dynamicCount++;
+        console.log('  ~ dynamic import (lazy-load escape hatch): \'' + match[0].trim() + '\' in ' + relative(ROOT, file));
       }
     }
   }
-  if (bannedCount === 0) ok('No banned imports found');
+  if (bannedCount === 0) {
+    ok(dynamicCount > 0 ? 'No static banned imports (' + dynamicCount + ' dynamic lazy-load present, allowed by policy)' : 'No banned imports found');
+  }
 
   // 4. No forbidden patterns
   console.log('\n4. No forbidden patterns (UUID, expiresAt, holder, WebSocket, "bold"):');

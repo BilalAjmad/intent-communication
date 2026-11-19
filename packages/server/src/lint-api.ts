@@ -10,10 +10,17 @@ import {
 /** Read .intent/design-profile.json if the project was scanned (trd 16); never errors. */
 async function readLintProfile(projectRoot: string): Promise<LintProfile | undefined> {
   try {
-    const raw = await fs.readFile(resolve(projectRoot, ".intent", "design-profile.json"), "utf-8");
-    const parsed = JSON.parse(raw) as { tokens?: { colors?: unknown; spacing?: unknown; radii?: unknown } };
+    const path = resolve(projectRoot, ".intent", "design-profile.json");
+    const stats = await fs.stat(path);
+    if (stats.size > 512 * 1024) return undefined; // oversized profile: fall back to built-ins
+    const raw = await fs.readFile(path, "utf-8");
+    const parsed = JSON.parse(raw) as { tokens?: { colors?: unknown } };
     const colors = parsed?.tokens?.colors;
     if (!colors || typeof colors !== "object" || Array.isArray(colors)) return undefined;
+    // Reject profiles with non-string values — they would crash the linter's hex parser.
+    for (const value of Object.values(colors)) {
+      if (typeof value !== "string") return undefined;
+    }
     return { tokens: { colors: colors as Record<string, string> } };
   } catch {
     return undefined; // no scan yet — the linter falls back to its built-in reference palette

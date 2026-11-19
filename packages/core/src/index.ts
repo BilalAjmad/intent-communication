@@ -34,6 +34,7 @@ export { writeAtomic } from "./atomic.js";
 export { registerMigration, applyMigrations, checkDocumentVersion, documentVersion } from "./migrations.js";
 export { recordInterviewMetrics, summarizeInterviewMetrics } from "./interview-metrics.js";
 export type { InterviewMetricsInput, InterviewEfficiencyReport } from "./interview-metrics.js";
+export { pruneConsumedAnswers } from "./answers.js";
 export { withProjectLock } from "./projectLock.js";
 
 export { SCHEMA_VERSION, SCENE_SCHEMA_VERSION } from "@intent/schema";

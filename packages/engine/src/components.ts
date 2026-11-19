@@ -34,13 +34,19 @@ function deepClone<T>(value: T): T {
 
 function preOrder(rootId: string, objects: Record<string, SceneObject>): string[] {
   const order: string[] = [];
+  const inStack = new Set<string>();
   const walk = (id: string): void => {
     const obj = objects[id];
     if (!obj) return;
+    if (inStack.has(id)) {
+      throw new IntentError(ErrorCodes.E_LIMIT, `Component definition contains a cycle at object ${id}`);
+    }
     order.push(id);
+    inStack.add(id);
     for (const child of obj.children) {
       walk(child);
     }
+    inStack.delete(id);
   };
   walk(rootId);
   return order;
@@ -240,5 +246,6 @@ export function expandComponentInstances(scene: Scene): Scene {
     const def = resolveDef(defs, ref.componentId, instanceId);
     expandInstanceRecursive(instanceId, objects[instanceId], ref, def, objects, defs, 0, budget);
   }
+
   return { ...scene, objects };
 }

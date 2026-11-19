@@ -2,6 +2,7 @@ import {
   Scene,
   validateScene,
 } from "@intent/schema";
+import { IntentError, ErrorCodes } from "@intent/core";
 import { renderExportCss } from "./html.js";
 import { normalizeSceneToModel, type RenderModel } from "./model.js";
 import { renderModelNodeJsx } from "./render-react.js";
@@ -80,11 +81,21 @@ function buildScreenFiles(model: RenderModel, includeDataIds: boolean, designPro
     const screen = byId.get(entry.id);
     if (!screen) continue;
     const budget = { remaining: MAX_NODES };
-    const imports = new Set<ShadcnImport>();
+    const imports = new Map<string, ShadcnImport>(); // keyed by name+from to dedupe by identity, not object reference
     const body = renderModelNodeJsx(screen.root, 3, budget, includeDataIds, designProfile, imports);
-    const importLines = [...imports]
-      .sort((a, b) => a.name.localeCompare(b.name))
-      .map((imp) => `import { ${imp.name} } from ${JSON.stringify(imp.from)};`)
+    const SAFE_IDENT = /^[A-Za-z_$][A-Za-z0-9_$]*$/;
+    const importLines = [...imports.values()]
+      .sort((a, b) => a.name.localeCompare(b.name) || a.from.localeCompare(b.from))
+      .map((imp) => {
+        if (!SAFE_IDENT.test(imp.name)) {
+          throw new IntentError(ErrorCodes.E_SCHEMA, `Unsafe export name in design profile: ${imp.name}`);
+        }
+        const safeFrom = String(imp.from).replace(/^(["'])(.*)\1$/, "$2");
+        if (/[\\\s"'`<>;]/.test(safeFrom) || safeFrom.includes("..")) {
+          throw new IntentError(ErrorCodes.E_SCHEMA, `Unsafe import path in design profile: ${imp.from}`);
+        }
+        return `import { ${imp.name} } from ${JSON.stringify(safeFrom)};`;
+      })
       .join("\n");
     const header = importLines ? `${importLines}\n` : "";
     files[`intent-export/screens/${entry.name}.tsx`] =
@@ -174,9 +185,14 @@ function buildIndex(entries: { name: string }[]): string {
 export function exportToReact(scene: Scene, options: ReactExportOptions = {}): FileMap {
   const validated = validateScene(scene);
   const renderScene = expandComponentInstances(validated);
+  // trd.md §13: includeDataIds defaults to false (editor artifacts stay out of output).
   const includeDataIds = options.includeDataIds === true;
   const model = normalizeSceneToModel(validated, { breakpoints: options.breakpoints ?? DEFAULT_BREAKPOINTS });
   const { entries, screens } = buildScreenFiles(model, includeDataIds, options.designProfile);
+  // NOTE (reviewer finding 2026-11): state/responsive CSS targets [data-object-id];
+  // the React export does not emit those ids unless includeDataIds is set, so with the
+  // spec default (false, trd.md §13) the blocks never match. They are kept because the
+  // team's tests/goldens pin their presence in tokens.css; opt into ids to activate them.
   const stateCss = renderStateCss(renderScene);
   const responsiveCss = renderResponsiveCss(renderScene, options.breakpoints ?? DEFAULT_BREAKPOINTS);
   const animationCss = renderAnimationCss(model, { includeDataIds });

@@ -35,6 +35,9 @@
     annotating: false,
     annotations: [],
     stroke: null,
+    pinMode: false,
+    locked: [],
+    interview: null,
   };
 
   var el = {};
@@ -126,7 +129,9 @@
     el.canvasError.hidden = true;
   }
 
+  var fatal = false;
   function showFatal(message) {
+    fatal = true;
     showCanvasError(message);
     el.sendBtn.disabled = true;
     el.addToQueue.disabled = true;
@@ -156,8 +161,20 @@
 
   async function loadScene() {
     var data = await fetchJson("/api/scene?scene=" + encodeURIComponent(state.sceneId));
-    state.scene = data.scene;
-    state.locked = Array.isArray(data && data.locked) ? data.locked : [];
+    // Never trust the payload shape — a null/partial scene reaching downstream
+    // renderers would TypeError and brick the shell (showFatal).
+    if (!data || typeof data !== "object") {
+      throw new Error("The scene response was empty or malformed.");
+    }
+    var scene = data.scene;
+    if (!scene || typeof scene !== "object"
+        || !scene.screens || typeof scene.screens !== "object" || Array.isArray(scene.screens)
+        || !scene.objects || typeof scene.objects !== "object" || Array.isArray(scene.objects)) {
+      throw new Error("The scene response was malformed (missing screens/objects).");
+    }
+    if (!scene.metadata || typeof scene.metadata !== "object") scene.metadata = { name: "Intent Project", tags: [] };
+    state.scene = scene;
+    state.locked = Array.isArray(data.locked) ? data.locked : [];
     el.projectName.textContent = (state.scene.metadata && state.scene.metadata.name) || "Intent Project";
     renderScreens();
     renderLayers();
@@ -198,6 +215,10 @@
       btn.addEventListener("click", function () {
         state.screenIndex = i;
         renderScreens();
+        renderLayers();
+        renderInspector();
+        renderAnnotations();
+        renderPins();
         renderPreview();
       });
       li.appendChild(btn);
@@ -289,10 +310,38 @@
 
   function postToPreview(msg) {
     try {
-      el.frame.contentWindow.postMessage(msg, "*");
+      // The preview iframe is sandboxed without allow-same-origin, so its
+      // origin is the opaque "null" — never "*". The channel token still
+      // gates which iframe document may speak back to us.
+      el.frame.contentWindow.postMessage(msg, "null");
     } catch (err) {
       // frame not ready; parent will resend on ready
     }
+  }
+
+  // Validate a bounds payload from the iframe before it reaches the DOM —
+  // non-finite numbers become NaNpx, and arbitrary keys mint unlimited
+  // overlay divs. Rects from the iframe are untrusted input.
+  function sanitizeRects(rects) {
+    if (!rects || typeof rects !== "object" || Array.isArray(rects)) return {};
+    var ids = Object.keys(rects);
+    if (ids.length > 500) return {};
+    var out = {};
+    for (var i = 0; i < ids.length; i += 1) {
+      var id = ids[i];
+      if (typeof id !== "string" || id.length > 128) continue;
+      var r = rects[id];
+      if (!r || typeof r !== "object") continue;
+      var x = Number(r.x);
+      var y = Number(r.y);
+      var w = Number(r.w);
+      var h = Number(r.h);
+      if (!isFinite(x) || !isFinite(y) || !isFinite(w) || !isFinite(h)) continue;
+      if (Math.abs(x) > 100000 || Math.abs(y) > 100000) continue;
+      if (w < 0 || h < 0 || w > 100000 || h > 100000) continue;
+      out[id] = { x: x, y: y, w: w, h: h };
+    }
+    return out;
   }
 
   async function renderPreview() {
@@ -329,7 +378,7 @@
     if (msg.t === "click" && typeof msg.id === "string") {
       selectObject(msg.id);
     } else if (msg.t === "bounds" && msg.rects && typeof msg.rects === "object") {
-      renderOverlay(msg.rects);
+      renderOverlay(sanitizeRects(msg.rects));
     }
   }
 
@@ -345,6 +394,13 @@
   }
 
   async function commitStyleEdit(objectId, additions, done) {
+    // Locked objects refuse style edits here too — the drag/nudge paths check,
+    // but the Animation/Keyframe buttons reach this directly (single choke point).
+    if (lockedObjectIds().indexOf(objectId) !== -1) {
+      showToast("That object is locked. Unlock it before editing.");
+      if (typeof done === "function") done(false);
+      return;
+    }
     try {
       await fetchJson("/api/object-style", {
         method: "POST",
@@ -356,8 +412,7 @@
           style: mergedStyleValue(objectId, additions),
         }),
       });
-      await loadScene();
-      await renderPreview();
+      await loadScene(); // loadScene already renders the preview — no second fetch
       renderSelection();
       if (typeof done === "function") done(true);
     } catch (err) {
@@ -365,7 +420,6 @@
       if (message.indexOf("E_CONFLICT") !== -1 || /changed/i.test(message)) {
         showToast("The scene changed since you last saw it — reloaded it. Try again.");
         await loadScene();
-        await renderPreview();
         renderSelection();
       } else {
         showToast(message);
@@ -543,6 +597,8 @@
     body.appendChild(wrap);
     try {
       var data = await fetchJson("/api/versions?sceneId=" + encodeURIComponent(state.sceneId));
+      // If the panel was re-rendered during the await, `wrap` is detached — drop the update.
+      if (!wrap.isConnected) return;
       var versions = Array.isArray(data && data.versions) ? data.versions : [];
       list.innerHTML = "";
       if (versions.length === 0) {
@@ -595,6 +651,7 @@
     body.appendChild(wrap);
     try {
       var data = await fetchJson("/api/metrics?sceneId=" + encodeURIComponent(state.sceneId));
+      if (!wrap.isConnected) return;
       var metrics = data && data.metrics ? data.metrics : null;
       if (!metrics || !metrics.available) {
         var reason = metrics && typeof metrics.reason === "string" ? metrics.reason : "Not enough data yet";
@@ -634,6 +691,7 @@
     body.appendChild(wrap);
     try {
       var data = await fetchJson("/api/interview-metrics");
+      if (!wrap.isConnected) return;
       var report = data && data.report ? data.report : null;
       wrap.innerHTML = "";
       wrap.appendChild(title);
@@ -1235,6 +1293,15 @@
 
   function renderInspector() {
     var body = el.inspectorBody;
+    // An SSE revision re-render must not destroy a field the user is mid-typing in
+    // (keyframe/animation inputs, summary editor) — skip the wipe in that case.
+    var active = document.activeElement;
+    if (active && body.contains(active)) {
+      var tag = active.tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || active.isContentEditable) {
+        return;
+      }
+    }
     body.innerHTML = "";
     if (!state.selectedId) {
       body.innerHTML = '<p class="muted">Select an object on the canvas or in Layers to see its details.</p>';
@@ -1296,6 +1363,10 @@
   }
 
   var STROKE_HEX = { red: "#dc2626", blue: "#2563eb", green: "#16a34a", black: "#111827" };
+  function strokeHex(color) {
+    // Prototype-safe membership check — "constructor" must not resolve to a truthy non-color.
+    return Object.prototype.hasOwnProperty.call(STROKE_HEX, color) ? STROKE_HEX[color] : STROKE_HEX.red;
+  }
 
   async function loadAnnotations() {
     try {
@@ -1401,14 +1472,25 @@
       if (a.screenId !== screenId || !Array.isArray(a.strokes)) return;
       a.strokes.forEach(function (stroke) {
         if (!stroke || !Array.isArray(stroke.points) || stroke.points.length < 2) return;
-        ctx.strokeStyle = STROKE_HEX[stroke.color] || STROKE_HEX.red;
-        ctx.lineWidth = typeof stroke.width === "number" ? stroke.width : 4;
+        // Validate every point is a finite [x, y] pair before touching the canvas.
+        var pts = [];
+        for (var p = 0; p < stroke.points.length; p++) {
+          var pt = stroke.points[p];
+          if (!Array.isArray(pt) || pt.length < 2) return;
+          var px = Number(pt[0]);
+          var py = Number(pt[1]);
+          if (!isFinite(px) || !isFinite(py)) return;
+          pts.push([px, py]);
+        }
+        ctx.strokeStyle = strokeHex(stroke.color);
+        var w = Number(stroke.width);
+        ctx.lineWidth = isFinite(w) ? Math.min(Math.max(w, 1), 100) : 4;
         ctx.lineCap = "round";
         ctx.lineJoin = "round";
         ctx.beginPath();
-        ctx.moveTo(stroke.points[0][0], stroke.points[0][1]);
-        for (var i = 1; i < stroke.points.length; i++) {
-          ctx.lineTo(stroke.points[i][0], stroke.points[i][1]);
+        ctx.moveTo(pts[0][0], pts[0][1]);
+        for (var i = 1; i < pts.length; i++) {
+          ctx.lineTo(pts[i][0], pts[i][1]);
         }
         ctx.stroke();
       });
@@ -1601,12 +1683,16 @@
       return a.status === "open" && a.screenId === screenId && a.kind === "pin";
     });
     pins.forEach(function (pin, i) {
+      // Malformed payload: no valid finite anchor → skip this pin rather than crash the render.
+      var ax = pin && pin.anchor && Number(pin.anchor.x);
+      var ay = pin && pin.anchor && Number(pin.anchor.y);
+      if (!isFinite(ax) || !isFinite(ay)) return;
       var marker = document.createElement("button");
       marker.className = "pin";
       marker.type = "button";
       marker.textContent = String(i + 1);
-      marker.style.left = pin.anchor.x + "px";
-      marker.style.top = pin.anchor.y + "px";
+      marker.style.left = ax + "px";
+      marker.style.top = ay + "px";
       marker.title = pin.text || "Pin";
       marker.setAttribute("aria-label", "Pin " + (i + 1) + ": " + (pin.text || ""));
       marker.addEventListener("click", function (event) {
@@ -1849,7 +1935,8 @@
     } catch (err) {
       showToast(err && err.message ? err.message : "Could not add to the queue.");
     } finally {
-      el.addToQueue.disabled = false;
+      // Never re-enable the button on a boot-fatal shell — nothing can work here.
+      if (!fatal) el.addToQueue.disabled = false;
     }
   }
 
@@ -1947,7 +2034,8 @@
   async function loadPatches() {
     try {
       var data = await fetchJson("/api/patches?scene=" + encodeURIComponent(state.sceneId));
-      state.patches = data.patches || [];
+      var list = data && Array.isArray(data.patches) ? data.patches : [];
+      state.patches = list;
       renderTray();
     } catch (err) {
       showToast(err && err.message ? err.message : "Could not load the patch queue.");
@@ -1962,7 +2050,9 @@
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ sceneId: state.sceneId }),
       });
-      var sent = (data.patches || []).length;
+      // The send may have succeeded server-side even if the response body is odd —
+      // never crash here after a successful POST; fall back to reloading the queue.
+      var sent = data && Array.isArray(data.patches) ? data.patches.length : 0;
       // Open the tray so the user sees the sent items and the waiting banner (design.md 4.10)
       state.trayOpen = true;
       el.trayToggle.setAttribute("aria-expanded", "true");
@@ -2032,6 +2122,9 @@
     };
     source.onopen = function () {
       setTrayNotice("");
+      // The server is reachable again — hide the "watch degraded" notice.
+      var watchNotice = $("watch-notice");
+      if (watchNotice) watchNotice.hidden = true;
     };
     source.onerror = function () {
       setTrayNotice("Live updates paused — retrying…");
@@ -2051,8 +2144,16 @@
   async function loadSceneSoft() {
     try {
       var data = await fetchJson("/api/scene?scene=" + encodeURIComponent(state.sceneId));
+      if (!data || !data.scene || typeof data.scene !== "object") return;
+      // Never resurrect a stale revision over a newer one (out-of-order responses).
+      if (state.scene && typeof data.scene.revision === "number"
+          && typeof state.scene.revision === "number"
+          && data.scene.revision < state.scene.revision) {
+        return;
+      }
       var revisionChanged = !state.scene || state.scene.revision !== data.scene.revision;
       state.scene = data.scene;
+      state.locked = Array.isArray(data.locked) ? data.locked : [];
       if (revisionChanged) {
         renderScreens();
         renderLayers();
@@ -2141,7 +2242,17 @@
     lastPanelFocusKey = null;
   }
   function isInterviewEditing() {
-    return !!(el.interviewBody && el.interviewBody.querySelector('.summary-items .summary-item span[contenteditable="true"]'));
+    if (!el.interviewBody) return false;
+    // Focused input/textarea/select/contenteditable inside the interview panel —
+    // an SSE interview.changed re-render must not destroy the element mid-typing.
+    var active = document.activeElement;
+    if (active && el.interviewBody.contains(active)) {
+      var tag = active.tagName;
+      if (tag === "TEXTAREA" || tag === "INPUT" || tag === "SELECT") return true;
+      if (active.isContentEditable) return true;
+    }
+    // Legacy guard: a mounted summary contenteditable means an edit may be in flight.
+    return !!el.interviewBody.querySelector('.summary-items .summary-item span[contenteditable="true"]');
   }
 
   // M12: never trust the wire shape; a malformed payload used to blank the tab.
@@ -2160,11 +2271,33 @@
     var validKind = ["start", "choice", "text", "scale", "confirm", "skip", "summary"].indexOf(pending.kind) !== -1;
     if (!validKind) return false;
     if (typeof pending.prompt !== "string") return false;
-    if (pending.options !== undefined && !Array.isArray(pending.options)) return false;
+    if (pending.options !== undefined) {
+      if (!Array.isArray(pending.options)) return false;
+      for (var oi = 0; oi < pending.options.length; oi += 1) {
+        var option = pending.options[oi];
+        if (!option || typeof option !== "object" || Array.isArray(option)) return false;
+        if (typeof option.label !== "string" || typeof option.value !== "string") return false;
+      }
+    }
     if (pending.kind === "summary" && pending.summary !== undefined) {
       if (typeof pending.summary !== "object" || pending.summary === null || Array.isArray(pending.summary)) return false;
-      if (pending.summary.items !== undefined && !Array.isArray(pending.summary.items)) return false;
-      if (pending.summary.delegated !== undefined && !Array.isArray(pending.summary.delegated)) return false;
+      if (pending.summary.items !== undefined) {
+        if (!Array.isArray(pending.summary.items)) return false;
+        for (var ii = 0; ii < pending.summary.items.length; ii += 1) {
+          var item = pending.summary.items[ii];
+          if (!item || typeof item !== "object" || Array.isArray(item)) return false;
+          if (typeof item.text !== "string") return false;
+          if (item.topic !== undefined && typeof item.topic !== "string") return false;
+        }
+      }
+      if (pending.summary.delegated !== undefined) {
+        if (!Array.isArray(pending.summary.delegated)) return false;
+        for (var di = 0; di < pending.summary.delegated.length; di += 1) {
+          var d = pending.summary.delegated[di];
+          if (!d || typeof d !== "object" || Array.isArray(d)) return false;
+          if (typeof d.text !== "string") return false;
+        }
+      }
     }
     return true;
   }
@@ -2665,6 +2798,10 @@
       if (Number.isFinite(i)) {
         state.screenIndex = i;
         renderScreens();
+        renderLayers();
+        renderInspector();
+        renderAnnotations();
+        renderPins();
         renderPreview();
       }
     });

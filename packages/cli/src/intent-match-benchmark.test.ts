@@ -164,6 +164,8 @@ afterEach(async () => {
 
 describe("Synthetic intent-match benchmark (2 tasks, 6 requirements each)", () => {
   for (const task of TASKS) {
+    // Heavyweight integration benchmark: full interview → pipeline → build → verify,
+    // multiple seconds per task even on fast machines — 5s default is not enough on loaded runners.
     it(task.name, async () => {
       // 1) Interview: 8 rounds, persona answers deterministically, then summary exactly-right.
       for (const topic of TOPICS) {
@@ -224,6 +226,6 @@ describe("Synthetic intent-match benchmark (2 tasks, 6 requirements each)", () =
       const report = checks.map((c) => `  ${c.pass ? "PASS" : "FAIL"}  ${c.label}`).join("\n");
       console.log(`\n[benchmark] ${task.name}\n${report}`);
       for (const c of checks) expect(c.pass, c.label).toBe(true);
-    });
+    }, 60000);
   }
 });

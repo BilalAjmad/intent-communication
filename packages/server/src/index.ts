@@ -6,7 +6,7 @@ import { StoragePort, LockPort, CryptoPort } from "@intent/core";
 import { Patch } from "@intent/schema";
 import { createFileStoragePort, createFileLockPort, createNodeCryptoPort } from "@intent/adapters-node";
 import { previewScriptHashes } from "@intent/studio";
-import { ApiContext } from "./api-helpers.js";
+import { ApiContext, sanitizeErrorMessage } from "./api-helpers.js";
 import {
   handleApiScene,
   handleApiPreview,
@@ -112,13 +112,16 @@ export class IntentServer {
       sseClients: this.sseClients,
       getRevision: () => this.revision,
       setRevision: (revision: number) => {
-        this.revision = revision;
+        // Ratchet only — never move the counter backwards on a stale seed.
+        this.revision = Math.max(this.revision, revision);
       },
       staticDir: this.config.staticDir || this.defaultStaticDir,
       projectRoot: this.config.projectRoot,
       sessionToken: this.sessionToken,
       eventLog: this.events.eventLog,
       emitEvent: (type: string, payload: Record<string, unknown>) => this.events.emit(type, payload),
+      writeDirect: (res: import("node:http").ServerResponse, type: string, payload: Record<string, unknown>) =>
+        this.events.writeDirect(res, type, payload),
     };
   }
 
@@ -156,6 +159,8 @@ export class IntentServer {
     for await (const chunk of req) {
       size += (chunk as Buffer).length;
       if (size > limit) {
+        // Drain before throwing so the keep-alive socket doesn't wedge.
+        req.resume();
         throw Object.assign(new Error("request body too large"), { code: "E_LIMIT" });
       }
       body += (chunk as Buffer).toString("utf-8");
@@ -253,7 +258,7 @@ export class IntentServer {
           JSON.stringify({
             error: {
               code: isIntentError ? code : "E_INTERNAL",
-              message: isIntentError ? (err as Error).message : "Internal error",
+              message: isIntentError ? sanitizeErrorMessage((err as Error).message) : "Internal error",
             },
           })
         );
@@ -441,7 +446,7 @@ export class IntentServer {
   }
 
   broadcastRevision(sceneId: string, revision: number) {
-    this.revision = revision;
+    this.revision = Math.max(this.revision, revision);
     this.events.send(sceneId, "revision", { revision });
   }
   broadcastPatch(sceneId: string, patch: Patch) {

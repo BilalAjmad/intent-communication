@@ -5,7 +5,7 @@ import { expandComponentInstances } from "./components.js";
 import { styleDeclarations, resolveSceneValue } from "./style-decl.js";
 import { sanitizeKeyframes } from "./keyframes.js";
 import { responsiveDeclarations } from "./responsive-css.js";
-import { sanitizeUrl, safeClassToken } from "./sanitize.js";
+import { sanitizeUrl, sanitizeImageSrc, safeClassToken } from "./sanitize.js";
 import { sanitizeCssValue } from "./sanitize.js";
 import { LIGHT_VARS, DARK_VARS } from "./vars.js";
 import { DEFAULT_BREAKPOINTS } from "./responsive-css.js";
@@ -204,6 +204,13 @@ function nodeFor(
       .filter((c): c is SceneObject => Boolean(c))
       .map((c) => nodeFor(c, allObjects, depth + 1, budget));
 
+  // Leaf node types carry no children — silently dropping them would produce
+  // empty elements with hidden interactive subtrees. Fail loud instead.
+  const LEAF_TYPES = new Set(["text", "button", "input", "image", "link", "icon", "divider"]);
+  if (LEAF_TYPES.has(obj.type) && (obj.children ?? []).length > 0) {
+    throw new IntentError(ErrorCodes.E_SCHEMA, `${obj.type} object ${obj.id} declares children — leaf node types never render children`);
+  }
+
   switch (obj.type) {
     case "screen": {
       node.attrs["data-screen-id"] = obj.id;
@@ -244,7 +251,7 @@ function nodeFor(
       break;
     }
     case "image": {
-      const src = sanitizeUrl(props["src"]);
+      const src = sanitizeImageSrc(props["src"]);
       node.attrs["src"] = src;
       node.attrs["alt"] = typeof props["alt"] === "string" ? props["alt"] : "";
       break;

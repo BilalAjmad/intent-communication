@@ -10,6 +10,7 @@ import {
   preFilledForTopic,
   recordAnswerLearning,
   recordInterviewMetrics,
+  pruneConsumedAnswers,
 } from "@intent/core";
 import {
   Feedback,
@@ -20,12 +21,11 @@ import {
   GetFeedbackInputSchema,
   AskUserInputSchema,
   OpenStudioInputSchema,
-  GetSceneOutputSchema,
-  ApplyPatchOutputSchema,
-  GetFeedbackOutputSchema,
 } from "@intent/schema";
 import { createFileStoragePort, createFileLockPort, createNodeCryptoPort } from "@intent/adapters-node";
 import { z } from "zod";
+import { OUTPUT_SCHEMAS } from "./output-schemas.js";
+import { truncateToBytes } from "./truncate.js";
 import { saveFirstRenderVersion } from "./first-render.js";
 import { lockedWithDescendantsLocal, freshInterviewState, dedupe, renderPlainTextCard, applyMeterUpdate, meterWithRequiredTopicCap } from "./helpers.js";
 import { validateTool } from "./validate-tool.js";
@@ -51,27 +51,6 @@ export function createMCPContext(projectRoot: string): MCPContext {
   const lockPort = createFileLockPort(projectRoot);
   const crypto = createNodeCryptoPort();
   return { projectRoot, storage, lockPort, crypto };
-}
-
-function truncateToBytes(obj: unknown, maxBytes: number): { data: unknown; truncated: boolean } {
-  const str = JSON.stringify(obj);
-  if (Buffer.byteLength(str, "utf-8") <= maxBytes) {
-    return { data: obj, truncated: false };
-  }
-  // Byte-accurate truncation: cut the UTF-8 encoding, never a UTF-16 code-unit
-  // boundary, and never return a fake half-parsed object.
-  const buf = Buffer.from(str, "utf-8").subarray(0, maxBytes);
-  const text = buf.toString("utf-8"); // may end mid-codepoint; JSON.parse will reject it cleanly
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(text);
-  } catch {
-    parsed = {
-      _truncated: true,
-      message: `Response exceeds ${maxBytes} bytes; narrow the query (objectIds/depth/maxBytes) and retry.`,
-    };
-  }
-  return { data: parsed, truncated: true };
 }
 
 export const getSceneTool: MCPTool = {
@@ -171,7 +150,10 @@ export const applyPatchTool: MCPTool = {
       }
       if (r.success || r.error === ErrorCodes.E_CONFLICT) {
         const newStatus = r.success ? ("applied" as const) : ("conflict" as const);
-        await withProjectLock(context.lockPort, `feedback-${patch.sceneId}`, async () => {
+        // Same lock key the HTTP routes use — HTTP handlers in server/src use
+        // withProjectLock(lockPort, "feedback", ...) on the SAME feedback files.
+        try {
+        await withProjectLock(context.lockPort, "feedback", async () => {
           const feedback = await context.storage.readFeedback(patch.sceneId);
           const idx = feedback.findIndex((f) => f.status === "sent" && f.objectId === vp.objectId);
           if (idx !== -1) {
@@ -186,6 +168,10 @@ export const applyPatchTool: MCPTool = {
             context.notify?.("patch.changed", { id: item.id, status: newStatus, sceneId: patch.sceneId });
           }
         });
+        } catch (err) {
+          // Patch already committed — never surface a feedback-mark failure as a patch failure.
+          console.error("feedback mark failed (patch applied):", (err as Error).message);
+        }
       }
     }
     return result;
@@ -237,9 +223,12 @@ export const getFeedbackTool: MCPTool = {
         via: a.via,
         answeredAt: a.answeredAt,
       }));
+      // Trd 10.4: delivered exactly once — mark consumed, never delete: the
+      // TC-INT-17 studio-wins rule must hold for the rest of the interview.
+      // The 200-entry schema cap is enforced by the prune below (newest kept).
       interviewState.answers = interviewState.answers.map((a) => ({ ...a, consumed: true }));
       interviewState.updatedAt = new Date().toISOString();
-      await context.storage.writeInterviewState(interviewState);
+      await context.storage.writeInterviewState(pruneConsumedAnswers(interviewState));
     }
     // Annotations (trd 9.7): agents see sent/resolved only; imageData is opt-in and capped at 3 images per call.
     const allAnnotations = await context.storage.readAnnotations(validated.sceneId);
@@ -290,7 +279,14 @@ export const askUserTool: MCPTool = {
     }
 
     // Question kind being answered by this call's previousAnswer (captured before pendingQuestion is overwritten) — for metrics.
-    const answeredKind = state.pendingQuestion?.kind ?? null;
+    // Attribute ONLY when previousAnswer actually targets the pending question.
+    const paForKind = validated.previousAnswer;
+    const paIdForKind =
+      paForKind && typeof paForKind === "object" && typeof (paForKind as { questionId?: unknown }).questionId === "string"
+        ? String((paForKind as { questionId: unknown }).questionId)
+        : undefined;
+    const answeredKind =
+      state.pendingQuestion && paIdForKind && state.pendingQuestion.questionId === paIdForKind ? state.pendingQuestion.kind : null;
     let recordedAnswer: { answer: unknown; questionKind: string | null } | null = null;
 
     // 1) A previous answer (chat, passed via previousAnswer) is recorded — unless a
@@ -322,7 +318,11 @@ export const askUserTool: MCPTool = {
         }
         // Chat answer approving the summary flips status complete — mirrors the Studio path (handleApiInterviewAnswer).
         const paSummaryChoice = paAnswer && typeof paAnswer === "object" ? (paAnswer as { summaryChoice?: unknown }).summaryChoice : undefined;
-        state.status = answeredKind === "summary" && paSummaryChoice === "exactly-right" ? "complete" : "in_progress";
+        if (answeredKind === "summary" && paSummaryChoice === "exactly-right") {
+          state.status = "complete";
+        } else if (state.status !== "complete" && state.status !== "delegated") {
+          state.status = "in_progress";
+        }
         state.answeredTopics = dedupe([...state.answeredTopics, ...(validated.requiredTopics ?? [])]);
         state.updatedAt = now;
         // trd 17.1: learn from the answer (best effort; never blocks the question).
@@ -353,6 +353,8 @@ export const askUserTool: MCPTool = {
         typeof validated.questionNumber === "number" ? Math.max(0, validated.questionNumber - 1) : state.currentQuestionIndex;
     }
     state.updatedAt = now;
+    // trd 10.2: answers are bounded to 200 by the schema; consumed entries go first.
+    state = pruneConsumedAnswers(state);
     await context.storage.writeInterviewState(state);
 
     const preFilled = preFilledForTopic(await context.storage.readIntentProfile(), validated.topic);
@@ -383,7 +385,7 @@ export const askUserTool: MCPTool = {
 
 export const openStudioTool: MCPTool = {
   name: "open_studio",
-  description: "Open the Prototype Studio for a scene in the browser and return the URL. Call this only when the user explicitly asks to open or see the Studio. It writes the session URL to .intent/runtime.json for the local Studio server; do not print session tokens or expose the URL beyond the user.",
+  description: "Return the URL of the local Prototype Studio for a scene. Call this only when the user explicitly asks to open or see the Studio. The local Studio server writes .intent/runtime.json at startup; this tool returns the URL only and writes nothing. Do not print session tokens or expose the URL beyond the user.",
   inputSchema: OpenStudioInputSchema,
   async handler(input: unknown, context: MCPContext) {
     const validated = OpenStudioInputSchema.parse(input);
@@ -458,12 +460,8 @@ function zodToIntentError(err: unknown): IntentError | null {
   return null;
 }
 
-// Output contracts (trd 14.3): get_scene / apply_patch / get_feedback payloads are parsed at the MCP boundary — a handler returning a payload outside its schema is a bug, throws E_INTERNAL with issue paths only (never echoes the payload — it may contain scene data).
-const OUTPUT_SCHEMAS: Record<string, z.ZodTypeAny> = {
-  get_scene: GetSceneOutputSchema,
-  apply_patch: ApplyPatchOutputSchema,
-  get_feedback: GetFeedbackOutputSchema,
-};
+// Output contracts live in output-schemas.ts (trd 14.3) — every tool payload is parsed at the MCP boundary.
+
 
 export async function handleMCPRequest(
   toolName: string,

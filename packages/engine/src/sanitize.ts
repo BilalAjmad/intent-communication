@@ -85,7 +85,25 @@ export function safeClassToken(value: unknown, fallback: string): string {
 }
 
 /**
- * Returns a URL that is safe to place in an href or src attribute.
+ * Image sources for exports: data: URIs of the allowed raster MIME types ONLY.
+ * trd rule 8 allows data: images; relative paths would pass sanitizeUrl's
+ * leniency but are then blocked by the exported CSP (`img-src data:`), which
+ * ships silently broken images — so drop them at the image sink too.
+ */
+export function sanitizeImageSrc(value: unknown): string {
+  if (typeof value !== "string") return "";
+  const s = value.trim();
+  if (s.length === 0) return "";
+  if (s.length > MAX_DATA_URI_LENGTH) return "";
+  if (!s.toLowerCase().startsWith("data:")) return "";
+  const match = /^data:([a-z]+\/[a-z0-9.+-]+);base64,([A-Za-z0-9+/=\s]*)$/i.exec(s);
+  if (!match || !match[1]) return "";
+  if (!ALLOWED_IMAGE_MIME.has(match[1].toLowerCase())) return "";
+  return s;
+}
+
+/**
+ * Returns a URL that is safe to place in an href attribute.
  *
  * trd rule 8: "Exports contain no external URLs except href="#s-..." and
  * data: images." Everything else is replaced with an empty string.

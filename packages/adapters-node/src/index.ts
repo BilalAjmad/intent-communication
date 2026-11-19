@@ -460,31 +460,7 @@ export function createFileLockPort(projectRoot: string): LockPort {
   return createLockPort(createFileStoragePort(projectRoot), resolve(intentDir, "tmp"));
 }
 
-export function createNodeCryptoPort(): CryptoPort {
-  return {
-    generateId(): string {
-      const now = Date.now();
-      const timeHigh = now.toString(16).padStart(12, "0");
-      const timeLow = Math.floor(Math.random() * 0x1000).toString(16).padStart(3, "0");
-      const version = "7";
-      const clockSeq = Math.floor(Math.random() * 0x4000).toString(16).padStart(4, "0");
-      const node = Array.from({ length: 12 }, () => Math.floor(Math.random() * 16).toString(16)).join("");
-      return `${timeHigh.slice(0, 8)}-${timeHigh.slice(8)}-${version}${timeLow}-${clockSeq}-${node}`;
-    },
-    async hash(input: string): Promise<string> {
-      const crypto = await import("node:crypto");
-      return crypto.createHash("sha256").update(input).digest("hex");
-    },
-    async verify(input: string, hash: string): Promise<boolean> {
-      const crypto = await import("node:crypto");
-      const computed = await this.hash(input);
-      const a = Buffer.from(computed, "utf8");
-      const b = Buffer.from(hash, "utf8");
-      if (a.length !== b.length) return false;
-      return crypto.timingSafeEqual(a, b);
-    },
-  };
-}
+export { createNodeCryptoPort } from "./crypto-port.js";
 
 export { IntentError, ErrorCodes, isIntentError, createLockPort };
 export { createFileWatcher } from "./watch.js";

@@ -124,15 +124,22 @@ export function nextQuestion(view: InterviewView): Seed | null {
   const candidates = ALL_SEEDS.filter((s: Seed) => s.profileKey && scope.has(s.profileKey));
   const topicOf = (s: Seed) => (s.profileKey ?? "").split(".")[0] ?? "";
   candidates.sort((a: Seed, b: Seed) => {
-    const pa = TOPIC_PRIORITY.indexOf(topicOf(a));
-    const pb = TOPIC_PRIORITY.indexOf(topicOf(b));
+    const rank = (topic: string) => {
+      const idx = TOPIC_PRIORITY.indexOf(topic);
+      // Unknown topics (e.g. "deep") sort AFTER every known priority — never before goal.
+      return idx === -1 ? TOPIC_PRIORITY.length : idx;
+    };
+    const pa = rank(topicOf(a));
+    const pb = rank(topicOf(b));
     if (pa !== pb) return pa - pb;
     return (TIER_RANK[a.tier] ?? 9) - (TIER_RANK[b.tier] ?? 9);
   });
   for (const seed of candidates) {
     const slot = seed.profileKey as string;
     if (!view.evidence.has(slot)) {
-      view.asked.push(slot);
+      // Deep-dive seeds stay ahead of equally-prioritized peers only when unanswered;
+      // never re-ask a slot the view already asked (dedupe).
+      if (!view.asked.includes(slot)) view.asked.push(slot);
       return seed;
     }
   }

@@ -59,6 +59,10 @@ export function resolveSceneValue(val: unknown, prop?: string): string {
 
 /** Maps a camelCase or kebab-case style key to a lowercase kebab-case CSS property, or null if unsafe. */
 export function toCssProperty(key: string): string | null {
+  if (key.startsWith("--")) {
+    // CSS custom property names are case-sensitive — preserve their case.
+    return SAFE_PROPERTY.test(key) ? key : null;
+  }
   if (!SAFE_PROPERTY.test(key)) {
     const kebab = key.replace(/([A-Z])/g, "-$1").toLowerCase();
     if (SAFE_PROPERTY.test(kebab)) return kebab;

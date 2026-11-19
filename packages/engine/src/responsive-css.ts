@@ -1,6 +1,7 @@
 import type { Scene, ResponsiveOverride, Breakpoints } from "@intent/schema";
-import { styleDeclarations } from "./style-decl.js";
+import { styleDeclarations, resolveSceneValue } from "./style-decl.js";
 import { sanitizeCssValue } from "./sanitize.js";
+import { reachableObjectIds } from "./reachability.js";
 
 /**
  * trd 4.4 Responsive override CSS. Mobile-first: the scene's base values apply
@@ -19,7 +20,8 @@ import { sanitizeCssValue } from "./sanitize.js";
  */
 export const DEFAULT_BREAKPOINTS: Breakpoints = { sm: 640, md: 1024, lg: 1440 };
 
-const SAFE_OBJECT_ID = /^[A-Za-z0-9_-]+$/;
+// Instance-derived ids look like "instance::inner" — the colon is safe inside a quoted attribute selector.
+const SAFE_OBJECT_ID = /^[A-Za-z0-9_:-]+$/;
 
 const ALIGN_ITEMS: Record<string, string> = {
   start: "flex-start",
@@ -42,7 +44,10 @@ function clampPx(value: number): number {
 
 function sizeToCss(value: number | string): string | null {
   if (typeof value === "number") return `${clampPx(value)}px`;
-  const safe = sanitizeCssValue(value);
+  // Route string sizes through the same token resolution as `style` values,
+  // so token.spacing.* works in responsive overrides (wireframe of size).
+  const resolved = resolveSceneValue(value);
+  const safe = sanitizeCssValue(resolved);
   return safe || null;
 }
 
@@ -114,10 +119,12 @@ export function renderResponsiveCss(
     ["lg", breakpoints.lg],
   ] as const;
   const lines: string[] = [];
+  const reachable = reachableObjectIds(scene);
   for (const [key, minWidth] of order) {
     const rules: string[] = [];
     for (const obj of Object.values(scene.objects)) {
       if (!obj || typeof obj !== "object") continue;
+      if (!reachable.has(obj.id)) continue; // def-source nodes render nothing — no CSS for them
       if (!SAFE_OBJECT_ID.test(obj.id)) continue;
       const override = obj.responsive?.[key];
       if (!override) continue;
@@ -127,7 +134,8 @@ export function renderResponsiveCss(
       }
     }
     if (rules.length > 0) {
-      lines.push(`@media (min-width: ${Math.max(1, Math.floor(minWidth))}px) {`);
+      const safeMinWidth = Number.isFinite(minWidth) && minWidth > 0 ? Math.floor(minWidth) : DEFAULT_BREAKPOINTS.sm;
+      lines.push(`@media (min-width: ${Math.max(1, safeMinWidth)}px) {`);
       for (const rule of rules) {
         lines.push(`  ${rule}`);
       }

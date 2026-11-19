@@ -23,6 +23,7 @@ import {
   saveBeforeSendVersion,
   CHIP_LABELS,
   sendBodyError,
+  sanitizeErrorMessage,
 } from "./api-helpers.js";
 
 /** GET /api/scene â€” full scene + locks for the Studio shell (trd 11.3). */
@@ -389,7 +390,7 @@ export async function handleMcp(ctx: ApiContext, req: IncomingMessage, res: Serv
         success: false,
         error: {
           code: typeof intentError.code === "string" ? intentError.code : "E_INTERNAL",
-          message: (error as Error).message,
+          message: sanitizeErrorMessage((error as Error).message),
         },
       })
     );
@@ -444,7 +445,11 @@ export async function handleApiInterviewAnswer(ctx: ApiContext, req: IncomingMes
     sendJson(res, 200, { state });
     return;
   }
-  const answeredKind = state.pendingQuestion?.kind ?? null;
+  // Attribute the answered kind ONLY when the answer actually targets the pending
+  // question — a stale/double Studio answer must not be attributed to whatever
+  // question happens to be pending now.
+  const answeredKind =
+    state.pendingQuestion && state.pendingQuestion.questionId === input.questionId ? state.pendingQuestion.kind : null;
   const now = new Date().toISOString();
   state.answers.push({ questionId: input.questionId, answer: input.answer, via: "studio", answeredAt: now, consumed: false });
   if (state.pendingQuestion?.questionId === input.questionId) {
@@ -462,8 +467,11 @@ export async function handleApiInterviewAnswer(ctx: ApiContext, req: IncomingMes
   state.updatedAt = now;
   await ctx.storage.writeInterviewState(state);
   // intent.md §12 — record session telemetry (best effort; never blocks the answer).
+  // NOTE: `kind: null` on purpose — the "start a new interview" signal belongs to
+  // the ask path (ask_user). Passing the answered kind here would let the recorder
+  // mark the live session abandoned on every Studio answer to the first question.
   await recordInterviewMetrics(ctx.storage, {
-    kind: answeredKind,
+    kind: null,
     currentQuestionIndex: state.currentQuestionIndex,
     meterAfter: state.meter,
     capped: false,

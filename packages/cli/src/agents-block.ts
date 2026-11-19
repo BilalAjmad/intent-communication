@@ -1,5 +1,6 @@
 import { promises as fs } from "node:fs";
 import { resolve } from "node:path";
+import { writeAtomic } from "@intent/core";
 
 const BLOCK_START = "<!-- intent:start -->";
 const BLOCK_END = "<!-- intent:end -->";
@@ -49,8 +50,18 @@ export async function ensureAgentsIntentBlock(
   }
 
   if (raw === null) {
-    if (!dryRun) await fs.writeFile(file, INTENT_AGENTS_BLOCK, "utf-8");
+    if (!dryRun) await writeAtomic(file, INTENT_AGENTS_BLOCK);
     return { changed: true, file, action: "created" };
+  }
+
+  try {
+    const st = await fs.lstat(file);
+    if (st.isSymbolicLink()) {
+      throw new Error("AGENTS.md is a symlink — refusing to edit outside the project root");
+    }
+  } catch (err) {
+    if (err instanceof Error && err.message.includes("symlink")) throw err;
+    if ((err as NodeJS.ErrnoException).code !== "ENOENT") throw err;
   }
 
   const start = raw.indexOf(BLOCK_START);
@@ -60,11 +71,18 @@ export async function ensureAgentsIntentBlock(
     const after = raw.slice(end + BLOCK_END.length);
     const merged = before + INTENT_AGENTS_BLOCK.trimEnd() + after;
     const changed = merged !== raw;
-    if (!dryRun && changed) await fs.writeFile(file, merged, "utf-8");
+    if (!dryRun && changed) await writeAtomic(file, merged);
     return { changed, file, action: changed ? "replaced" : "unchanged" };
+  }
+  if (start !== -1 || end !== -1) {
+    // Orphan marker: never guess where the block belongs — refuse to touch
+    // user-authored content.
+    throw new Error(
+      `AGENTS.md has an orphan intent marker (start: ${start}, end: ${end}); refusing to edit — remove or fix the markers manually`,
+    );
   }
 
   const merged = raw.endsWith("\n") || raw.length === 0 ? raw + INTENT_AGENTS_BLOCK : raw + "\n" + INTENT_AGENTS_BLOCK;
-  if (!dryRun) await fs.writeFile(file, merged, "utf-8");
+  if (!dryRun) await writeAtomic(file, merged);
   return { changed: true, file, action: "appended" };
 }

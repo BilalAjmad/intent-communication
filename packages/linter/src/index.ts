@@ -106,6 +106,17 @@ function buildColorMap(profile?: LintProfile): Record<string, string> {
   return map;
 }
 
+/** Names of profile color tokens whose values failed hex validation (never merged into the color map). */
+function invalidProfileTokens(profile?: LintProfile): string[] {
+  const colors = profile?.tokens?.colors;
+  if (!colors) return [];
+  const bad: string[] = [];
+  for (const [key, value] of Object.entries(colors)) {
+    if (typeof value === "string" && !hexToRgb(value.trim())) bad.push(key);
+  }
+  return bad.sort();
+}
+
 function resolveColor(val: unknown, colorMap: Record<string, string>): [number, number, number] | null {
   const s = tokenString(val);
   if (!s) return null;
@@ -237,7 +248,18 @@ function checkTouch(scene: Scene, violations: LintViolation[]): void {
   }
 }
 
-function checkContrast(scene: Scene, violations: LintViolation[], colorMap: Record<string, string>): void {
+function checkContrast(scene: Scene, violations: LintViolation[], colorMap: Record<string, string>, profile?: LintProfile): void {
+  const invalid = invalidProfileTokens(profile);
+  for (const key of invalid) {
+    violations.push({
+      ruleId: "L-CONTRAST",
+      objectId: "(profile)",
+      message: `Design profile color token "${key}" is not a valid hex value — it was skipped`,
+      severity: "warning",
+      path: `tokens.colors.${key}`,
+      suggestion: `Fix the value of "${key}" in .intent/design-profile.json to a #rrggbb hex`,
+    });
+  }
   for (const [id, obj] of Object.entries(scene.objects)) {
     if (obj.type !== "text") continue;
     const style = obj.style ?? {};
@@ -318,7 +340,7 @@ const M1_RULES: LintRule[] = [
     severity: "warning",
     check: (scene, _locks, profile) => {
       const v: LintViolation[] = [];
-      checkContrast(scene, v, buildColorMap(profile));
+      checkContrast(scene, v, buildColorMap(profile), profile);
       return v;
     },
   },

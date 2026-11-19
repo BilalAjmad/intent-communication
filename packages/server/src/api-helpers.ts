@@ -128,7 +128,7 @@ export async function saveBeforeSendVersion(storage: StoragePort, projectRoot: s
     const versionsDir = resolve(projectRoot, ".intent", "versions");
     await mkdir(versionsDir, { recursive: true });
     const stamp = new Date().toISOString().replace(/[:.]/g, "-");
-    const file = resolve(versionsDir, `${stamp}-r${scene.revision}-before-send.json`);
+    const file = resolve(versionsDir, `${stamp}Z-r${scene.revision}-${sceneId}-before-send.json`);
     await writeAtomic(file, JSON.stringify(scene, null, 0));
   } catch {
     // Best effort — a missing snapshot must not block sending
@@ -147,3 +147,8 @@ export const CHIP_LABELS: Record<string, string> = {
 };
 
 export { IntentError, ErrorCodes };
+
+/** Strip absolute filesystem paths from error messages before sending to clients. */
+export function sanitizeErrorMessage(message: string): string {
+  return message.replace(/([A-Za-z]:\\[^\\/"'\s]+(?:\\[^\\/"'\s]+)*|\/(?:[^\\s"']+\/?)+[^\\s"']+)/g, "[path]");
+}

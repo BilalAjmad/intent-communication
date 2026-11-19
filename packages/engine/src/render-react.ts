@@ -73,7 +73,7 @@ export function renderModelNodeJsx(
   budget: { remaining: number } = { remaining: REACT_MAX_NODES },
   includeDataIds: boolean = false,
   designProfile?: DesignProfileLike,
-  collector?: Set<ShadcnImport>,
+  collector?: Map<string, ShadcnImport>,
 ): string {
   if (depth > MAX_DEPTH || budget.remaining <= 0) {
     throw new IntentError(ErrorCodes.E_LIMIT, "Scene exceeds render depth/size budget");
@@ -99,7 +99,8 @@ export function renderModelNodeJsx(
         : "";
     return `${pad}${renderIconJsx(node.attrs["data-icon"], size, color, label, {
       objectId: includeDataIds ? node.id : undefined,
-      styleObject: style ? style.slice(7, -1) : undefined,
+      styleObject: Object.keys(animStyle).length > 0 ? styleLiteral(animStyle) : undefined,
+      className: mergedClass || undefined,
     })}`;
   }
 
@@ -108,7 +109,7 @@ export function renderModelNodeJsx(
   if (designProfile) {
     const mapped = mapNodeToShadcn(node, designProfile);
     if (mapped.jsx) {
-      for (const imp of mapped.used) collector?.add(imp);
+      for (const imp of mapped.used) collector?.set(`${imp.name}::${imp.from}`, imp);
       const dataIdAttr = includeDataIds && node.id ? ` data-object-id={${JSON.stringify(node.id)}}` : "";
       const injected = mapped.jsx.replace(/^<(\w+)/, (_, tag) => `<${tag}${dataIdAttr}`);
       return `${pad}${injected}`;

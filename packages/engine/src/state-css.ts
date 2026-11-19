@@ -1,5 +1,6 @@
 import type { Scene, SceneObject, StateName } from "@intent/schema";
 import { styleDeclarations } from "./style-decl.js";
+import { reachableObjectIds } from "./reachability.js";
 
 /**
  * trd 5.3 State CSS generation.
@@ -35,7 +36,8 @@ const DATA_STATES: ReadonlySet<StateName> = new Set([
   "filled",
 ]);
 
-const SAFE_OBJECT_ID = /^[A-Za-z0-9_-]+$/;
+// Instance-derived ids look like "instance::inner" — the colon is safe inside a quoted attribute selector.
+const SAFE_OBJECT_ID = /^[A-Za-z0-9_:-]+$/;
 
 /** Declarations for one state override (used by renderStateCss and the RenderModel normalizer). */
 export function stateDeclarations(style: Record<string, SceneObject["style"][string]>): string[] {
@@ -44,9 +46,11 @@ export function stateDeclarations(style: Record<string, SceneObject["style"][str
 
 /** Returns per-object state rules for a validated scene (no em/comments). */
 export function renderStateCss(scene: Scene): string {
+  const reachable = reachableObjectIds(scene);
   const lines: string[] = [];
   for (const obj of Object.values(scene.objects)) {
     if (!obj || typeof obj !== "object") continue;
+    if (!reachable.has(obj.id)) continue; // def-source nodes render nothing — no CSS for them
     const states = obj.states;
     if (!states || typeof states !== "object") continue;
     if (!SAFE_OBJECT_ID.test(obj.id)) continue;

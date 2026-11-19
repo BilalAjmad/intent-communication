@@ -125,15 +125,16 @@ async function scanTailwind(ctx: Ctx): Promise<void> {
   }
 }
 
+const codepointCompare = (a: string, b: string): number => (a < b ? -1 : a > b ? 1 : 0);
+
 /** W3C design tokens ($value leaves), walked anywhere under the root (depth-capped). */
 async function scanTokenJson(ctx: Ctx): Promise<void> {
   const found: string[] = [];
   for await (const file of walkFiles(ctx.projectRoot, 0)) {
     const name = file.split(sep).pop() ?? "";
     if (name === "tokens.json" || name.endsWith(".tokens.json")) found.push(file);
-    if (found.length >= 20) break;
   }
-  for (const file of found.sort()) {
+  for (const file of found.sort().slice(0, 20)) {
     const rel = relOf(ctx.projectRoot, file);
     const text = await readUnderLimit(file);
     if (text === null) {
@@ -176,11 +177,9 @@ async function scanCssVariables(ctx: Ctx): Promise<void> {
     }
     for await (const file of walkFiles(dir, 1)) {
       if (file.endsWith(".css")) cssFiles.push(file);
-      if (cssFiles.length >= 50) break;
     }
-    if (cssFiles.length >= 50) break;
   }
-  for (const file of cssFiles.sort()) {
+  for (const file of cssFiles.sort().slice(0, 50)) {
     const rel = relOf(ctx.projectRoot, file);
     const text = await readUnderLimit(file);
     if (!text) {
@@ -239,16 +238,33 @@ async function scanShadcn(ctx: Ctx): Promise<void> {
   ctx.sourceFiles.push(file);
 
   // Resolve the aliased ui directory from components.json (aliases.ui or aliases.components + /ui).
+  // A repo is NOT trusted input: reject aliases that escape the project root.
   const aliases = record["aliases"] as Record<string, unknown> | undefined;
   const uiAlias = typeof aliases?.["ui"] === "string" ? (aliases["ui"] as string) : null;
   const componentsAlias = typeof aliases?.["components"] === "string" ? (aliases["components"] as string) : null;
-  const uiDir = uiAlias ?? (componentsAlias ? `${(componentsAlias as string).replace(/\/+$/, "")}/ui` : null);
-  if (!uiDir) return;
-
-  const relUi = uiDir.replace(/^@\//, "").split("/");
-  const dirCandidates = [join(ctx.projectRoot, "src", ...relUi), join(ctx.projectRoot, ...relUi)];
+  const uiDirRaw = uiAlias ?? (componentsAlias ? `${(componentsAlias as string).replace(/\/+$/, "")}/ui` : null);
+  if (!uiDirRaw) return;
+  const uiDir = uiDirRaw.replace(/\/+$/, "");
+  const relUi = uiDir.replace(/^@\//, "").split("/").filter((seg) => seg.length > 0);
+  if (relUi.length === 0 || relUi.some((seg) => seg === ".." || seg === ".") || /^([a-zA-Z]:|\\)/.test(uiDir) || uiDir.startsWith("/")) {
+    ctx.unresolved.push({
+      file: relOf(ctx.projectRoot, file),
+      key: "aliases.ui",
+      reason: "alias escapes the project root or is absolute",
+    });
+    return;
+  }
+  const dirCandidates = [
+    resolve(ctx.projectRoot, "src", ...relUi),
+    resolve(ctx.projectRoot, ...relUi),
+  ];
+  const projectRootWithSep = resolve(ctx.projectRoot) + sep;
+  const safeCandidates = dirCandidates.filter((cand) => {
+    const resolved = resolve(cand);
+    return resolved === resolve(ctx.projectRoot) || resolved.startsWith(projectRootWithSep);
+  });
   let uiDirFull: string | null = null;
-  for (const cand of dirCandidates) {
+  for (const cand of safeCandidates) {
     try {
       await fs.access(cand);
       uiDirFull = cand;
@@ -280,7 +296,7 @@ async function scanShadcn(ctx: Ctx): Promise<void> {
 
   let names: string[] = [];
   try {
-    names = (await fs.readdir(uiDirFull)).filter((n) => /\.(tsx|jsx)$/.test(n)).map((n) => n.replace(/\.(tsx|jsx)$/, ""));
+    names = (await fs.readdir(uiDirFull)).filter((n) => /\.(tsx|jsx)$/.test(n)).map((n) => n.replace(/\.(tsx|jsx)$/, "")).sort();
   } catch {
     return;
   }
@@ -377,17 +393,17 @@ export async function scanProject(projectRoot: string, options: ScanOptions = {}
 
   // Sort everything: sources by file, tokens by key.
   for (const section of Object.values(ctx.tokens)) {
-    const sorted = Object.fromEntries(Object.entries(section).sort(([a], [b]) => a.localeCompare(b)));
+    const sorted = Object.fromEntries(Object.entries(section).sort(([a], [b]) => codepointCompare(a, b)));
     for (const key of Object.keys(section)) delete section[key];
     Object.assign(section, sorted);
   }
   for (const section of Object.values(ctx.tailwind)) {
-    const sorted = Object.fromEntries(Object.entries(section).sort(([a], [b]) => a.localeCompare(b)));
+    const sorted = Object.fromEntries(Object.entries(section).sort(([a], [b]) => codepointCompare(a, b)));
     for (const key of Object.keys(section)) delete section[key];
     Object.assign(section, sorted);
   }
-  ctx.sources.sort((a, b) => a.file.localeCompare(b.file));
-  ctx.unresolved.sort((a, b) => a.file.localeCompare(b.file) || a.key.localeCompare(b.key));
+  ctx.sources.sort((a, b) => codepointCompare(a.file, b.file));
+  ctx.unresolved.sort((a, b) => codepointCompare(a.file, b.file) || codepointCompare(a.key, b.key));
 
   const generatedAt = await newestMtime(ctx.sourceFiles);
 

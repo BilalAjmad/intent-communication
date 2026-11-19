@@ -39,7 +39,10 @@ export interface FileWatcherOptions {
 
 const IGNORED = [
   /(^|[\\/])(tmp|logs|node_modules|\.git)([\\/]|$)/,
-  /\.tmp-\d+[\w-]*$/,
+  // Current writeAtomic naming: <13-digit ms>-<base36>.tmp (same dir as target).
+  /(^|[\\/])[0-9]{13}-[a-z0-9]+\.tmp$/,
+  // Legacy writeAtomic naming: <name>.tmp-<suffix> (older builds; may exist on disk).
+  /\.tmp-[A-Za-z0-9_-]+$/,
   /~$/,
 ];
 
@@ -122,6 +125,7 @@ export function createFileWatcher(
   };
 
   const pollOnce = async (): Promise<void> => {
+    if (!snapshotSeeded) return; // baseline not ready yet — never diff against an empty snapshot
     const current = await walk();
     for (const [rel, stamp] of current) {
       if (snapshot.get(rel) !== stamp) emit(rel);
@@ -133,12 +137,26 @@ export function createFileWatcher(
     for (const [rel, stamp] of current) snapshot.set(rel, stamp);
   };
 
+  let snapshotSeeded = false;
   const startPoller = () => {
     if (poller || closed) return;
     mode = "poll";
     if (!fellBack && options.onFallback) {
       fellBack = true;
       try { options.onFallback(); } catch { /* notice must never break the watcher */ }
+    }
+    // Seed the baseline BEFORE any diff runs — a file present at seed time is
+    // baseline (not a change); files appearing after seeding diff normally.
+    if (!snapshotSeeded) {
+      void walk()
+        .then((initial) => {
+          snapshot.clear();
+          for (const [rel, stamp] of initial) snapshot.set(rel, stamp);
+          snapshotSeeded = true;
+        })
+        .catch(() => {
+          snapshotSeeded = true; // a broken tree still marks seed done; diffs will surface errors honestly
+        });
     }
     pollCount = 0;
     poller = setInterval(() => {
@@ -171,10 +189,6 @@ export function createFileWatcher(
 
   const started = tryStartWatcher();
   if (!started) {
-    // Initialise the snapshot so existing files are not reported as changes.
-    void walk().then((initial) => {
-      for (const [rel, stamp] of initial) snapshot.set(rel, stamp);
-    });
     startPoller();
   }
 

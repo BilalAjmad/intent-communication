@@ -6,6 +6,7 @@ import { validateScene } from "@intent/schema";
 import {
   ApiContext,
   sendJson,
+  saveBeforeSendVersion,
 } from "./api-helpers.js";
 
 /**
@@ -14,7 +15,7 @@ import {
  * restore those snapshots. Restore keeps history: it bumps revision by one
  * (restore is itself an edit) and stamps updatedAt.
  */
-const VERSION_FILE = /^([0-9A-Za-z_\-:.]+)Z-r(\d+)-before-send\.json$/;
+const VERSION_FILE = /^([0-9A-Za-z_\-:.]+)Z-r(\d+)(?:-([A-Za-z0-9_-]{1,120}))?-before-send\.json$/;
 const MAX_RESTORE_BYTES = 5 * 1024 * 1024;
 
 interface VersionEntry {
@@ -72,6 +73,15 @@ export async function handleVersionRestore(ctx: ApiContext, req: IncomingMessage
       sendJson(res, 400, { error: { code: "E_BAD_REQUEST", message: "Invalid version file name" } });
       return;
     }
+    // Snapshots written by the current build carry the originating sceneId —
+    // refuse cross-scene restores rather than silently grafting A's objects onto B.
+    const embeddedSceneId = match[3];
+    if (embeddedSceneId !== undefined && embeddedSceneId !== sceneId) {
+      sendJson(res, 409, {
+        error: { code: "E_CONFLICT", message: "That snapshot belongs to a different scene" },
+      });
+      return;
+    }
     const dir = resolve(ctx.projectRoot, ".intent", "versions");
     const target = resolve(dir, file);
     const rel = relative(resolve(dir), target);
@@ -103,6 +113,8 @@ export async function handleVersionRestore(ctx: ApiContext, req: IncomingMessage
       sendJson(res, 404, { error: { code: "E_NOT_FOUND", message: "Current scene not found" } });
       return;
     }
+    // Snapshot the pre-restore scene so a mistaken restore is itself recoverable.
+    await saveBeforeSendVersion(ctx.storage, ctx.projectRoot, sceneId);
     restored.revision = current.revision + 1;
     restored.updatedAt = new Date().toISOString();
     await ctx.storage.writeScene(sceneId, restored);

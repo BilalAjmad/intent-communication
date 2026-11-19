@@ -1,5 +1,6 @@
 import { IncomingMessage, ServerResponse } from "node:http";
 import { validateScene } from "@intent/schema";
+import { withProjectLock } from "@intent/core";
 import { KeyframesPutInputSchema } from "@intent/schema";
 import {
   ApiContext,
@@ -45,30 +46,47 @@ export async function handleKeyframesPut(ctx: ApiContext, req: IncomingMessage, 
     return;
   }
 
-  const scene = await ctx.storage.readScene(input.sceneId);
+  // Reject ambiguous requests: query sceneId must match body sceneId when both are present.
+  if (sceneIdParam && typeof (body as Record<string, unknown>)["sceneId"] === "string" && sceneIdParam !== (body as Record<string, unknown>)["sceneId"]) {
+    sendJson(res, 400, { error: { code: "E_BAD_REQUEST", message: "sceneId in query and body differ" } });
+    return;
+  }
+
+  const scene = await withProjectLock(ctx.lockPort, input.sceneId, async () => {
+    const current = await ctx.storage.readScene(input.sceneId);
+    if (!current) {
+      return { notFound: true as const };
+    }
+    if (input.baseRevision !== current.revision) {
+      return { conflict: true as const, revision: current.revision };
+    }
+    // Replace the table wholesale. metadata itself is schema-validated again on
+    // write so a hand-crafted body can never bypass the closed grammars.
+    const next = JSON.parse(JSON.stringify(current)) as typeof current;
+    next.metadata = { ...(next.metadata ?? { name: "Untitled Project", tags: [] }), keyframes: input.keyframes };
+    next.revision = current.revision + 1;
+    next.updatedAt = new Date().toISOString();
+    const validated = validateScene(next);
+    await ctx.storage.writeScene(input.sceneId, validated);
+    return { written: true as const, revision: validated.revision, keyframes: validated.metadata.keyframes };
+  });
   if (!scene) {
+    sendJson(res, 500, { error: { code: "E_INTERNAL", message: "Lock handling failed" } });
+    return;
+  }
+  if ("notFound" in scene) {
     sendJson(res, 404, { error: { code: "E_NOT_FOUND", message: "Scene not found" } });
     return;
   }
-  if (input.baseRevision !== scene.revision) {
+  if ("conflict" in scene) {
     sendJson(res, 409, {
       error: { code: "E_CONFLICT", message: "The scene changed since you last saw it — reload and try again" },
       revision: scene.revision,
     });
     return;
   }
-
-  // Replace the table wholesale. metadata itself is schema-validated again on
-  // write so a hand-crafted body can never bypass the closed grammars.
-  const next = JSON.parse(JSON.stringify(scene)) as typeof scene;
-  next.metadata = { ...(next.metadata ?? { name: "Untitled Project", tags: [] }), keyframes: input.keyframes };
-  next.revision = scene.revision + 1;
-  next.updatedAt = new Date().toISOString();
-  const validated = validateScene(next);
-
-  await ctx.storage.writeScene(input.sceneId, validated);
-  ctx.broadcastRevision(input.sceneId, validated.revision);
-  sendJson(res, 200, { ok: true, revision: validated.revision, keyframes: validated.metadata.keyframes });
+  ctx.broadcastRevision(input.sceneId, scene.revision);
+  sendJson(res, 200, { ok: true, revision: scene.revision, keyframes: scene.keyframes });
 }
 
 /** Dispatches /api/keyframes. Returns true when handled. */
