@@ -46,6 +46,29 @@ export function createStoragePort(testDir: string): StoragePort {
     if (rel.startsWith("..") || isAbsolute(rel)) {
       throw new IntentError(ErrorCodes.E_PATH_TRAVERSAL, "Path traversal attempt detected");
     }
+    // The project's .intent root itself must never be a symlink.
+    try {
+      const intentStats = await fs.lstat(intentDir);
+      if (intentStats.isSymbolicLink()) {
+        throw new IntentError(ErrorCodes.E_SYMLINK, "Symlinks not allowed: .intent is a symlink");
+      }
+    } catch (err) {
+      if (err instanceof IntentError) throw err;
+      const code = (err as NodeJS.ErrnoException).code;
+      if (code !== "ENOENT") throw err;
+    }
+    // The base itself must not be a symlink either — a symlinked base
+    // redirects EVERYTHING below it while a per-subtree walk still passes.
+    try {
+      const baseStats = await fs.lstat(resolvedBase);
+      if (baseStats.isSymbolicLink()) {
+        throw new IntentError(ErrorCodes.E_SYMLINK, "Symlinks not allowed: the base directory is a symlink");
+      }
+    } catch (err) {
+      if (err instanceof IntentError) throw err;
+      const code = (err as NodeJS.ErrnoException).code;
+      if (code !== "ENOENT") throw err;
+    }
     // Walk every component from the base down to the target; lstat each.
     const segments = rel.split(/[\\/]+/).filter((s) => s.length > 0);
     let cursor = resolvedBase;
@@ -71,7 +94,21 @@ export function createStoragePort(testDir: string): StoragePort {
     if (stats.size > maxBytes) {
       throw new IntentError(ErrorCodes.E_LIMIT, `${label} exceeds the ${maxBytes}-byte hard limit`);
     }
-    return fs.readFile(filePath, "utf-8");
+    const content = await fs.readFile(filePath, "utf-8");
+    // TOCTOU re-check — the file may have grown between stat and read.
+    if (Buffer.byteLength(content, "utf-8") > maxBytes) {
+      throw new IntentError(ErrorCodes.E_LIMIT, `${label} exceeds the ${maxBytes}-byte hard limit`);
+    }
+    return content;
+  }
+
+  /** Serialize with validation + byte cap together. */
+  function checkedSerialize(value: unknown, maxBytes: number, label: string): string {
+    const serialized = JSON.stringify(value, null, 0);
+    if (Buffer.byteLength(serialized, "utf-8") > maxBytes) {
+      throw new IntentError(ErrorCodes.E_LIMIT, `${label} exceeds the ${maxBytes}-byte hard limit`);
+    }
+    return serialized;
   }
 
   return {
@@ -82,12 +119,8 @@ export function createStoragePort(testDir: string): StoragePort {
       const scenePath = resolve(scenesDir, `${sceneId}.json`);
       await checkPathSafety(scenePath, scenesDir);
       try {
-        // trd 20: scene file hard limit is 5 MB; refuse oversized files up front.
-        const stats = await fs.stat(scenePath);
-        if (stats.size > 5 * 1024 * 1024) {
-          throw new IntentError(ErrorCodes.E_BAD_REQUEST, "Scene file exceeds the 5 MB hard limit");
-        }
-        const content = await fs.readFile(scenePath, "utf-8");
+        // trd 20: scene file hard limit is 5 MB, enforced before AND after the read.
+        const content = await readFileCapped(scenePath, 5 * 1024 * 1024, `Scene file ${sceneId}`);
         const parsedScene = JSON.parse(content) as unknown;
         checkDocumentVersion(parsedScene, "scene", 1);
         return validateScene(parsedScene);
@@ -117,6 +150,7 @@ export function createStoragePort(testDir: string): StoragePort {
     async readLocks(sceneId: string): Promise<LocksFile> {
       assertSafeId(sceneId, "sceneId");
       const locksPath = resolve(locksDir, `${sceneId}.locks.json`);
+      await checkPathSafety(locksPath, locksDir);
       try {
         const content = await readFileCapped(locksPath, 1024 * 1024, `Lock file for scene ${sceneId}`);
         const data = JSON.parse(content) as Partial<LocksFile> & { lockedObjects?: unknown; owners?: unknown; locks?: unknown };
@@ -159,13 +193,14 @@ export function createStoragePort(testDir: string): StoragePort {
       await ensureDirs();
       assertSafeId(sceneId, "sceneId");
       const locksPath = resolve(locksDir, `${sceneId}.locks.json`);
+      await checkPathSafety(locksPath, locksDir);
       // Validate on write too — a bad in-memory shape must not poison the file.
-      const serialized = JSON.stringify(LocksFileSchema.parse(locksFile), null, 0);
-      await writeAtomic(locksPath, serialized);
+      await writeAtomic(locksPath, checkedSerialize(LocksFileSchema.parse(locksFile), 1024 * 1024, `Lock file for scene ${sceneId}`));
     },
 
     async readConfig(): Promise<Config> {
       try {
+        await checkPathSafety(configPath, intentDir);
         const content = await readFileCapped(configPath, 1024 * 1024, "Config file");
         const parsedConfig = JSON.parse(content) as unknown;
         checkDocumentVersion(parsedConfig, "config", 1);
@@ -191,11 +226,13 @@ export function createStoragePort(testDir: string): StoragePort {
 
     async writeConfig(config: Config): Promise<void> {
       await ensureDirs();
-      await writeAtomic(configPath, JSON.stringify(config, null, 0));
+      await checkPathSafety(configPath, intentDir);
+      await writeAtomic(configPath, checkedSerialize(validateConfig(config), 1024 * 1024, "Config file"));
     },
 
     async readProfile(): Promise<Profile | null> {
       try {
+        await checkPathSafety(profilePath, intentDir);
         const content = await readFileCapped(profilePath, 2 * 1024 * 1024, "Profile file");
         const parsedProfile = JSON.parse(content) as unknown;
         checkDocumentVersion(parsedProfile, "profile", 1);
@@ -209,11 +246,13 @@ export function createStoragePort(testDir: string): StoragePort {
 
     async writeProfile(profile: Profile): Promise<void> {
       await ensureDirs();
-      await writeAtomic(profilePath, JSON.stringify(profile, null, 0));
+      await checkPathSafety(profilePath, intentDir);
+      await writeAtomic(profilePath, checkedSerialize(validateProfile(profile), 2 * 1024 * 1024, "Profile file"));
     },
 
     async readIntentProfile(): Promise<IntentProfile> {
       try {
+        await checkPathSafety(intentProfilePath, intentDir);
         const content = await readFileCapped(intentProfilePath, 2 * 1024 * 1024, "Intent profile");
         const parsedIntentProfile = JSON.parse(content) as unknown;
         checkDocumentVersion(parsedIntentProfile, "intent-profile", 1);
@@ -228,11 +267,12 @@ export function createStoragePort(testDir: string): StoragePort {
     async writeIntentProfile(profile: IntentProfile): Promise<void> {
       await ensureDirs();
       await checkPathSafety(intentProfilePath, intentDir);
-      await writeAtomic(intentProfilePath, JSON.stringify(IntentProfileSchema.parse(profile), null, 0));
+      await writeAtomic(intentProfilePath, checkedSerialize(IntentProfileSchema.parse(profile), 2 * 1024 * 1024, "Intent profile"));
     },
 
     async readInterviewState(): Promise<InterviewState | null> {
       try {
+        await checkPathSafety(interviewPath, intentDir);
         const content = await readFileCapped(interviewPath, 5 * 1024 * 1024, "Interview state");
         const parsedInterview = JSON.parse(content) as unknown;
         checkDocumentVersion(parsedInterview, "interview-state", 1);
@@ -246,11 +286,13 @@ export function createStoragePort(testDir: string): StoragePort {
 
     async writeInterviewState(state: InterviewState): Promise<void> {
       await ensureDirs();
-      await writeAtomic(interviewPath, JSON.stringify(state, null, 0));
+      await checkPathSafety(interviewPath, intentDir);
+      await writeAtomic(interviewPath, checkedSerialize(validateInterviewState(state), 5 * 1024 * 1024, "Interview state"));
     },
 
     async readInterviewMetrics(): Promise<InterviewMetrics> {
       try {
+        await checkPathSafety(metricsPath, intentDir);
         const content = await readFileCapped(metricsPath, 2 * 1024 * 1024, "Interview metrics");
         const parsed = JSON.parse(content) as unknown;
         checkDocumentVersion(parsed, "interview-metrics", 1);
@@ -264,13 +306,15 @@ export function createStoragePort(testDir: string): StoragePort {
 
     async writeInterviewMetrics(metrics: InterviewMetrics): Promise<void> {
       await ensureDirs();
-      await writeAtomic(metricsPath, JSON.stringify(validateInterviewMetrics(metrics), null, 0));
+      await checkPathSafety(metricsPath, intentDir);
+      await writeAtomic(metricsPath, checkedSerialize(validateInterviewMetrics(metrics), 2 * 1024 * 1024, "Interview metrics"));
     },
 
     async readBrief(briefId: string): Promise<Brief | null> {
       assertSafeId(briefId, "briefId");
       const briefPath = resolve(briefsDir, `${briefId}.json`);
       try {
+        await checkPathSafety(briefPath, briefsDir);
         const content = await readFileCapped(briefPath, 5 * 1024 * 1024, `Brief file ${briefId}`);
         const parsedBrief = JSON.parse(content) as unknown;
         checkDocumentVersion(parsedBrief, "brief", 1);
@@ -286,13 +330,15 @@ export function createStoragePort(testDir: string): StoragePort {
       await ensureDirs();
       assertSafeId(brief.id, "brief.id");
       const briefPath = resolve(briefsDir, `${brief.id}.json`);
-      await writeAtomic(briefPath, JSON.stringify(brief, null, 0));
+      await checkPathSafety(briefPath, briefsDir);
+      await writeAtomic(briefPath, checkedSerialize(validateBrief(brief), 5 * 1024 * 1024, `Brief ${brief.id}`));
     },
 
     async readFeedback(sceneId: string): Promise<Feedback[]> {
       assertSafeId(sceneId, "sceneId");
       const feedbackPath = resolve(feedbackDir, `${sceneId}.json`);
       try {
+        await checkPathSafety(feedbackPath, feedbackDir);
         const content = await readFileCapped(feedbackPath, 5 * 1024 * 1024, `Feedback file for scene ${sceneId}`);
         const data = JSON.parse(content) as unknown;
         if (!Array.isArray(data)) {
@@ -316,13 +362,22 @@ export function createStoragePort(testDir: string): StoragePort {
       await ensureDirs();
       assertSafeId(sceneId, "sceneId");
       const feedbackPath = resolve(feedbackDir, `${sceneId}.json`);
-      await writeAtomic(feedbackPath, JSON.stringify(feedback, null, 0));
+      await checkPathSafety(feedbackPath, feedbackDir);
+      const validated = feedback.map((item, i) => {
+        try {
+          return validateFeedback(item);
+        } catch (err) {
+          throw new IntentError(ErrorCodes.E_SCHEMA, `Feedback entry ${i} is invalid: ${(err as Error).message}`);
+        }
+      });
+      await writeAtomic(feedbackPath, checkedSerialize(validated, 5 * 1024 * 1024, `Feedback file for scene ${sceneId}`));
     },
 
     async readAnnotations(sceneId: string): Promise<Annotation[]> {
       assertSafeId(sceneId, "sceneId");
       const annotationsPath = resolve(annotationsDir, `${sceneId}.json`);
       try {
+        await checkPathSafety(annotationsPath, annotationsDir);
         // Cap measured in BYTES, before the read fully happens (stat-based).
         const content = await readFileCapped(annotationsPath, 1_000_000, `Annotations file for scene ${sceneId}`);
         const data = JSON.parse(content) as unknown;
@@ -348,12 +403,16 @@ export function createStoragePort(testDir: string): StoragePort {
     async writeAnnotations(sceneId: string, annotations: Annotation[]): Promise<void> {
       await ensureDirs();
       assertSafeId(sceneId, "sceneId");
-      const serialized = JSON.stringify(annotations);
-      if (serialized.length > 1_000_000) {
-        throw new IntentError(ErrorCodes.E_SCHEMA, "Annotations payload exceeds the 1 MB limit");
-      }
       const annotationsPath = resolve(annotationsDir, `${sceneId}.json`);
-      await writeAtomic(annotationsPath, serialized);
+      await checkPathSafety(annotationsPath, annotationsDir);
+      const validated = annotations.map((item, i) => {
+        try {
+          return validateAnnotation(item);
+        } catch (err) {
+          throw new IntentError(ErrorCodes.E_SCHEMA, `Annotation entry ${i} is invalid: ${(err as Error).message}`);
+        }
+      });
+      await writeAtomic(annotationsPath, checkedSerialize(validated, 1_000_000, "Annotations payload"));
     },
 
     async writeAnnotationImage(
@@ -419,6 +478,7 @@ export function createStoragePort(testDir: string): StoragePort {
 
     async listScenes(): Promise<string[]> {
       try {
+        await checkPathSafety(scenesDir, intentDir);
         const entries = await fs.readdir(scenesDir);
         return entries
           .filter((e: string) => e.endsWith(".json"))

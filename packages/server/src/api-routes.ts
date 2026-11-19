@@ -1,5 +1,5 @@
 import { handleMCPRequest } from "@intent/mcp-server";
-import { withProjectLock, recordAnswerLearning, recordInterviewMetrics } from "@intent/core";
+import { withProjectLock, recordAnswerLearning, recordInterviewMetrics, pruneConsumedAnswers } from "@intent/core";
 import { IncomingMessage, ServerResponse } from "node:http";
 import {
   CreatePatchInputSchema,
@@ -438,7 +438,7 @@ export async function handleApiInterviewAnswer(ctx: ApiContext, req: IncomingMes
     sendSchemaError(res, err);
     return;
   }
-  const state = (await ctx.storage.readInterviewState()) ?? freshInterviewState();
+  let state = (await ctx.storage.readInterviewState()) ?? freshInterviewState();
   const existingStudio = state.answers.find((a) => a.questionId === input.questionId && a.via === "studio");
   if (existingStudio) {
     // Idempotent: a re-send for the same question returns the current state unchanged.
@@ -461,10 +461,12 @@ export async function handleApiInterviewAnswer(ctx: ApiContext, req: IncomingMes
   const answer = input.answer as { summaryChoice?: string } | null;
   if (answer && answer.summaryChoice === "exactly-right") {
     state.status = "complete";
-  } else if (state.status !== "complete") {
+  } else if (state.status !== "complete" && state.status !== "delegated") {
     state.status = "in_progress";
   }
   state.updatedAt = now;
+  // Cap at the schema's 200-entry answers bound before write — the ask path does the same.
+  state = pruneConsumedAnswers(state);
   await ctx.storage.writeInterviewState(state);
   // intent.md §12 — record session telemetry (best effort; never blocks the answer).
   // NOTE: `kind: null` on purpose — the "start a new interview" signal belongs to

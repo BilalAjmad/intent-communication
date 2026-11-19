@@ -90,28 +90,8 @@ export async function handleSSE(ctx: RuntimeContext, req: IncomingMessage, res: 
   }
   ctx.sseClients.set(sceneId, clients);
 
-  if (Number.isFinite(lastEventId) && lastEventId > 0 && ctx.eventLog.length > 0) {
-    // Reconnect: replay events newer than the client's last seen id — only
-    // events for THIS scene plus project-wide ones; never other scenes' patches.
-    const relevant = ctx.eventLog.filter((ev) => ev.sceneId === null || ev.sceneId === sceneId);
-    const oldest = ctx.eventLog[0]!.seq;
-    if (ctx.eventLog.length >= 100 && lastEventId < oldest - 1) {
-      // Gap larger than the replay window — tell the client to refetch everything.
-      // Written DIRECTLY to this response; resync must not enter the ring.
-      ctx.writeDirect(res, "resync", {});
-    } else {
-      for (const ev of relevant) {
-        if (ev.seq > lastEventId) {
-          writeSseEvent(res, ev.seq, ev.type, ev.payload);
-        }
-      }
-    }
-  } else {
-    // Fresh subscriber: one seed event with the current revision.
-    // Written DIRECTLY to this response; the seed must not enter the ring.
-    ctx.writeDirect(res, "revision", { revision: ctx.getRevision() });
-  }
-
+  // Register the close handler BEFORE any write that may throw — a dead socket
+  // between insertion and replay must never pin a 20s interval + client entry.
   req.on("close", () => {
     clearInterval(ping);
     const list = ctx.sseClients.get(sceneId) || [];
@@ -119,6 +99,32 @@ export async function handleSSE(ctx: RuntimeContext, req: IncomingMessage, res: 
     if (idx !== -1) list.splice(idx, 1);
     if (list.length === 0) ctx.sseClients.delete(sceneId);
   });
+
+  if (Number.isFinite(lastEventId) && lastEventId > 0 && ctx.eventLog.length > 0) {
+    // Reconnect: replay events newer than the client's last seen id — only
+    // events for THIS scene plus project-wide ones; never other scenes' patches.
+    const relevant = ctx.eventLog.filter((ev) => ev.sceneId === null || ev.sceneId === sceneId);
+    // Gap accounting against the oldest scene-relevant event, not the global
+    // ring's oldest — other scenes' evictions must not force a resync.
+    const oldest = relevant[0]?.seq ?? ctx.eventLog[0]!.seq;
+    if (ctx.eventLog.length >= 100 && lastEventId < oldest - 1) {
+      // Gap larger than the replay window — tell the client to refetch everything.
+      ctx.writeDirect(res, "resync", {});
+    } else {
+      try {
+        for (const ev of relevant) {
+          if (ev.seq > lastEventId) {
+            writeSseEvent(res, ev.seq, ev.type, ev.payload);
+          }
+        }
+      } catch {
+        // Client died mid-replay — its close handler does the cleanup.
+      }
+    }
+  } else {
+    // Fresh subscriber: one seed event with the current revision.
+    ctx.writeDirect(res, "revision", { revision: ctx.getRevision() });
+  }
 }
 
 /** The SPA file server. Path traversal is refused; "/" serves index.html (no-store); unknown paths 404. */

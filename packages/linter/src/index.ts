@@ -106,13 +106,13 @@ function buildColorMap(profile?: LintProfile): Record<string, string> {
   return map;
 }
 
-/** Names of profile color tokens whose values failed hex validation (never merged into the color map). */
+/** Names of profile color tokens whose values are not valid hex strings (never merged into the color map). */
 function invalidProfileTokens(profile?: LintProfile): string[] {
   const colors = profile?.tokens?.colors;
   if (!colors) return [];
   const bad: string[] = [];
   for (const [key, value] of Object.entries(colors)) {
-    if (typeof value === "string" && !hexToRgb(value.trim())) bad.push(key);
+    if (typeof value !== "string" || !hexToRgb(value.trim())) bad.push(key);
   }
   return bad.sort();
 }
@@ -300,7 +300,7 @@ function checkContrast(scene: Scene, violations: LintViolation[], colorMap: Reco
 function checkLock(scene: Scene, locks: string[], violations: LintViolation[]): void {
   const lockSet = new Set(locks ?? []);
   for (const id of lockSet) {
-    if (id in scene.objects) {
+    if (Object.prototype.hasOwnProperty.call(scene.objects, id)) {
       violations.push({
         ruleId: "L-LOCK",
         objectId: id,

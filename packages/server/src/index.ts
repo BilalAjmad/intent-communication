@@ -343,8 +343,14 @@ export class IntentServer {
       return;
     }
 
-    // SSE endpoint (trd 11.3)
+    // SSE endpoint (trd 11.3) — GET only; drain other methods' bodies.
     if (pathname === "/api/events") {
+      if ((req.method || "GET").toUpperCase() !== "GET") {
+        req.resume();
+        res.writeHead(405, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ error: { code: "E_BAD_REQUEST", message: "Method not allowed" } }));
+        return;
+      }
       await handleSSE(this.runtimeCtx(), req, res, url);
       return;
     }
@@ -420,8 +426,12 @@ export class IntentServer {
       await handleApiPatchResolve(this.apiCtx, req, res, patchId);
       return;
     }
-    // Unknown /api routes: JSON 404, never the SPA HTML
+    // Unknown /api routes: JSON 404, never the SPA HTML.
+    // Drain any unread body first — a client that POSTed bytes we never read
+    // would otherwise desync its keep-alive socket with our 404 as the parser
+    // of those bytes.
     if (pathname.startsWith("/api/")) {
+      req.resume();
       res.writeHead(404, { "Content-Type": "application/json" });
       res.end(JSON.stringify({ error: "Not found" }));
       return;

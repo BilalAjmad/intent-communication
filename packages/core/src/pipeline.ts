@@ -1,6 +1,6 @@
 import { StoragePort, LockPort } from "./ports.js";
 import { ErrorCodes } from "./error.js";
-import { Patch } from "@intent/schema";
+import { Patch, type Scene } from "@intent/schema";
 import { applyPatch } from "./patch.js";
 
 /**
@@ -27,7 +27,21 @@ export async function writePipeline(
   }
 
   // Pre-batch snapshot — the only reference for consistency checks (trd 6.3).
-  const scene = await storage.readScene(sceneId);
+  // A readScene THROW must release the scene lock too, not just a falsy return —
+  // otherwise the crash leaks .intent/tmp/<sceneId>.lock for this process forever.
+  let scene: Scene | null;
+  try {
+    scene = await storage.readScene(sceneId);
+  } catch (err) {
+    await lockPort.releaseSceneLock(sceneId);
+    const code = (err as { code?: unknown })?.code;
+    const isIntentError = typeof code === "string" && /^E_[A-Z_]+$/.test(code);
+    return {
+      success: false,
+      revision: -1,
+      error: isIntentError ? (code as string) : ErrorCodes.E_INTERNAL,
+    };
+  }
   if (!scene) {
     await lockPort.releaseSceneLock(sceneId);
     return { success: false, revision: -1, error: ErrorCodes.E_NOT_FOUND };
@@ -36,14 +50,15 @@ export async function writePipeline(
   const acquiredPatchLocks: string[] = [];
   try {
     for (const patch of patches) {
-      const acquired = await lockPort.acquire(sceneId, patch.objectId);
-      if (!acquired) {
-        for (const released of [...acquiredPatchLocks].reverse()) {
-          await lockPort.release(sceneId, released);
+      // A sibling patch in the same batch may already hold this object's lock —
+      // that is expected, not a conflict.
+      if (!acquiredPatchLocks.includes(patch.objectId)) {
+        const acquired = await lockPort.acquire(sceneId, patch.objectId);
+        if (!acquired) {
+          return { success: false, revision: scene.revision, error: ErrorCodes.E_LOCKED };
         }
-        return { success: false, revision: scene.revision, error: ErrorCodes.E_LOCKED };
+        acquiredPatchLocks.push(patch.objectId);
       }
-      acquiredPatchLocks.push(patch.objectId);
 
       // Ancestor locks — cycle-safe (corrupt graphs cannot loop forever); a lock
       // this batch already holds is not re-acquired (siblings share ancestors).
@@ -51,9 +66,6 @@ export async function writePipeline(
       let current = scene.objects[patch.objectId]?.parentId;
       while (current) {
         if (seenAncestors.has(current)) {
-          for (const released of [...acquiredPatchLocks].reverse()) {
-            await lockPort.release(sceneId, released);
-          }
           return { success: false, revision: scene.revision, error: ErrorCodes.E_INVALID_SCENE };
         }
         seenAncestors.add(current);
@@ -63,9 +75,6 @@ export async function writePipeline(
         }
         const ancestorAcquired = await lockPort.acquire(sceneId, current);
         if (!ancestorAcquired) {
-          for (const released of [...acquiredPatchLocks].reverse()) {
-            await lockPort.release(sceneId, released);
-          }
           return { success: false, revision: scene.revision, error: ErrorCodes.E_LOCKED };
         }
         acquiredPatchLocks.push(current);
@@ -84,9 +93,6 @@ export async function writePipeline(
           if (seenDescendants.has(ancestor)) break;
           seenDescendants.add(ancestor);
           if (ancestor === patch.objectId) {
-            for (const released of [...acquiredPatchLocks].reverse()) {
-              await lockPort.release(sceneId, released);
-            }
             return { success: false, revision: scene.revision, error: ErrorCodes.E_LOCKED };
           }
           ancestor = scene.objects[ancestor]?.parentId;
@@ -140,7 +146,7 @@ export async function writePipeline(
     }
 
     await storage.writeScene(sceneId, working);
-    return { success: true, revision: working.revision, details: { changedObjectIds: [] } };
+    return { success: true, revision: working.revision, details: { changedObjectIds: [...new Set(patches.map((p) => p.objectId))] } };
   } catch (err) {
     // Intended-failure modes (corrupt scene on disk, schema-rejected working
     // copy) must never escape as exceptions — callers rely on the documented

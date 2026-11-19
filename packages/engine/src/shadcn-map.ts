@@ -46,6 +46,9 @@ function camelClass(cls: string | undefined): string | null {
 
 /** True for the model's synthesized checkbox/radio/switch inner inputs (id `<parent>::input`). */
 function isSynthesizedControlInput(node: RenderNode): boolean {
+  // Defensive: covers the model's synthesized `${id}::input` / `${id}::track` ids
+  // (model.ts: the hidden control inside checkbox/radio/switch must never map to
+  // a shadcn <Input> — it is part of the composed control).
   if (/::(input|track)$/.test(node.id)) return true;
   const type = node.attrs["type"];
   if (type === "checkbox" || type === "radio") return true;

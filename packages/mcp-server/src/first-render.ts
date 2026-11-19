@@ -13,7 +13,7 @@ import type { MCPContext } from "./index.js";
  *
  * Best effort: a marker failure must never fail the patch itself.
  */
-const FIRST_RENDER_FILE = /^([0-9A-Za-z_\-:.]+)Z-r(\d+)-first-render\.json$/;
+const FIRST_RENDER_FILE = /^([0-9A-Za-z_\-:.]+)Z-r(\d+)(?:-([A-Za-z0-9_-]{1,120}))?-first-render\.json$/;
 
 export async function saveFirstRenderVersion(context: MCPContext, sceneId: string): Promise<void> {
   try {
@@ -24,13 +24,15 @@ export async function saveFirstRenderVersion(context: MCPContext, sceneId: strin
     } catch {
       // dir missing — this is the first marker ever; proceed to create it.
     }
-    if (names.some((name) => FIRST_RENDER_FILE.test(name))) return;
+    // Per-scene markers: a baseline marker for scene B must not suppress A's.
+    if (names.some((name) => FIRST_RENDER_FILE.exec(name)?.[3] === sceneId)) return;
+
 
     const scene = await context.storage.readScene(sceneId);
     if (!scene) return;
     await fs.mkdir(dir, { recursive: true });
     const stamp = new Date().toISOString().replace(/[:.]/g, "-");
-    const file = resolve(dir, `${stamp}-r${scene.revision}-first-render.json`);
+    const file = resolve(dir, `${stamp}-r${scene.revision}-${sceneId}-first-render.json`);
     await writeAtomic(file, JSON.stringify(scene, null, 0));
   } catch {
     // Best effort — never block the patch over a metric marker.

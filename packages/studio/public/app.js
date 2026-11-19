@@ -159,26 +159,59 @@
 
   // ---------- scene ----------
 
-  async function loadScene() {
+  function normalizeScenePayload(scene) {
+    if (!scene || typeof scene !== "object") return null;
+    if (!scene.screens || typeof scene.screens !== "object" || Array.isArray(scene.screens)) return null;
+    if (!scene.objects || typeof scene.objects !== "object" || Array.isArray(scene.objects)) return null;
+    var cleanScreens = {};
+    Object.keys(scene.screens).forEach(function (id) {
+      var s = scene.screens[id];
+      if (s && typeof s === "object" && !Array.isArray(s)) cleanScreens[id] = s;
+    });
+    var cleanObjects = {};
+    Object.keys(scene.objects).forEach(function (id) {
+      var o = scene.objects[id];
+      if (o && typeof o === "object" && !Array.isArray(o)) {
+        if (o.style !== undefined && (typeof o.style !== "object" || o.style === null || Array.isArray(o.style))) o.style = {};
+        if (o.children !== undefined && !Array.isArray(o.children)) o.children = [];
+        cleanObjects[id] = o;
+      }
+    });
+    scene.screens = cleanScreens;
+    scene.objects = cleanObjects;
+    if (!Array.isArray(scene.screenOrder)) scene.screenOrder = [];
+    else scene.screenOrder = scene.screenOrder.filter(function (id) { return typeof id === "string" && cleanScreens[id]; });
+    if (!scene.metadata || typeof scene.metadata !== "object") scene.metadata = { name: "Intent Project", tags: [] };
+    return scene;
+  }
+
+  function loadScene() {
+    var task = (async function () {
     var data = await fetchJson("/api/scene?scene=" + encodeURIComponent(state.sceneId));
     // Never trust the payload shape — a null/partial scene reaching downstream
     // renderers would TypeError and brick the shell (showFatal).
     if (!data || typeof data !== "object") {
       throw new Error("The scene response was empty or malformed.");
     }
-    var scene = data.scene;
-    if (!scene || typeof scene !== "object"
-        || !scene.screens || typeof scene.screens !== "object" || Array.isArray(scene.screens)
-        || !scene.objects || typeof scene.objects !== "object" || Array.isArray(scene.objects)) {
+    var scene = normalizeScenePayload(data.scene);
+    if (!scene) {
       throw new Error("The scene response was malformed (missing screens/objects).");
     }
-    if (!scene.metadata || typeof scene.metadata !== "object") scene.metadata = { name: "Intent Project", tags: [] };
     state.scene = scene;
     state.locked = Array.isArray(data.locked) ? data.locked : [];
+    // Safety: an orphaned drag class must never survive a fresh scene load.
+    resizingActive = false;
+    document.body.classList.remove("resizing-active");
     el.projectName.textContent = (state.scene.metadata && state.scene.metadata.name) || "Intent Project";
     renderScreens();
     renderLayers();
     await renderPreview();
+    })();
+    state.sceneLoad = task;
+    task.finally(function () {
+      if (state.sceneLoad === task) state.sceneLoad = null;
+    });
+    return task;
   }
 
   function orderedScreenIds() {
@@ -200,6 +233,9 @@
 
   function renderScreens() {
     var ids = orderedScreenIds();
+    // Clamp the index — a snapshot restore/SSE shrink may leave fewer screens than before.
+    if (state.screenIndex >= ids.length) state.screenIndex = Math.max(0, ids.length - 1);
+    if (state.screenIndex < 0) state.screenIndex = 0;
     el.screensList.innerHTML = "";
     el.screenSelect.innerHTML = "";
     ids.forEach(function (id, i) {
@@ -357,6 +393,8 @@
         throw new Error("The preview could not be loaded (" + res.status + ").");
       }
       el.frame.srcdoc = await res.text();
+      // Bounds rects belong to the old document — never use them as nudge bases now.
+      state.lastRects = null;
       // Annotations belong to a screen; repaint the ones for the new preview.
       clearAnnotationCanvas();
       redrawAnnotations();
@@ -394,43 +432,59 @@
 
   function mergedStyleValue(objectId, additions) {
     var obj = state.scene && state.scene.objects ? state.scene.objects[objectId] : null;
-    var base = obj && obj.style ? Object.assign({}, obj.style) : {};
+    var base = obj && obj.style && typeof obj.style === "object" && !Array.isArray(obj.style) ? Object.assign({}, obj.style) : {};
     return Object.assign(base, additions || {});
   }
 
-  async function commitStyleEdit(objectId, additions, done) {
-    // Locked objects refuse style edits here too — the drag/nudge paths check,
-    // but the Animation/Keyframe buttons reach this directly (single choke point).
-    if (lockedObjectIds().indexOf(objectId) !== -1) {
-      showToast("That object is locked. Unlock it before editing.");
-      if (typeof done === "function") done(false);
-      return;
-    }
-    try {
-      await fetchJson("/api/object-style", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          sceneId: state.sceneId,
-          objectId: objectId,
-          baseRevision: state.scene ? state.scene.revision : 0,
-          style: mergedStyleValue(objectId, additions),
-        }),
-      });
-      await loadScene(); // loadScene already renders the preview — no second fetch
-      renderSelection();
-      if (typeof done === "function") done(true);
-    } catch (err) {
-      var message = err && err.message ? err.message : "Could not apply the edit.";
-      if (message.indexOf("E_CONFLICT") !== -1 || /changed/i.test(message)) {
-        showToast("The scene changed since you last saw it — reloaded it. Try again.");
-        await loadScene();
-        renderSelection();
-      } else {
-        showToast(message);
+  // Local commits serialize: each waits for the previous commit's file write AND
+  // its loadScene to settle, so baseRevision is always the file's current revision.
+  // The file changes BEFORE the client sees the response, so a blind read of
+  // state.scene.revision mid-commit races to a 409. Chain instead.
+  function commitStyleEdit(objectId, additions, done) {
+    var body = async function () {
+      // Locked objects refuse style edits here too — the drag/nudge paths check,
+      // but the Animation/Keyframe buttons reach this directly (single choke point).
+      if (lockedObjectIds().indexOf(objectId) !== -1) {
+        showToast("That object is locked. Unlock it before editing.");
+        if (typeof done === "function") done(false);
+        return;
       }
-      if (typeof done === "function") done(false);
-    }
+      try {
+        // An SSE/manual refetch in flight must settle too.
+        if (state.sceneLoad) await state.sceneLoad.catch(() => {});
+        var currentRevision = state.scene ? state.scene.revision : 0;
+        await fetchJson("/api/object-style", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            sceneId: state.sceneId,
+            objectId: objectId,
+            baseRevision: currentRevision,
+            style: mergedStyleValue(objectId, additions),
+          }),
+        });
+        await loadScene(); // loadScene already renders the preview — no second fetch
+        renderSelection();
+        if (typeof done === "function") done(true);
+      } catch (err) {
+        var message = err && err.message ? err.message : "Could not apply the edit.";
+        if (message.indexOf("E_CONFLICT") !== -1 || /changed/i.test(message)) {
+          showToast("The scene changed since you last saw it — reloaded it. Try again.");
+          await loadScene();
+          renderSelection();
+        } else {
+          showToast(message);
+        }
+        if (typeof done === "function") done(false);
+      }
+    };
+    var prev = state.scenePromise ?? Promise.resolve();
+    var task = prev.catch(() => {}).then(body);
+    state.scenePromise = task;
+    task.finally(function () {
+      if (state.scenePromise === task) state.scenePromise = null;
+    });
+    return task;
   }
 
   function snapToGrid(value, event) {
@@ -438,7 +492,11 @@
     return Math.round(value / 4) * 4;
   }
 
+  var resizingActive = false;
   function renderOverlay(rects) {
+    // Never rebuild the overlay mid-drag/resize — the .selection-box node holds
+    // pointer capture; replacing it kills the gesture and strands cursor classes.
+    if (resizingActive) return;
     el.overlay.innerHTML = "";
     state.lastRects = rects;
     Object.keys(rects).forEach(function (id) {
@@ -481,6 +539,7 @@
       var moved = false;
       box.setPointerCapture(event.pointerId);
       document.body.classList.add("resizing-active");
+      resizingActive = true;
       function onMove(ev) {
         var dx = ev.clientX - start.x;
         var dy = ev.clientY - start.y;
@@ -496,6 +555,7 @@
         box.removeEventListener("pointerup", onUp);
         box.removeEventListener("pointercancel", onUp);
         document.body.classList.remove("resizing-active");
+        resizingActive = false;
         try {
           box.releasePointerCapture(event.pointerId);
         } catch (err) {
@@ -529,6 +589,7 @@
       var moved = false;
       handle.setPointerCapture(event.pointerId);
       document.body.classList.add("resizing-active");
+      resizingActive = true;
       function onMove(ev) {
         var dw = ev.clientX - start.x;
         var dh = ev.clientY - start.y;
@@ -544,6 +605,7 @@
         handle.removeEventListener("pointerup", onUp);
         handle.removeEventListener("pointercancel", onUp);
         document.body.classList.remove("resizing-active");
+        resizingActive = false;
         try {
           handle.releasePointerCapture(event.pointerId);
         } catch (err) {
@@ -1032,8 +1094,7 @@
         return loadScene();
       }).then(function () {
         renderList();
-        renderPreview();
-        renderSelection();
+        renderSelection(); // loadScene already renders the preview — no second fetch
       }).catch(function (err) {
         var message = err && err.message ? err.message : "Could not save keyframes.";
         if (message.indexOf("E_CONFLICT") !== -1 || /changed/i.test(message)) {
@@ -1041,7 +1102,6 @@
           void loadScene().then(function () {
             working = kfCurrentTable();
             renderList();
-            renderPreview();
             renderSelection();
           });
         } else {
@@ -1062,7 +1122,7 @@
 
     function renderList() {
       list.innerHTML = "";
-      var names = Object.keys(working).sort(function (a, b) { return a.localeCompare(b); });
+      var names = Object.keys(working).sort(function (a, b) { return a < b ? -1 : a > b ? 1 : 0; });
       if (names.length === 0) {
         var empty = document.createElement("div");
         empty.className = "keyframes-empty";
@@ -1298,12 +1358,12 @@
 
   function renderInspector() {
     var body = el.inspectorBody;
-    // An SSE revision re-render must not destroy a field the user is mid-typing in
-    // (keyframe/animation inputs, summary editor) — skip the wipe in that case.
+    // An SSE revision re-render must not destroy a control the user is using
+    // (keyframe/animation inputs, summary editor, buttons being activated).
     var active = document.activeElement;
     if (active && body.contains(active)) {
       var tag = active.tagName;
-      if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || active.isContentEditable) {
+      if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || tag === "BUTTON" || active.isContentEditable) {
         return;
       }
     }
@@ -1477,6 +1537,7 @@
       if (a.screenId !== screenId || !Array.isArray(a.strokes)) return;
       a.strokes.forEach(function (stroke) {
         if (!stroke || !Array.isArray(stroke.points) || stroke.points.length < 2) return;
+        if (stroke.points.length > 2000) return; // corrupt/hostile payload — don't freeze the canvas
         // Validate every point is a finite [x, y] pair before touching the canvas.
         var pts = [];
         for (var p = 0; p < stroke.points.length; p++) {
@@ -1823,7 +1884,7 @@
     var nudge = { id: null, dx: 0, dy: 0, timer: 0, base: null };
 
     function isTypingTarget(target) {
-      return !!(target && target.closest && target.closest('input, textarea, select, [contenteditable="true"], [role="textbox"]'));
+      return !!(target && target.closest && target.closest('input, textarea, select, [contenteditable], [role="textbox"]'));
     }
 
     function commitNudge() {
@@ -1910,6 +1971,8 @@
       showToast("Select an object first.");
       return;
     }
+    // A commit may be in flight — wait for it so baseRevision reflects the file.
+    if (state.scenePromise) await state.scenePromise.catch(() => {});
     var text = el.feedbackText.value.trim();
     var chips = selectedChips();
     if (!text && chips.length === 0) {
@@ -2149,15 +2212,16 @@
   async function loadSceneSoft() {
     try {
       var data = await fetchJson("/api/scene?scene=" + encodeURIComponent(state.sceneId));
-      if (!data || !data.scene || typeof data.scene !== "object") return;
+      var softScene = data && normalizeScenePayload(data.scene);
+      if (!softScene) return;
       // Never resurrect a stale revision over a newer one (out-of-order responses).
-      if (state.scene && typeof data.scene.revision === "number"
+      if (state.scene && typeof softScene.revision === "number"
           && typeof state.scene.revision === "number"
-          && data.scene.revision < state.scene.revision) {
+          && softScene.revision < state.scene.revision) {
         return;
       }
-      var revisionChanged = !state.scene || state.scene.revision !== data.scene.revision;
-      state.scene = data.scene;
+      var revisionChanged = !state.scene || state.scene.revision !== softScene.revision;
+      state.scene = softScene;
       state.locked = Array.isArray(data.locked) ? data.locked : [];
       if (revisionChanged) {
         renderScreens();
@@ -2236,13 +2300,25 @@
       el.interviewBody && el.interviewBody.contains(document.activeElement) ? focusKeyOf(document.activeElement) : null;
   }
   function restorePanelFocus() {
-    if (!lastPanelFocusKey) return;
+    if (!lastPanelFocusKey) {
+      // No key to match (e.g. a new question arrived) — focus the question
+      // container so keyboard users don't re-Tab from the top of the document.
+      var fallback = el.interviewBody && el.interviewBody.querySelector(".interview-question, .interview-option, .summary-title");
+      if (fallback) fallback.focus();
+      return;
+    }
     var els = el.interviewBody.querySelectorAll("button, textarea, input, [tabindex='-1']");
+    var matched = false;
     for (var i = 0; i < els.length; i++) {
       if (focusKeyOf(els[i]) === lastPanelFocusKey) {
         els[i].focus();
+        matched = true;
         break;
       }
+    }
+    if (!matched) {
+      var fallback = el.interviewBody && el.interviewBody.querySelector(".interview-question, .interview-option, .summary-title");
+      if (fallback) fallback.focus();
     }
     lastPanelFocusKey = null;
   }
@@ -2257,7 +2333,7 @@
       if (active.isContentEditable) return true;
     }
     // Legacy guard: a mounted summary contenteditable means an edit may be in flight.
-    return !!el.interviewBody.querySelector('.summary-items .summary-item span[contenteditable="true"]');
+    return !!el.interviewBody.querySelector('.summary-items .summary-item span[contenteditable]');
   }
 
   // M12: never trust the wire shape; a malformed payload used to blank the tab.
@@ -2582,7 +2658,7 @@
       var items = body.querySelectorAll(".summary-items .summary-item");
       items.forEach(function (item) {
         var textSpan = item.querySelector("span:last-child");
-        if (textSpan) textSpan.setAttribute("contenteditable", "true");
+        if (textSpan) textSpan.setAttribute("contenteditable", "plaintext-only");
       });
       change.disabled = true;
       exactly.disabled = true;
@@ -2596,7 +2672,12 @@
           var changes = [];
           body.querySelectorAll(".summary-items .summary-item").forEach(function (item) {
             var textSpan = item.querySelector("span:last-child");
-            if (textSpan) changes.push(textSpan.textContent || "");
+            if (textSpan) {
+              changes.push(textSpan.textContent || "");
+              // Clear the editable flag — a lingering contenteditable span
+              // permanently suppresses interview re-renders via isInterviewEditing().
+              textSpan.removeAttribute("contenteditable");
+            }
           });
           exactly.disabled = false;
           more.disabled = false;
@@ -2655,7 +2736,7 @@
     el.interviewPanel.addEventListener("keydown", function (event) {
       var t = event.target;
       if (!t) return;
-      if (t.closest && (t.closest("textarea") || t.closest('[contenteditable="true"]'))) {
+      if (t.closest && (t.closest("textarea") || t.closest('[contenteditable]'))) {
         return; // the user is typing in the free-text field or the summary editor
       }
       if (/^[0-9]$/.test(event.key)) {
@@ -2709,9 +2790,10 @@
   // then calls the same restoreVersion path the Inspector button uses.
   function wireUndoKey() {
     document.addEventListener("keydown", function (event) {
-      if (!((event.ctrlKey || event.metaKey) && !event.shiftKey && !event.altKey && (event.key === "z" || event.key === "Z"))) return;
+      if (event.repeat) return; // held key must not re-fire the restore confirm repeatedly
+    if (!((event.ctrlKey || event.metaKey) && !event.shiftKey && !event.altKey && (event.key === "z" || event.key === "Z"))) return;
       var target = event.target;
-      if (target && target.closest && target.closest('input, textarea, select, [contenteditable="true"], [role="textbox"]')) return;
+      if (target && target.closest && target.closest('input, textarea, select, [contenteditable], [role="textbox"]')) return;
       if (state.pinMode || state.annotating) return;
       event.preventDefault();
       fetchJson("/api/versions?sceneId=" + encodeURIComponent(state.sceneId))
@@ -2764,12 +2846,13 @@
         event.preventDefault();
         tabs[next].focus();
         var which = tabs[next] === el.interviewTab ? "interview" : tabs[next] === el.feedbackTab ? "feedback" : tabs[next] === el.profileTab ? "profile" : "inspector";
-        activateTab(which);
+        activateTab(which, { focusPanel: false });
       });
     }
   }
 
-  function activateTab(which) {
+  function activateTab(which, opts) {
+    var focusPanel = !opts || opts.focusPanel !== false; // mouse activation focuses the panel; arrow-key roving must not
     var showFeedback = which === "feedback";
     var showInterview = which === "interview";
     var showProfile = which === "profile";
@@ -2785,8 +2868,8 @@
     el.inspectorPanel.hidden = showFeedback || showInterview || showProfile;
     el.interviewPanel.hidden = !showInterview;
     el.profilePanel.hidden = !showProfile;
-    if (showFeedback) el.feedbackText.focus();
-    if (showInterview) {
+    if (showFeedback && focusPanel) el.feedbackText.focus();
+    if (showInterview && focusPanel) {
       var target = el.interviewBody.querySelector(".interview-question, .interview-option, .summary-title");
       if (target) target.focus();
     }

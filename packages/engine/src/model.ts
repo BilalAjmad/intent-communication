@@ -206,7 +206,7 @@ function nodeFor(
 
   // Leaf node types carry no children — silently dropping them would produce
   // empty elements with hidden interactive subtrees. Fail loud instead.
-  const LEAF_TYPES = new Set(["text", "button", "input", "image", "link", "icon", "divider"]);
+  const LEAF_TYPES = new Set(["text", "button", "input", "image", "link", "icon", "divider", "list", "checkbox", "radio", "switch"]);
   if (LEAF_TYPES.has(obj.type) && (obj.children ?? []).length > 0) {
     throw new IntentError(ErrorCodes.E_SCHEMA, `${obj.type} object ${obj.id} declares children — leaf node types never render children`);
   }
@@ -457,7 +457,8 @@ export function normalizeSceneToModel(scene: Scene, options: RenderModelOptions 
   const renderScene = expandComponentInstances(validated);
   const breakpoints = options.breakpoints ?? DEFAULT_BREAKPOINTS;
 
-  const orderedIds = validated.screenOrder.filter((id) => validated.screens[id]);
+  // Dedupe screenOrder — a duplicated screen id would render the screen twice.
+  const orderedIds = [...new Set(validated.screenOrder.filter((id) => validated.screens[id]))];
   const leftover = Object.keys(validated.screens).filter((id) => !orderedIds.includes(id)).sort();
   const allIds = [...orderedIds, ...leftover];
 

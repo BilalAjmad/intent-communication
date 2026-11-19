@@ -37,7 +37,7 @@ export async function handleMetricsGet(ctx: ApiContext, req: IncomingMessage, re
 
   let baseline;
   try {
-    baseline = await findFirstRenderBaseline(ctx.projectRoot);
+    baseline = await findFirstRenderBaseline(ctx.projectRoot, sceneId);
   } catch (err) {
     if (err instanceof IntentError && err.code === ErrorCodes.E_LIMIT) {
       sendJson(res, 413, { error: { code: "E_LIMIT", message: err.message } });
@@ -75,13 +75,13 @@ export async function handleMetricsGet(ctx: ApiContext, req: IncomingMessage, re
   const feedback = await ctx.storage.readFeedback(sceneId);
   const appliedPatches = feedback
     .filter((f) => f.status === "applied")
-    .map((f) => ({ objectId: f.objectId as string | null, appliedAt: f.appliedAt }))
-    .filter((f) => typeof f.appliedAt === "string" && Date.parse(f.appliedAt) >= baseline.capturedAtMs);
+    .map((f) => ({ objectId: f.objectId as string | null, appliedAt: f.appliedAt }));
 
   const metrics = computeAcceptanceRate({
     baselineObjects: nonScreenObjects(baseline.scene),
     currentObjects: nonScreenObjects(current),
     appliedPatches,
+    baselineCapturedAt: baseline.createdAt,
   });
 
   sendJson(res, 200, {

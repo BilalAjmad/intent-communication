@@ -12,6 +12,12 @@ const ALLOWED_PATH_ROOTS = new Set([
 /** `setState` additionally may address the object's states record — the op
  *  exists for exactly that. The second segment must be a well-formed state name. */
 const STATE_NAME = /^[a-z][a-z0-9-]{0,31}$/;
+/** The schema's closed state-name enum (base-object.ts STATE_NAMES) — patches may
+ *  only create states the scene model actually knows how to render. */
+const VALID_STATE_NAMES = new Set([
+  "hover", "pressed", "focus", "disabled", "visited", "checked", "filled",
+  "loading", "error", "empty", "open", "success", "submitting", "content",
+]);
 
 /** `add`/`remove`/`move` may only touch arrays under the same safe roots —
  *  the object's `children` subtree stays unreachable from patches so tree
@@ -53,6 +59,9 @@ function assertSafePatchPath(path: string, op: string): string[] {
         const stateName = parts[1];
         if (!stateName || !STATE_NAME.test(stateName)) {
           throw new IntentError(ErrorCodes.E_BAD_REQUEST, "setState path must be states.<state-name>.… with a lowercase state name");
+        }
+        if (!VALID_STATE_NAMES.has(stateName)) {
+          throw new IntentError(ErrorCodes.E_BAD_REQUEST, `Unknown state name "${stateName}" — states must be one of the schema's names`);
         }
       } else {
         throw new IntentError(

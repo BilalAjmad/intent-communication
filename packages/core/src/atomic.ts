@@ -39,8 +39,12 @@ export async function writeAtomic(targetPath: string, data: string | Buffer): Pr
   try {
     await fh.writeFile(data, typeof data === "string" ? "utf-8" : undefined);
     await fh.sync();
-  } finally {
     await fh.close();
+  } catch (err) {
+    // A failed write must not litter the target directory with *.tmp files.
+    try { await fh.close(); } catch { /* already closed */ }
+    try { await fs.unlink(tmpPath); } catch { /* best effort */ }
+    throw err;
   }
 
   const delays = [20, 40, 80, 160, 320];

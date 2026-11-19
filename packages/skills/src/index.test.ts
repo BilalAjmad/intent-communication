@@ -79,7 +79,9 @@ describe("Skills package", () => {
       expect(content).toContain("get_feedback");
       expect(content).toContain("ask_user");
       expect(content).toContain("open_studio");
-      expect(content).toContain("read_config");
+      expect(content).toContain("validate");
+      // The six real MCP tools — never the nonexistent read_config.
+      expect(content).not.toContain("read_config");
     });
 
     it("design-principles.md contains token system", async () => {

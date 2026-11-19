@@ -81,7 +81,9 @@ export const validateTool: MCPTool = {
       }
       return { valid: true };
     } catch (error) {
-      return { valid: false, error: (error as Error).message };
+      // Cap the message — a Zod issue dump can be huge; the boundary schema also caps it.
+      const message = (error as Error).message;
+      return { valid: false, error: message.length > 2000 ? message.slice(0, 2000) : message };
     }
   },
 };

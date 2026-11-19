@@ -86,25 +86,25 @@ const TOOL_USAGE_MD = `# tool-usage.md
 - **Conflict**: Returned when \`baseRevision !== scene.revision\`
 
 ### get_feedback
-- **Purpose**: Retrieve visual/behavioral feedback
+- **Purpose**: Retrieve visual/behavioral feedback plus pending interview answers
 - **Input**: \`{ sceneId, objectIds?, includeImageData?, since? }\`
-- **Output**: \`{ feedback[] }\`
+- **Output**: \`{ feedback[], interviewAnswers[], locked[], annotations[] }\` (interviewAnswers delivered exactly once, Studio wins over chat)
 
 ### ask_user
-- **Purpose**: Ask interview questions
-- **Input**: \`{ questionId, kind, prompt, options?, min?, max?, step?, previousAnswer?, requiredTopics? }\`
-- **Kinds**: \`start\`, \`choice\`, \`text\`, \`scale\`, \`confirm\`, \`skip\`
-- **Output**: \`{ answer, meter, nextQuestion?, briefId?, delegated? }\`
+- **Purpose**: Ask interview questions, one at a time
+- **Input**: \`{ questionId, kind, prompt, options?, min?, max?, step?, previousAnswer?, requiredTopics?, meter?, questionNumber?, estimatedTotal?, whyAsked?, round?, topic?, summary? }\`
+- **Kinds**: \`start\`, \`choice\`, \`text\`, \`scale\`, \`confirm\`, \`skip\`, \`summary\`
+- **Output**: \`{ questionId, renderedText, studio: { open, url }, meterApplied: { percent, capped, reason? }, budget: { asked, softCap, over }, delegated?, note?, recorded?, preFilled? }\`
 
 ### open_studio
-- **Purpose**: Launch Prototype Studio
-- **Input**: \`{ sceneId, userRequested?, quote? }\`
+- **Purpose**: Return the URL of the local Prototype Studio (does NOT open a browser)
+- **Input**: \`{ sceneId?, userRequested?, quote? }\`
 - **Output**: \`{ url, sessionId }\`
 
-### read_config
-- **Purpose**: Read project configuration
-- **Input**: \`{ keys? }\`
-- **Output**: \`{ config }\`
+### validate
+- **Purpose**: Validate scene/patch/config/profile/interviewState/brief/feedback data against the schema (+ lint for scenes) — writes nothing
+- **Input**: \`{ type, data }\`
+- **Output**: \`{ valid, lint?, error? }\`
 
 ## Tool Calling Rules
 
@@ -112,7 +112,7 @@ const TOOL_USAGE_MD = `# tool-usage.md
 2. **Validate input** — Always parse with Zod schema before calling.
 3. **Handle errors** — Catch \`IntentError\` and return structured error to user.
 4. **Context budget** — Respect \`maxBytes\`; truncate if needed.
-4. **Idempotency** — \`get_scene\` and \`read_config\` are idempotent; \`apply_patch\` is not.
+4. **Idempotency** — \`get_scene\`, \`get_feedback\`, \`validate\` and \`open_studio\` are idempotent; \`apply_patch\` is not.
 
 ## MCP Server
 

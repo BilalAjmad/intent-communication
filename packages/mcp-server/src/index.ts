@@ -260,7 +260,15 @@ export const getFeedbackTool: MCPTool = {
       }
     }
 
-    return { feedback, interviewAnswers, locked, annotations };
+    // Cap every array at the boundary schema's 2000 limit — an honest truncation
+    // instead of the whole tool failing E_INTERNAL on an oversized file.
+    const CAP = 2000;
+    return {
+      feedback: feedback.slice(0, CAP),
+      interviewAnswers: interviewAnswers.slice(0, CAP),
+      locked: locked.slice(0, CAP),
+      annotations: annotations.slice(0, CAP),
+    };
     });
   },
 };

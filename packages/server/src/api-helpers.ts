@@ -150,5 +150,11 @@ export { IntentError, ErrorCodes };
 
 /** Strip absolute filesystem paths from error messages before sending to clients. */
 export function sanitizeErrorMessage(message: string): string {
-  return message.replace(/([A-Za-z]:\\[^\\/"'\s]+(?:\\[^\\/"'\s]+)*|\/(?:[^\\s"']+\/?)+[^\\s"']+)/g, "[path]");
+  // POSIX: /a/b/c — segments may contain spaces ("…/My Projects/app/…")
+  const posix = /\/(?:[^\\/"'\n]+(?: [^\\/"'\n]+)*\/?)+/g;
+  // Windows drive: C:\a\b — segments may contain spaces
+  const drive = /[A-Za-z]:\\[^\\/"'\n]+(?: [^\\/"'\n]+)*(?:\\[^\\/"'\n]+(?: [^\\/"'\n]+)*)*/g;
+  // UNC: \\server\share\dir — and verbatim \\?\C:\… / \\.\C:\…
+  const unc = /\\\\(?:\?\\)?[^\\/"'\n]+(?:\\[^\\/"'\n]+(?: [^\\/"'\n]+)*)*/g;
+  return message.replace(posix, "[path]").replace(drive, "[path]").replace(unc, "[path]");
 }

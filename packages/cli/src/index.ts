@@ -292,7 +292,7 @@ async function printAcceptanceRate(projectRoot: string, sceneId: string, scene: 
   // trd 17.2: the acceptance-rate metric is export *output metadata* — printed
   // to the console, never embedded in the exported artifact.
   try {
-    const baseline = await findFirstRenderBaseline(projectRoot);
+    const baseline = await findFirstRenderBaseline(projectRoot, sceneId);
     if (!baseline) {
       console.log(chalk.dim("acceptance rate: not enough data yet — no first-render baseline in .intent/versions/"));
       return;
@@ -314,6 +314,7 @@ async function printAcceptanceRate(projectRoot: string, sceneId: string, scene: 
       baselineObjects: nonScreen(baseline.scene.objects as Record<string, { type: string }>),
       currentObjects: nonScreen(scene.objects),
       appliedPatches,
+      baselineCapturedAt: baseline.createdAt,
     });
     if (!metrics.available) {
       console.log(chalk.dim(`acceptance rate: not enough data — ${metrics.reason ?? "unavailable"}`));

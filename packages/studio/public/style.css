@@ -635,7 +635,12 @@ textarea:focus {
   min-width: 130px;
 }
 
-.anim-field select:focus {
+.anim-field select:focus-visible {
+  border-color: var(--accent);
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+.anim-field select:focus:not(:focus-visible) {
   border-color: var(--accent);
   outline: none;
 }
@@ -831,7 +836,12 @@ textarea:focus {
   font-size: 13px;
 }
 
-.profile-edit-input:focus {
+.profile-edit-input:focus-visible {
+  border-color: var(--accent);
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+.profile-edit-input:focus:not(:focus-visible) {
   border-color: var(--accent);
   outline: none;
 }
@@ -1287,8 +1297,10 @@ textarea:focus {
   font-size: 12px;
   min-width: 0;
 }
-.keyframes-add input:focus,
-.keyframe-card input:focus { border-color: var(--accent); outline: none; }
+.keyframes-add input:focus-visible,
+.keyframe-card input:focus-visible { border-color: var(--accent); outline: 2px solid var(--accent); outline-offset: 1px; }
+.keyframes-add input:focus:not(:focus-visible),
+.keyframe-card input:focus:not(:focus-visible) { border-color: var(--accent); outline: none; }
 .keyframe-card {
   display: flex;
   flex-direction: column;

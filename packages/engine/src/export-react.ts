@@ -91,7 +91,7 @@ function buildScreenFiles(model: RenderModel, includeDataIds: boolean, designPro
           throw new IntentError(ErrorCodes.E_SCHEMA, `Unsafe export name in design profile: ${imp.name}`);
         }
         const safeFrom = String(imp.from).replace(/^(["'])(.*)\1$/, "$2");
-        if (/[\\\s"'`<>;]/.test(safeFrom) || safeFrom.includes("..")) {
+        if (!safeFrom || /[\\\s"'`<>;]/.test(safeFrom) || safeFrom.includes("..")) {
           throw new IntentError(ErrorCodes.E_SCHEMA, `Unsafe import path in design profile: ${imp.from}`);
         }
         return `import { ${imp.name} } from ${JSON.stringify(safeFrom)};`;
