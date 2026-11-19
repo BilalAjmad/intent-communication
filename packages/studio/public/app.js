@@ -310,10 +310,15 @@
 
   function postToPreview(msg) {
     try {
-      // The preview iframe is sandboxed without allow-same-origin, so its
-      // origin is the opaque "null" — never "*". The channel token still
-      // gates which iframe document may speak back to us.
-      el.frame.contentWindow.postMessage(msg, "null");
+      // NOTE (2026-11-19): targetOrigin "null" was tried and empirically fails —
+      // the sandboxed srcdoc iframe in Chromium never receives the message
+      // (drag/resize e2e: 4/4 specs time out on missing .selection-box).
+      // The preview iframe is sandboxed without allow-same-origin, so any
+      // opaque-origin string addressing is unreliable here. The channel token
+      // is the actual gate: every message carries it and the parent only acts
+      // on messages whose channel matches state.channel (see handlePreviewMessage),
+      // and the iframe only acts on ours that match its init channel.
+      el.frame.contentWindow.postMessage(msg, "*");
     } catch (err) {
       // frame not ready; parent will resend on ready
     }
