@@ -83,6 +83,11 @@ export async function handleSSE(ctx: RuntimeContext, req: IncomingMessage, res: 
   const client = { response: res, sceneId, lastEventId: Number.isFinite(lastEventId) ? lastEventId : 0 };
   const clients = ctx.sseClients.get(sceneId) || [];
   clients.push(client);
+  // Hard cap per scene — beyond it, evict the oldest connection rather than grow without bound.
+  if (clients.length > 64) {
+    const evicted = clients.shift();
+    try { evicted?.response.end(); } catch { /* already gone */ }
+  }
   ctx.sseClients.set(sceneId, clients);
 
   if (Number.isFinite(lastEventId) && lastEventId > 0 && ctx.eventLog.length > 0) {

@@ -2,7 +2,7 @@ import { promises as fs } from "node:fs";
 import { resolve, dirname } from "node:path";
 import { IntentError, ErrorCodes } from "./error.js";
 
-export async function writeAtomic(targetPath: string, data: string): Promise<void> {
+export async function writeAtomic(targetPath: string, data: string | Buffer): Promise<void> {
   // Temp file lives in the SAME directory as the target: rename() is then always
   // same-volume (atomic), and tmp files never escape the project (they used to land
   // in <projectRoot>/tmp for root-level targets).
@@ -37,7 +37,7 @@ export async function writeAtomic(targetPath: string, data: string): Promise<voi
   if (!fh) throw new IntentError(ErrorCodes.E_IO, "Atomic write failed: could not allocate a temp file");
 
   try {
-    await fh.writeFile(data, "utf-8");
+    await fh.writeFile(data, typeof data === "string" ? "utf-8" : undefined);
     await fh.sync();
   } finally {
     await fh.close();

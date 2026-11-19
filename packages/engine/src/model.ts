@@ -374,7 +374,10 @@ function nodeFor(
       node.attrs["data-icon"] = iconName;
       const rawSize = typeof props["size"] === "number" && Number.isFinite(props["size"]) ? Math.floor(props["size"]) : 24;
       node.attrs["data-icon-size"] = String(Math.min(Math.max(rawSize, 1), 256));
-      const color = resolveSceneValue(props["color"]);
+      const rawColor = props["color"];
+      // A numeric "color" is not a paint — resolveSceneValue would emit "12px",
+      // which is invalid for SVG stroke. Keep currentColor instead.
+      const color = typeof rawColor === "number" ? "" : resolveSceneValue(rawColor);
       const safeColor = color ? sanitizeCssValue(color) : "";
       if (safeColor) node.attrs["data-icon-color"] = safeColor;
       break;

@@ -38,6 +38,17 @@ export function checkDocumentVersion(doc: unknown, kind: string, currentVersion:
       `${kind} was written by a newer version of intent-studio (document v${v}; this build reads up to v${currentVersion}). Upgrade intent-studio instead of modifying the file.`,
     );
   }
+  // A version field that is PRESENT but unreadable is not silently treated as v1.
+  if (v === null && doc && typeof doc === "object") {
+    const rec = doc as Record<string, unknown>;
+    const raw = rec["version"] ?? rec["schemaVersion"];
+    if (raw !== undefined && raw !== null) {
+      throw new IntentError(
+        ErrorCodes.E_VERSION,
+        `${kind} has an unreadable version field (${JSON.stringify(raw)}); expected an integer document version`,
+      );
+    }
+  }
 }
 
 export function applyMigrations(kind: string, doc: Record<string, unknown>, currentVersion: number): Record<string, unknown> {

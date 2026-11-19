@@ -44,6 +44,17 @@ export function createLockPort(storage: StoragePort, tmpDir?: string): LockPort 
   // In-memory map of `sceneId/objectId` -> ownerToken for object locks acquired by this process.
   const objectOwnerTokens = new Map<string, string>();
 
+  // Shared staleness filter for object locks: entries whose owner is dead or
+  // stale are treated as reclaimed. Legacy entries with no owner info are kept.
+  function liveLockedObjects(locksFile: { lockedObjects: string[]; owners?: Record<string, { pid: number; createdAt: number }> }): string[] {
+    const owners = locksFile.owners ?? {};
+    return locksFile.lockedObjects.filter((id: string) => {
+      const o = Object.prototype.hasOwnProperty.call(owners, id) ? owners[id] : undefined;
+      if (!o) return true;
+      return !isStale(o.createdAt) && isProcessAlive(o.pid);
+    });
+  }
+
   return {
     // Per-object locks are entries in locks.json (the LocksFile registry).
     // All reads/writes go through storage, which provides the atomic-write guarantee (trd 9.1).
@@ -57,7 +68,7 @@ export function createLockPort(storage: StoragePort, tmpDir?: string): LockPort 
       const owners = locksFile.owners ?? {};
       const key = `${sceneId}/${objectId}`;
       if (locksFile.lockedObjects.includes(objectId)) {
-        const current = owners[objectId];
+        const current = Object.prototype.hasOwnProperty.call(owners, objectId) ? owners[objectId] : undefined;
         if (current && (isStale(current.createdAt) || !isProcessAlive(current.pid))) {
           // Stale entry from a dead or expired owner: reclaim it.
           locksFile.lockedObjects = locksFile.lockedObjects.filter((id: string) => id !== objectId);
@@ -92,7 +103,7 @@ export function createLockPort(storage: StoragePort, tmpDir?: string): LockPort 
       const key = `${sceneId}/${objectId}`;
       const myToken = objectOwnerTokens.get(key);
       const owners = locksFile.owners ?? {};
-      const owner = owners[objectId];
+      const owner = Object.prototype.hasOwnProperty.call(owners, objectId) ? owners[objectId] : undefined;
       if (!myToken || !owner || owner.ownerToken !== myToken) {
         // Not the owner (or token lost): do not remove someone else's lock.
         debugLog(`release not owner ${sceneId}/${objectId}`);
@@ -112,19 +123,14 @@ export function createLockPort(storage: StoragePort, tmpDir?: string): LockPort 
       assertSafeId(sceneId, "sceneId");
       assertSafeId(objectId, "objectId");
       const locksFile = await storage.readLocks(sceneId);
-      return locksFile.lockedObjects.includes(objectId);
+      return liveLockedObjects(locksFile).includes(objectId);
     },
 
     async getLockedObjects(sceneId: string): Promise<string[]> {
       assertSafeId(sceneId, "sceneId");
       const locksFile = await storage.readLocks(sceneId);
-      const owners = locksFile.owners ?? {};
       // Filter out entries whose owner is dead or stale (legacy entries with no owner info are kept, conservatively).
-      return locksFile.lockedObjects.filter((id: string) => {
-        const o = owners[id];
-        if (!o) return true;
-        return !isStale(o.createdAt) && isProcessAlive(o.pid);
-      });
+      return liveLockedObjects(locksFile);
     },
 
     async acquireSceneLock(sceneId: string): Promise<boolean> {
@@ -274,19 +280,31 @@ export function createLockPort(storage: StoragePort, tmpDir?: string): LockPort 
         return false;
       }
       const lockPath = resolve(sceneLockDir, `${sceneId}.lock`);
+      const quarantine = `${lockPath}.release-${Date.now()}-${Math.random().toString(36).slice(2)}`;
       try {
-        // Only remove if ownerToken matches (trd 9.2)
-        const content = await fsp.readFile(lockPath, "utf-8");
+        // Quarantine first (atomic rename), then verify+unlink — a third party
+        // reclaiming the lock mid-release can never be unlinked from under it.
+        await fsp.rename(lockPath, quarantine);
+      } catch {
+        sceneOwnerTokens.delete(sceneId);
+        return false;
+      }
+      try {
+        const content = await fsp.readFile(quarantine, "utf-8");
         const data = JSON.parse(content) as { ownerToken?: string };
-        if (myToken && data.ownerToken && data.ownerToken !== myToken) {
+        if (data.ownerToken && data.ownerToken !== myToken) {
+          // Not ours — restore it rather than destroy a live third-party lock.
+          try { await fsp.rename(quarantine, lockPath); } catch { /* orphaned quarantine kept off the live path */ }
           debugLog(`releaseSceneLock ownerToken mismatch ${sceneId}`);
+          sceneOwnerTokens.delete(sceneId);
           return false;
         }
-        await fsp.unlink(lockPath);
+        await fsp.unlink(quarantine);
         sceneOwnerTokens.delete(sceneId);
         debugLog(`releaseSceneLock released ${sceneId}`);
         return true;
       } catch {
+        try { await fsp.unlink(quarantine); } catch { /* best effort */ }
         sceneOwnerTokens.delete(sceneId);
         return false;
       }

@@ -4,6 +4,7 @@ import {
   Scene, LocksFile, Config, Profile, InterviewState, Brief, Feedback, Annotation,
   validateScene, validateConfig, validateProfile, validateInterviewState, validateBrief, validateFeedback, validateAnnotation,
   IntentProfileSchema, validateInterviewMetrics, type InterviewMetrics, type IntentProfile,
+  LocksFileSchema,
 } from "@intent/schema";
 import { IntentError, ErrorCodes } from "./error.js";
 import { checkDocumentVersion } from "./migrations.js";
@@ -34,9 +35,9 @@ export function createStoragePort(testDir: string): StoragePort {
   }
 
   /**
-   * Rejects any path that escapes `basePath`, and any symlink target.
-   * Mirrors the adapters-node implementation so the two storage ports cannot
-   * drift apart in their safety behaviour (Review Focus #3).
+   * Rejects any path that escapes `basePath`, and any symlink in ANY path
+   * component (final file or an ancestor directory) — a symlinked ancestor
+   * would otherwise redirect writes outside the project root.
    */
   async function checkPathSafety(targetPath: string, basePath: string): Promise<void> {
     const resolved = resolve(targetPath);
@@ -45,17 +46,32 @@ export function createStoragePort(testDir: string): StoragePort {
     if (rel.startsWith("..") || isAbsolute(rel)) {
       throw new IntentError(ErrorCodes.E_PATH_TRAVERSAL, "Path traversal attempt detected");
     }
-    try {
-      const stats = await fs.lstat(resolved);
-      if (stats.isSymbolicLink()) {
-        throw new IntentError(ErrorCodes.E_SYMLINK, "Symlinks not allowed");
+    // Walk every component from the base down to the target; lstat each.
+    const segments = rel.split(/[\\/]+/).filter((s) => s.length > 0);
+    let cursor = resolvedBase;
+    for (const segment of segments) {
+      cursor = resolve(cursor, segment);
+      try {
+        const stats = await fs.lstat(cursor);
+        if (stats.isSymbolicLink()) {
+          throw new IntentError(ErrorCodes.E_SYMLINK, `Symlinks not allowed in path: ${segment}`);
+        }
+      } catch (err) {
+        if (err instanceof IntentError) throw err;
+        const code = (err as NodeJS.ErrnoException).code;
+        if (code !== "ENOENT") throw err;
+        return; // A missing component ends the chain — nothing to verify further down.
       }
-    } catch (err) {
-      // Missing file is fine; symlink rejection is re-thrown.
-      if (err instanceof IntentError) throw err;
-      const code = (err as NodeJS.ErrnoException).code;
-      if (code !== "ENOENT") throw err;
     }
+  }
+
+  /** Read a UTF-8 file with a hard byte cap, applied BEFORE the read (not after). */
+  async function readFileCapped(filePath: string, maxBytes: number, label: string): Promise<string> {
+    const stats = await fs.stat(filePath);
+    if (stats.size > maxBytes) {
+      throw new IntentError(ErrorCodes.E_LIMIT, `${label} exceeds the ${maxBytes}-byte hard limit`);
+    }
+    return fs.readFile(filePath, "utf-8");
   }
 
   return {
@@ -102,23 +118,25 @@ export function createStoragePort(testDir: string): StoragePort {
       assertSafeId(sceneId, "sceneId");
       const locksPath = resolve(locksDir, `${sceneId}.locks.json`);
       try {
-        const content = await fs.readFile(locksPath, "utf-8");
+        const content = await readFileCapped(locksPath, 1024 * 1024, `Lock file for scene ${sceneId}`);
         const data = JSON.parse(content) as Partial<LocksFile> & { lockedObjects?: unknown; owners?: unknown; locks?: unknown };
         checkDocumentVersion(data, "locks", 1);
         if (data.lockedObjects === undefined && data.locks && typeof data.locks === "object" && !Array.isArray(data.locks)) {
           data.lockedObjects = Object.keys(data.locks as Record<string, unknown>);
         }
-        if (!Array.isArray(data.lockedObjects) || data.lockedObjects.some((id) => typeof id !== "string")) {
-          throw new IntentError(ErrorCodes.E_SCHEMA, `Lock file for scene ${sceneId} has an invalid lockedObjects array`);
-        }
-        if (data.owners !== undefined && (typeof data.owners !== "object" || data.owners === null || Array.isArray(data.owners))) {
-          throw new IntentError(ErrorCodes.E_SCHEMA, `Lock file for scene ${sceneId} has an invalid owners map`);
-        }
-        return {
+        // Full schema enforcement — hand-rolled shape checks alone let a crafted
+        // locks.json through with unbounded lockedObjects/owners entries.
+        const parsed = LocksFileSchema.parse({
           version: data.version ?? 1,
           lockedObjects: data.lockedObjects,
           updatedAt: data.updatedAt ?? new Date().toISOString(),
-          owners: (data.owners as LocksFile["owners"]) ?? {},
+          owners: data.owners ?? {},
+        });
+        return {
+          version: 1,
+          lockedObjects: parsed.lockedObjects,
+          updatedAt: parsed.updatedAt,
+          owners: (parsed.owners as LocksFile["owners"]) ?? {},
         };
       } catch (err) {
         if ((err as NodeJS.ErrnoException)?.code === "ENOENT") {
@@ -141,12 +159,14 @@ export function createStoragePort(testDir: string): StoragePort {
       await ensureDirs();
       assertSafeId(sceneId, "sceneId");
       const locksPath = resolve(locksDir, `${sceneId}.locks.json`);
-      await writeAtomic(locksPath, JSON.stringify(locksFile, null, 0));
+      // Validate on write too — a bad in-memory shape must not poison the file.
+      const serialized = JSON.stringify(LocksFileSchema.parse(locksFile), null, 0);
+      await writeAtomic(locksPath, serialized);
     },
 
     async readConfig(): Promise<Config> {
       try {
-        const content = await fs.readFile(configPath, "utf-8");
+        const content = await readFileCapped(configPath, 1024 * 1024, "Config file");
         const parsedConfig = JSON.parse(content) as unknown;
         checkDocumentVersion(parsedConfig, "config", 1);
         return validateConfig(parsedConfig);
@@ -176,7 +196,7 @@ export function createStoragePort(testDir: string): StoragePort {
 
     async readProfile(): Promise<Profile | null> {
       try {
-        const content = await fs.readFile(profilePath, "utf-8");
+        const content = await readFileCapped(profilePath, 2 * 1024 * 1024, "Profile file");
         const parsedProfile = JSON.parse(content) as unknown;
         checkDocumentVersion(parsedProfile, "profile", 1);
         return validateProfile(parsedProfile);
@@ -194,7 +214,7 @@ export function createStoragePort(testDir: string): StoragePort {
 
     async readIntentProfile(): Promise<IntentProfile> {
       try {
-        const content = await fs.readFile(intentProfilePath, "utf-8");
+        const content = await readFileCapped(intentProfilePath, 2 * 1024 * 1024, "Intent profile");
         const parsedIntentProfile = JSON.parse(content) as unknown;
         checkDocumentVersion(parsedIntentProfile, "intent-profile", 1);
         return IntentProfileSchema.parse(parsedIntentProfile);
@@ -213,7 +233,7 @@ export function createStoragePort(testDir: string): StoragePort {
 
     async readInterviewState(): Promise<InterviewState | null> {
       try {
-        const content = await fs.readFile(interviewPath, "utf-8");
+        const content = await readFileCapped(interviewPath, 5 * 1024 * 1024, "Interview state");
         const parsedInterview = JSON.parse(content) as unknown;
         checkDocumentVersion(parsedInterview, "interview-state", 1);
         return validateInterviewState(parsedInterview);
@@ -231,7 +251,7 @@ export function createStoragePort(testDir: string): StoragePort {
 
     async readInterviewMetrics(): Promise<InterviewMetrics> {
       try {
-        const content = await fs.readFile(metricsPath, "utf-8");
+        const content = await readFileCapped(metricsPath, 2 * 1024 * 1024, "Interview metrics");
         const parsed = JSON.parse(content) as unknown;
         checkDocumentVersion(parsed, "interview-metrics", 1);
         return validateInterviewMetrics(parsed);
@@ -251,7 +271,7 @@ export function createStoragePort(testDir: string): StoragePort {
       assertSafeId(briefId, "briefId");
       const briefPath = resolve(briefsDir, `${briefId}.json`);
       try {
-        const content = await fs.readFile(briefPath, "utf-8");
+        const content = await readFileCapped(briefPath, 5 * 1024 * 1024, `Brief file ${briefId}`);
         const parsedBrief = JSON.parse(content) as unknown;
         checkDocumentVersion(parsedBrief, "brief", 1);
         return validateBrief(parsedBrief);
@@ -273,7 +293,7 @@ export function createStoragePort(testDir: string): StoragePort {
       assertSafeId(sceneId, "sceneId");
       const feedbackPath = resolve(feedbackDir, `${sceneId}.json`);
       try {
-        const content = await fs.readFile(feedbackPath, "utf-8");
+        const content = await readFileCapped(feedbackPath, 5 * 1024 * 1024, `Feedback file for scene ${sceneId}`);
         const data = JSON.parse(content) as unknown;
         if (!Array.isArray(data)) {
           throw new IntentError(ErrorCodes.E_SCHEMA, `Feedback file for scene ${sceneId} is not an array`);
@@ -303,10 +323,8 @@ export function createStoragePort(testDir: string): StoragePort {
       assertSafeId(sceneId, "sceneId");
       const annotationsPath = resolve(annotationsDir, `${sceneId}.json`);
       try {
-        const content = await fs.readFile(annotationsPath, "utf-8");
-        if (content.length > 1_000_000) {
-          throw new IntentError(ErrorCodes.E_SCHEMA, "Annotations file exceeds the 1 MB limit");
-        }
+        // Cap measured in BYTES, before the read fully happens (stat-based).
+        const content = await readFileCapped(annotationsPath, 1_000_000, `Annotations file for scene ${sceneId}`);
         const data = JSON.parse(content) as unknown;
         if (!Array.isArray(data)) {
           throw new IntentError(ErrorCodes.E_SCHEMA, `Annotations file for scene ${sceneId} is not an array`);
@@ -360,10 +378,13 @@ export function createStoragePort(testDir: string): StoragePort {
         throw new IntentError(ErrorCodes.E_BAD_REQUEST, "PNG dimensions out of range (max 4096)");
       }
       const dir = resolve(annotationsDir, sceneId);
+      // Refuse symlinked ancestors (not just the final file) before mkdir.
+      await checkPathSafety(dir, annotationsDir);
       await fs.mkdir(dir, { recursive: true });
       const target = resolve(dir, `${annotationId}.png`);
       await checkPathSafety(target, dir);
-      await fs.writeFile(target, png, { mode: 0o600 });
+      // Atomic + exclusive — never a torn PNG served as valid.
+      await writeAtomic(target, png);
       return { file: `${annotationId}.png`, width, height };
     },
 
@@ -379,7 +400,16 @@ export function createStoragePort(testDir: string): StoragePort {
         if (stats.size > 1_000_000) {
           throw new IntentError(ErrorCodes.E_BAD_REQUEST, "PNG exceeds the 1 MB server limit");
         }
-        return await fs.readFile(target);
+        const buf = await fs.readFile(target);
+        // TOCTOU + integrity: re-check size and magic bytes after the read too.
+        if (buf.length > 1_000_000) {
+          throw new IntentError(ErrorCodes.E_BAD_REQUEST, "PNG exceeds the 1 MB server limit");
+        }
+        const PNG_MAGIC = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+        if (buf.length < 33 || !buf.subarray(0, 8).equals(PNG_MAGIC) || buf.toString("latin1", 12, 16) !== "IHDR") {
+          throw new IntentError(ErrorCodes.E_BAD_REQUEST, "Not a valid PNG file");
+        }
+        return buf;
       } catch (err) {
         if ((err as NodeJS.ErrnoException)?.code === "ENOENT") return null;
         if (err instanceof IntentError) throw err;

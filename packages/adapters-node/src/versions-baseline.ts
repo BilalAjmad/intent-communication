@@ -52,7 +52,8 @@ export async function findFirstRenderBaseline(projectRoot: string): Promise<Firs
   candidates.sort((a, b) => {
     const ta = Date.parse(stampToIso(a.match[1] ?? "")) || 0;
     const tb = Date.parse(stampToIso(b.match[1] ?? "")) || 0;
-    return ta - tb || a.name.localeCompare(b.name);
+    const nameCompare = a.name < b.name ? -1 : a.name > b.name ? 1 : 0;
+    return ta - tb || nameCompare;
   });
 
   const earliest = candidates[0] as (typeof candidates)[number];
