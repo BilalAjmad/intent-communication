@@ -400,7 +400,7 @@ export function createCLI(): Command {
   program
     .name("intent")
     .description("Intent — browser-first SPA monorepo for closing the intent gap")
-    .version("0.1.0")
+    .version("1.0.0")
     .option("-p, --path <path>", "Project root path", process.cwd());
 
   program
