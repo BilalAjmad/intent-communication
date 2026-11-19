@@ -78,7 +78,7 @@ async function main() {
   // exempt entirely (they exercise the disk and never ship).
   console.log('\n3. No static banned imports in the portable kernels (schema, linter, engine):');
   const bannedImports = ['fs', 'path', 'child_process', 'crypto', 'http', 'https', 'net', 'dgram', 'dns'];
-  const staticBanned = new RegExp('(?:^|[\\s;])(?:import\\s+(?:[^\'"]*?\\sfrom\\s+)?|export\\s+[^\'"]*?\\sfrom\\s+|require\\s*\\()\\s*[\\x27\\x22](?:node:)?(' + bannedImports.join('|') + ')(?:[/\\x27\\x22]|$)', 'gm');
+  const staticBanned = new RegExp('(?:^|[\\s;])(?:import\\s*(?:[^\'"]*?\\bfrom\\s*)?|export\\s*[^\'"]*?\\bfrom\\s*|require\\s*\\()\\s*[\\x27\\x22](?:node:)?(' + bannedImports.join('|') + ')(?:[/\\x27\\x22]|$)', 'gm');
   const dynamicBanned = new RegExp('import\\s*\\(\\s*[\\x27\\x22](?:node:)?(' + bannedImports.join('|') + ')', 'g');
   let bannedCount = 0;
   let dynamicCount = 0;

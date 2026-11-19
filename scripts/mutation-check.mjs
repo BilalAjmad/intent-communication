@@ -99,9 +99,10 @@ process.on('exit', () => {
   restoreFromBackups();
 });
 for (const sig of ['SIGINT', 'SIGTERM', 'SIGHUP']) {
+  const signo = { SIGINT: 2, SIGTERM: 15, SIGHUP: 1 }[sig];
   process.on(sig, () => {
     restoreFromBackups();
-    process.exit(130);
+    process.exit(128 + signo);
   });
 }
 
@@ -154,7 +155,7 @@ function runMutation(mutation) {
     let exitCode = 0;
     try {
       output = execSync(
-        `pnpm --filter @intent/core exec vitest run src/mutation.test.ts --reporter=json --outputFile=${tmpReport} --testTimeout=30000`,
+        `pnpm --filter @intent/core exec vitest run src/mutation.test.ts --reporter=json "--outputFile=${tmpReport}" --testTimeout=30000`,
         { cwd: ROOT, stdio: 'pipe', timeout: 120000, maxBuffer: 64 * 1024 * 1024 }
       ).toString();
     } catch (e) {

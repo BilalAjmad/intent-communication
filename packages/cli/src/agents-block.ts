@@ -66,7 +66,9 @@ export async function ensureAgentsIntentBlock(
 
   const start = raw.indexOf(BLOCK_START);
   const end = raw.indexOf(BLOCK_END);
-  if (start !== -1 && end !== -1 && end > start) {
+  const startCount = raw.split(BLOCK_START).length - 1;
+  const endCount = raw.split(BLOCK_END).length - 1;
+  if (start !== -1 && end !== -1 && end > start && startCount === 1 && endCount === 1) {
     const before = raw.slice(0, start);
     const after = raw.slice(end + BLOCK_END.length);
     const merged = before + INTENT_AGENTS_BLOCK.trimEnd() + after;
@@ -75,10 +77,10 @@ export async function ensureAgentsIntentBlock(
     return { changed, file, action: changed ? "replaced" : "unchanged" };
   }
   if (start !== -1 || end !== -1) {
-    // Orphan marker: never guess where the block belongs — refuse to touch
-    // user-authored content.
+    // Orphan or DUPLICATE markers: never guess where the block belongs —
+    // documenting the markers in a code sample must not be mistaken for the block.
     throw new Error(
-      `AGENTS.md has an orphan intent marker (start: ${start}, end: ${end}); refusing to edit — remove or fix the markers manually`,
+      `AGENTS.md has ambiguous intent markers (start: ${start}\u00d7${startCount}, end: ${end}\u00d7${endCount}); refusing to edit — remove or fix the markers manually`,
     );
   }
 

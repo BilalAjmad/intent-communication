@@ -1,7 +1,5 @@
 # Documentation Index
 
-Generated: 2026-11-19T13:39:19.366Z
-
 ## Plan
 
 - Path: `docs/plan.md`
@@ -39,6 +37,14 @@ Generated: 2026-11-19T13:39:19.366Z
   - 17 17. Open Questions
   - 18 18. Flags for Later Documents
   - 19 19. Change Log
+
+## INDEX
+
+- Path: `docs/INDEX.md`
+
+## USAGE
+
+- Path: `docs/USAGE.md`
 
 ## Acceptance Protocol
 
@@ -173,10 +179,6 @@ Generated: 2026-11-19T13:39:19.366Z
   - 15 15. Open Questions (to resolve in later docs)
   - 16 16. Flags for Later Documents
   - 17 17. Change Log
-
-## INDEX
-
-- Path: `docs/INDEX.md`
 
 ## Intent
 
@@ -634,10 +636,6 @@ Generated: 2026-11-19T13:39:19.366Z
   - 25 25. Open Questions (to resolve in later documents)
   - 26 26. Flags for Later Documents
   - 27 27. Change Log
-
-## USAGE
-
-- Path: `docs/USAGE.md`
 
 ## Versions
 

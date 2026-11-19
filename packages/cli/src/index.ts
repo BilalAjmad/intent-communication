@@ -378,7 +378,7 @@ async function exportCommand(projectRoot: string, options: { scene?: string; out
           throw new Error(`Export path escapes output directory: ${relative}`);
         }
         await fs.mkdir(dirname(target), { recursive: true });
-        await fs.writeFile(target, content, "utf8");
+        await writeAtomic(target, content);
         written += 1;
       }
       spinner.succeed(chalk.green(`Exported ${written} files to ${outDir}`));

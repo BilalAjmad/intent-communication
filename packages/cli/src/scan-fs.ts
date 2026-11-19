@@ -44,7 +44,7 @@ export async function newestMtime(files: string[]): Promise<string> {
       // ignore unreadable source for the timestamp
     }
   }
-  return (newest > 0 ? new Date(newest) : new Date()).toISOString();
+  return (newest > 0 ? new Date(newest) : new Date(0)).toISOString();
 }
 
 export async function readUnderLimit(file: string): Promise<string | null> {

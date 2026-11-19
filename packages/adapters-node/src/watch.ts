@@ -64,6 +64,7 @@ export function createFileWatcher(
   const pollIntervalMs = options.pollIntervalMs ?? 1000;
   const maxFiles = options.maxFiles ?? 1000;
 
+  dir = resolve(dir);
   const timers = new Map<string, ReturnType<typeof setTimeout>>();
   const emit = (rel: string) => {
     const existing = timers.get(rel);
