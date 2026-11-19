@@ -289,8 +289,7 @@ async function readDesignProfile(projectRoot: string): Promise<DesignProfileLike
 }
 
 async function printAcceptanceRate(projectRoot: string, sceneId: string, scene: { objects: Record<string, { type: string }> }): Promise<void> {
-  // trd 17.2: the acceptance-rate metric is export *output metadata* — printed
-  // to the console, never embedded in the exported artifact.
+  // trd 17.2: the acceptance-rate metric is export output metadata, never embedded in the artifact.
   try {
     const baseline = await findFirstRenderBaseline(projectRoot, sceneId);
     if (!baseline) {

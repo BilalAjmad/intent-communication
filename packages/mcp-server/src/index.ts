@@ -204,8 +204,7 @@ export const getFeedbackTool: MCPTool = {
     const lockedRaw = await context.lockPort.getLockedObjects(validated.sceneId);
     const locked = lockedWithDescendantsLocal(scene, lockedRaw);
 
-    // Interview answers: unconsumed Studio/Chat answers, Studio wins on the same questionId
-    // (TC-INT-17), each returned exactly once, then marked consumed (trd 10.4).
+    // Interview answers: unconsumed only; Studio wins on the same questionId (TC-INT-17); delivered exactly once (trd 10.4).
     const interviewState = await context.storage.readInterviewState();
     let interviewAnswers: { questionId: string; answer: unknown; via: "studio" | "chat"; answeredAt: string }[] = [];
     if (interviewState && interviewState.answers.length > 0) {
@@ -223,9 +222,7 @@ export const getFeedbackTool: MCPTool = {
         via: a.via,
         answeredAt: a.answeredAt,
       }));
-      // Trd 10.4: delivered exactly once — mark consumed, never delete: the
-      // TC-INT-17 studio-wins rule must hold for the rest of the interview.
-      // The 200-entry schema cap is enforced by the prune below (newest kept).
+      // Trd 10.4: delivered exactly once — mark consumed, never delete (TC-INT-17 studio-wins holds).
       interviewState.answers = interviewState.answers.map((a) => ({ ...a, consumed: true }));
       interviewState.updatedAt = new Date().toISOString();
       await context.storage.writeInterviewState(pruneConsumedAnswers(interviewState));
@@ -260,8 +257,7 @@ export const getFeedbackTool: MCPTool = {
       }
     }
 
-    // Cap every array at the boundary schema's 2000 limit — an honest truncation
-    // instead of the whole tool failing E_INTERNAL on an oversized file.
+    // Cap arrays at the boundary schema's 2000 limit — honest truncation, not E_INTERNAL.
     const CAP = 2000;
     return {
       feedback: feedback.slice(0, CAP),
