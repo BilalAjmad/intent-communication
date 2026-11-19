@@ -7,6 +7,23 @@
 
 ## Install
 
+### From a portable tarball (local, built today)
+
+```powershell
+# Tarball lives at dist-install/intent-communication-1.0.0.tgz in this repo.
+npm install -g <path-to>/intent-communication-1.0.0.tgz
+intent --version   # 1.0.0
+```
+
+The single-file bundle works from any folder (`intent init`, `intent doctor` verified on a fresh project on 2026-11-19).
+To make it installable from GitHub, upload the tarball to a GitHub release (needs owner go-ahead), e.g.:
+
+```powershell
+npm install -g https://github.com/BilalAjmad/intent-communication/releases/download/v1.0.1/intent-communication-1.0.0.tgz
+```
+
+### From source
+
 ```powershell
 git clone <repo-url> intent
 cd intent
