@@ -2,7 +2,25 @@
 
 Intent closes the "intent gap" — the problem where a user writes a short prompt,
 the AI guesses, and the output only matches ~70% of what they actually wanted.
-Intent raises intent match to 97–99% in two steps:
+
+## Two ways to use it
+
+**Option 1 — Global auto (recommended, no slash commands).** Install once, and every
+configured AI agent on this machine follows Intent rules automatically for all
+design/UI work: it interviews you one question at a time, and you edit visually in
+the Studio. No command to type per session. See `docs/USAGE.md`.
+
+**Option 2 — Slash commands (`/intent`, `/prototype`).** Paste `/intent` **once at
+the start of a conversation** — the agent then follows the interview rules for the
+whole session (no need to paste it in every message). `/prototype` switches the
+same session to visual Studio editing. `intent init` writes both commands into
+`.claude/commands/` and `.cursor/commands/` of your project; they are also
+installed globally for the agents on this machine.
+
+These two options are independent: you can use only one, or both (they are the
+same rules underneath).
+
+Intent raises intent match toward a **97–99% target** in two steps:
 
 1. **Deep interview** — Before building anything, the agent interviews you in
    micro-detail (goal, users, screens, flow, style, content, behavior, edge
