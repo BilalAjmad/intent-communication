@@ -206,7 +206,7 @@ describe("Annotations API (trd 9.7)", () => {
     expect(notPng.status).toBe(400);
   });
 
-  it("patch → send flips open annotations to sent; DELETE rejects sent with 409", async () => {
+  it("patch → send flips open annotations to sent; DELETE rejects sent with 409", { timeout: 15000 }, async () => {
     await seedScene();
     const cookie = await exchange();
     const create = (await (

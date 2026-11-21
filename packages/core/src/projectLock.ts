@@ -23,10 +23,10 @@ export async function withProjectLock<T>(
   fn: () => Promise<T>,
 ): Promise<T> {
   let acquired = false;
-  for (let attempt = 0; attempt < 5; attempt++) {
+  for (let attempt = 0; attempt < 3; attempt++) {
     acquired = await lockPort.acquireSceneLock(name);
     if (acquired) break;
-    await new Promise((r) => setTimeout(r, 10));
+    await new Promise((r) => setTimeout(r, 5));
   }
   if (!acquired) {
     throw new IntentError(ErrorCodes.E_LOCKED, `Project lock "${name}" is busy; retry shortly`);
