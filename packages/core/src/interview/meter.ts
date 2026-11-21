@@ -8,13 +8,15 @@
  * replaces the earlier value; `reopen` sets it back to unknown. Topic score =
  * mean of its in-scope slot values. Topic status: none (<0.25), partial
  * (0.25-0.74), covered (>=0.75). serverPercent = floor(100 * Σ weight*score
- * / Σ weight). If any required topic is `none` the meter is capped at 89.
+ * / Σ weight). While any required topic is `none` the reported percent is
+ * capped at 89 (final master order 2026-11-21, section B). The cap lowers the
+ * number, never the question count: there is no hard question limit.
  */
 import { ALL_SEEDS, Seed } from "./bank.js";
 
 export type TaskSize = "small" | "medium" | "large";
 export type Milestone = "M1" | "M2" | "M3";
-export type MeterReason = "no-evidence" | "required-topic-none" | "ok";
+export type MeterReason = "no-evidence" | "required-topic-none" | "ok" | "complete";
 export type Evidence = 0 | 0.5 | 1;
 export type TopicStatus = "none" | "partial" | "covered";
 
@@ -96,13 +98,17 @@ export function estimateMeter(
   }
 
   const requiredNone = active.some((t) => REQUIRED.has(t) && topicStatus[t] === "none");
+  // Final master order (2026-11-21, section B): the server caps the meter at 89
+  // while any required topic is uncovered. The interview itself has no hard
+  // question limit: it keeps asking until every required topic is covered and
+  // the user approves the summary. 100 is reachable only from real evidence.
   const percent = requiredNone ? Math.min(serverPercent, 89) : serverPercent;
   const capped = percent !== serverPercent;
   return {
     percent,
     serverPercent,
     capped,
-    reason: requiredNone ? "required-topic-none" : percent === 0 ? "no-evidence" : "ok",
+    reason: requiredNone ? "required-topic-none" : percent === 0 ? "no-evidence" : percent === 100 ? "complete" : "ok",
     topicStatus,
   };
 }
@@ -124,15 +130,22 @@ export function nextQuestion(view: InterviewView): Seed | null {
   const candidates = ALL_SEEDS.filter((s: Seed) => s.profileKey && scope.has(s.profileKey));
   const topicOf = (s: Seed) => (s.profileKey ?? "").split(".")[0] ?? "";
   candidates.sort((a: Seed, b: Seed) => {
-    const pa = TOPIC_PRIORITY.indexOf(topicOf(a));
-    const pb = TOPIC_PRIORITY.indexOf(topicOf(b));
+    const rank = (topic: string) => {
+      const idx = TOPIC_PRIORITY.indexOf(topic);
+      // Unknown topics (e.g. "deep") sort AFTER every known priority — never before goal.
+      return idx === -1 ? TOPIC_PRIORITY.length : idx;
+    };
+    const pa = rank(topicOf(a));
+    const pb = rank(topicOf(b));
     if (pa !== pb) return pa - pb;
     return (TIER_RANK[a.tier] ?? 9) - (TIER_RANK[b.tier] ?? 9);
   });
   for (const seed of candidates) {
     const slot = seed.profileKey as string;
     if (!view.evidence.has(slot)) {
-      view.asked.push(slot);
+      // Deep-dive seeds stay ahead of equally-prioritized peers only when unanswered;
+      // never re-ask a slot the view already asked (dedupe).
+      if (!view.asked.includes(slot)) view.asked.push(slot);
       return seed;
     }
   }

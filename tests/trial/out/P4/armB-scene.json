@@ -1,0 +1,36 @@
+{
+  "version": 1,
+  "revision": 1,
+  "createdAt": "2026-11-21T10:06:43.924Z",
+  "updatedAt": "2026-11-21T10:06:43.924Z",
+  "screens": {},
+  "objects": {},
+  "screenOrder": [],
+  "metadata": {
+    "name": "Trial",
+    "tags": [],
+    "artDirection": {
+      "visualIdea": "minimal, data-dense, sharp corners, indigo accent, dense",
+      "palette": [
+        "indigo"
+      ],
+      "typePlan": "system 3 sizes",
+      "spacing": "4/8"
+    },
+    "screens": [
+      "Overview",
+      "Users",
+      "Revenue",
+      "Settings"
+    ],
+    "style": "minimal, data-dense, sharp corners, indigo accent, dense",
+    "theme": "dark",
+    "density": "dense",
+    "corner": "sharp",
+    "tone": "technical",
+    "dataType": "charts",
+    "states": "loading empty error success",
+    "navType": "top bar plus sidebar",
+    "primaryAction": "Export report"
+  }
+}

@@ -1,3 +1,7 @@
 import { runCLI } from "./index.js";
 
-await runCLI();
+runCLI().catch((err) => {
+  console.error(err);
+  process.exit(1);
+});
+

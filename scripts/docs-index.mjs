@@ -40,7 +40,7 @@ function getDocEntries() {
   entries.sort((a, b) => {
     if (a.path === 'plan.md') return -1;
     if (b.path === 'plan.md') return 1;
-    return a.path.localeCompare(b.path);
+    return a.path < b.path ? -1 : a.path > b.path ? 1 : 0;
   });
 
   return entries;
@@ -49,7 +49,6 @@ function getDocEntries() {
 function generateIndex() {
   const entries = getDocEntries();
   let md = '# Documentation Index\n\n';
-  md += `Generated: ${new Date().toISOString()}\n\n`;
 
   for (const entry of entries) {
     md += `## ${entry.title}\n\n`;
@@ -99,7 +98,7 @@ while ((match = stepRegex.exec(section83Content)) !== null) {
   }
 }
 
-steps.sort((a, b) => a.num.localeCompare(b.num));
+steps.sort((a, b) => (a.num < b.num ? -1 : a.num > b.num ? 1 : 0));
 
 console.log(`Found ${steps.length} S-1 steps in plan.md section 8.3:`);
 for (const step of steps) {

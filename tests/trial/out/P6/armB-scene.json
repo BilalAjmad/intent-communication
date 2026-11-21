@@ -1,0 +1,36 @@
+{
+  "version": 1,
+  "revision": 1,
+  "createdAt": "2026-11-21T10:06:44.500Z",
+  "updatedAt": "2026-11-21T10:06:44.500Z",
+  "screens": {},
+  "objects": {},
+  "screenOrder": [],
+  "metadata": {
+    "name": "Trial",
+    "tags": [],
+    "artDirection": {
+      "visualIdea": "premium, editorial, rounded, warm neutrals gold accent, comfortable",
+      "palette": [
+        "gold"
+      ],
+      "typePlan": "system 3 sizes",
+      "spacing": "4/8"
+    },
+    "screens": [
+      "Listings",
+      "Showing",
+      "Client",
+      "Calendar"
+    ],
+    "style": "premium, editorial, rounded, warm neutrals gold accent, comfortable",
+    "theme": "light",
+    "density": "comfortable",
+    "corner": "rounded",
+    "tone": "professional",
+    "dataType": "cards",
+    "states": "loading empty error success",
+    "navType": "top nav",
+    "primaryAction": "Schedule showing"
+  }
+}

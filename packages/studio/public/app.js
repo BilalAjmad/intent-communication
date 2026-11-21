@@ -35,6 +35,9 @@
     annotating: false,
     annotations: [],
     stroke: null,
+    pinMode: false,
+    locked: [],
+    interview: null,
   };
 
   var el = {};
@@ -126,7 +129,9 @@
     el.canvasError.hidden = true;
   }
 
+  var fatal = false;
   function showFatal(message) {
+    fatal = true;
     showCanvasError(message);
     el.sendBtn.disabled = true;
     el.addToQueue.disabled = true;
@@ -154,14 +159,59 @@
 
   // ---------- scene ----------
 
-  async function loadScene() {
+  function normalizeScenePayload(scene) {
+    if (!scene || typeof scene !== "object") return null;
+    if (!scene.screens || typeof scene.screens !== "object" || Array.isArray(scene.screens)) return null;
+    if (!scene.objects || typeof scene.objects !== "object" || Array.isArray(scene.objects)) return null;
+    var cleanScreens = {};
+    Object.keys(scene.screens).forEach(function (id) {
+      var s = scene.screens[id];
+      if (s && typeof s === "object" && !Array.isArray(s)) cleanScreens[id] = s;
+    });
+    var cleanObjects = {};
+    Object.keys(scene.objects).forEach(function (id) {
+      var o = scene.objects[id];
+      if (o && typeof o === "object" && !Array.isArray(o)) {
+        if (o.style !== undefined && (typeof o.style !== "object" || o.style === null || Array.isArray(o.style))) o.style = {};
+        if (o.children !== undefined && !Array.isArray(o.children)) o.children = [];
+        cleanObjects[id] = o;
+      }
+    });
+    scene.screens = cleanScreens;
+    scene.objects = cleanObjects;
+    if (!Array.isArray(scene.screenOrder)) scene.screenOrder = [];
+    else scene.screenOrder = scene.screenOrder.filter(function (id) { return typeof id === "string" && cleanScreens[id]; });
+    if (!scene.metadata || typeof scene.metadata !== "object") scene.metadata = { name: "Intent Project", tags: [] };
+    return scene;
+  }
+
+  function loadScene() {
+    var task = (async function () {
     var data = await fetchJson("/api/scene?scene=" + encodeURIComponent(state.sceneId));
-    state.scene = data.scene;
-    state.locked = Array.isArray(data && data.locked) ? data.locked : [];
+    // Never trust the payload shape — a null/partial scene reaching downstream
+    // renderers would TypeError and brick the shell (showFatal).
+    if (!data || typeof data !== "object") {
+      throw new Error("The scene response was empty or malformed.");
+    }
+    var scene = normalizeScenePayload(data.scene);
+    if (!scene) {
+      throw new Error("The scene response was malformed (missing screens/objects).");
+    }
+    state.scene = scene;
+    state.locked = Array.isArray(data.locked) ? data.locked : [];
+    // Safety: an orphaned drag class must never survive a fresh scene load.
+    resizingActive = false;
+    document.body.classList.remove("resizing-active");
     el.projectName.textContent = (state.scene.metadata && state.scene.metadata.name) || "Intent Project";
     renderScreens();
     renderLayers();
     await renderPreview();
+    })();
+    state.sceneLoad = task;
+    task.finally(function () {
+      if (state.sceneLoad === task) state.sceneLoad = null;
+    });
+    return task;
   }
 
   function orderedScreenIds() {
@@ -183,6 +233,9 @@
 
   function renderScreens() {
     var ids = orderedScreenIds();
+    // Clamp the index — a snapshot restore/SSE shrink may leave fewer screens than before.
+    if (state.screenIndex >= ids.length) state.screenIndex = Math.max(0, ids.length - 1);
+    if (state.screenIndex < 0) state.screenIndex = 0;
     el.screensList.innerHTML = "";
     el.screenSelect.innerHTML = "";
     ids.forEach(function (id, i) {
@@ -198,6 +251,10 @@
       btn.addEventListener("click", function () {
         state.screenIndex = i;
         renderScreens();
+        renderLayers();
+        renderInspector();
+        renderAnnotations();
+        renderPins();
         renderPreview();
       });
       li.appendChild(btn);
@@ -289,10 +346,43 @@
 
   function postToPreview(msg) {
     try {
+      // NOTE (2026-11-19): targetOrigin "null" was tried and empirically fails —
+      // the sandboxed srcdoc iframe in Chromium never receives the message
+      // (drag/resize e2e: 4/4 specs time out on missing .selection-box).
+      // The preview iframe is sandboxed without allow-same-origin, so any
+      // opaque-origin string addressing is unreliable here. The channel token
+      // is the actual gate: every message carries it and the parent only acts
+      // on messages whose channel matches state.channel (see handlePreviewMessage),
+      // and the iframe only acts on ours that match its init channel.
       el.frame.contentWindow.postMessage(msg, "*");
     } catch (err) {
       // frame not ready; parent will resend on ready
     }
+  }
+
+  // Validate a bounds payload from the iframe before it reaches the DOM —
+  // non-finite numbers become NaNpx, and arbitrary keys mint unlimited
+  // overlay divs. Rects from the iframe are untrusted input.
+  function sanitizeRects(rects) {
+    if (!rects || typeof rects !== "object" || Array.isArray(rects)) return {};
+    var ids = Object.keys(rects);
+    if (ids.length > 500) return {};
+    var out = {};
+    for (var i = 0; i < ids.length; i += 1) {
+      var id = ids[i];
+      if (typeof id !== "string" || id.length > 128) continue;
+      var r = rects[id];
+      if (!r || typeof r !== "object") continue;
+      var x = Number(r.x);
+      var y = Number(r.y);
+      var w = Number(r.w);
+      var h = Number(r.h);
+      if (!isFinite(x) || !isFinite(y) || !isFinite(w) || !isFinite(h)) continue;
+      if (Math.abs(x) > 100000 || Math.abs(y) > 100000) continue;
+      if (w < 0 || h < 0 || w > 100000 || h > 100000) continue;
+      out[id] = { x: x, y: y, w: w, h: h };
+    }
+    return out;
   }
 
   async function renderPreview() {
@@ -303,6 +393,8 @@
         throw new Error("The preview could not be loaded (" + res.status + ").");
       }
       el.frame.srcdoc = await res.text();
+      // Bounds rects belong to the old document — never use them as nudge bases now.
+      state.lastRects = null;
       // Annotations belong to a screen; repaint the ones for the new preview.
       clearAnnotationCanvas();
       redrawAnnotations();
@@ -329,7 +421,7 @@
     if (msg.t === "click" && typeof msg.id === "string") {
       selectObject(msg.id);
     } else if (msg.t === "bounds" && msg.rects && typeof msg.rects === "object") {
-      renderOverlay(msg.rects);
+      renderOverlay(sanitizeRects(msg.rects));
     }
   }
 
@@ -340,38 +432,59 @@
 
   function mergedStyleValue(objectId, additions) {
     var obj = state.scene && state.scene.objects ? state.scene.objects[objectId] : null;
-    var base = obj && obj.style ? Object.assign({}, obj.style) : {};
+    var base = obj && obj.style && typeof obj.style === "object" && !Array.isArray(obj.style) ? Object.assign({}, obj.style) : {};
     return Object.assign(base, additions || {});
   }
 
-  async function commitStyleEdit(objectId, additions, done) {
-    try {
-      await fetchJson("/api/object-style", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          sceneId: state.sceneId,
-          objectId: objectId,
-          baseRevision: state.scene ? state.scene.revision : 0,
-          style: mergedStyleValue(objectId, additions),
-        }),
-      });
-      await loadScene();
-      await renderPreview();
-      renderSelection();
-      if (typeof done === "function") done(true);
-    } catch (err) {
-      var message = err && err.message ? err.message : "Could not apply the edit.";
-      if (message.indexOf("E_CONFLICT") !== -1 || /changed/i.test(message)) {
-        showToast("The scene changed since you last saw it — reloaded it. Try again.");
-        await loadScene();
-        await renderPreview();
-        renderSelection();
-      } else {
-        showToast(message);
+  // Local commits serialize: each waits for the previous commit's file write AND
+  // its loadScene to settle, so baseRevision is always the file's current revision.
+  // The file changes BEFORE the client sees the response, so a blind read of
+  // state.scene.revision mid-commit races to a 409. Chain instead.
+  function commitStyleEdit(objectId, additions, done) {
+    var body = async function () {
+      // Locked objects refuse style edits here too — the drag/nudge paths check,
+      // but the Animation/Keyframe buttons reach this directly (single choke point).
+      if (lockedObjectIds().indexOf(objectId) !== -1) {
+        showToast("That object is locked. Unlock it before editing.");
+        if (typeof done === "function") done(false);
+        return;
       }
-      if (typeof done === "function") done(false);
-    }
+      try {
+        // An SSE/manual refetch in flight must settle too.
+        if (state.sceneLoad) await state.sceneLoad.catch(() => {});
+        var currentRevision = state.scene ? state.scene.revision : 0;
+        await fetchJson("/api/object-style", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            sceneId: state.sceneId,
+            objectId: objectId,
+            baseRevision: currentRevision,
+            style: mergedStyleValue(objectId, additions),
+          }),
+        });
+        await loadScene(); // loadScene already renders the preview — no second fetch
+        renderSelection();
+        if (typeof done === "function") done(true);
+      } catch (err) {
+        var message = err && err.message ? err.message : "Could not apply the edit.";
+        if (message.indexOf("E_CONFLICT") !== -1 || /changed/i.test(message)) {
+          showToast("The scene changed since you last saw it — reloaded it. Try again.");
+          await loadScene();
+          renderSelection();
+        } else {
+          showToast(message);
+        }
+        if (typeof done === "function") done(false);
+      }
+    };
+    var prev = state.scenePromise ?? Promise.resolve();
+    var task = prev.catch(() => {}).then(body);
+    state.scenePromise = task;
+    task.finally(function () {
+      if (state.scenePromise === task) state.scenePromise = null;
+    });
+    return task;
   }
 
   function snapToGrid(value, event) {
@@ -379,7 +492,11 @@
     return Math.round(value / 4) * 4;
   }
 
+  var resizingActive = false;
   function renderOverlay(rects) {
+    // Never rebuild the overlay mid-drag/resize — the .selection-box node holds
+    // pointer capture; replacing it kills the gesture and strands cursor classes.
+    if (resizingActive) return;
     el.overlay.innerHTML = "";
     state.lastRects = rects;
     Object.keys(rects).forEach(function (id) {
@@ -422,6 +539,7 @@
       var moved = false;
       box.setPointerCapture(event.pointerId);
       document.body.classList.add("resizing-active");
+      resizingActive = true;
       function onMove(ev) {
         var dx = ev.clientX - start.x;
         var dy = ev.clientY - start.y;
@@ -437,6 +555,7 @@
         box.removeEventListener("pointerup", onUp);
         box.removeEventListener("pointercancel", onUp);
         document.body.classList.remove("resizing-active");
+        resizingActive = false;
         try {
           box.releasePointerCapture(event.pointerId);
         } catch (err) {
@@ -470,6 +589,7 @@
       var moved = false;
       handle.setPointerCapture(event.pointerId);
       document.body.classList.add("resizing-active");
+      resizingActive = true;
       function onMove(ev) {
         var dw = ev.clientX - start.x;
         var dh = ev.clientY - start.y;
@@ -485,6 +605,7 @@
         handle.removeEventListener("pointerup", onUp);
         handle.removeEventListener("pointercancel", onUp);
         document.body.classList.remove("resizing-active");
+        resizingActive = false;
         try {
           handle.releasePointerCapture(event.pointerId);
         } catch (err) {
@@ -543,6 +664,8 @@
     body.appendChild(wrap);
     try {
       var data = await fetchJson("/api/versions?sceneId=" + encodeURIComponent(state.sceneId));
+      // If the panel was re-rendered during the await, `wrap` is detached — drop the update.
+      if (!wrap.isConnected) return;
       var versions = Array.isArray(data && data.versions) ? data.versions : [];
       list.innerHTML = "";
       if (versions.length === 0) {
@@ -595,6 +718,7 @@
     body.appendChild(wrap);
     try {
       var data = await fetchJson("/api/metrics?sceneId=" + encodeURIComponent(state.sceneId));
+      if (!wrap.isConnected) return;
       var metrics = data && data.metrics ? data.metrics : null;
       if (!metrics || !metrics.available) {
         var reason = metrics && typeof metrics.reason === "string" ? metrics.reason : "Not enough data yet";
@@ -634,6 +758,7 @@
     body.appendChild(wrap);
     try {
       var data = await fetchJson("/api/interview-metrics");
+      if (!wrap.isConnected) return;
       var report = data && data.report ? data.report : null;
       wrap.innerHTML = "";
       wrap.appendChild(title);
@@ -969,8 +1094,7 @@
         return loadScene();
       }).then(function () {
         renderList();
-        renderPreview();
-        renderSelection();
+        renderSelection(); // loadScene already renders the preview — no second fetch
       }).catch(function (err) {
         var message = err && err.message ? err.message : "Could not save keyframes.";
         if (message.indexOf("E_CONFLICT") !== -1 || /changed/i.test(message)) {
@@ -978,7 +1102,6 @@
           void loadScene().then(function () {
             working = kfCurrentTable();
             renderList();
-            renderPreview();
             renderSelection();
           });
         } else {
@@ -999,7 +1122,7 @@
 
     function renderList() {
       list.innerHTML = "";
-      var names = Object.keys(working).sort(function (a, b) { return a.localeCompare(b); });
+      var names = Object.keys(working).sort(function (a, b) { return a < b ? -1 : a > b ? 1 : 0; });
       if (names.length === 0) {
         var empty = document.createElement("div");
         empty.className = "keyframes-empty";
@@ -1235,6 +1358,15 @@
 
   function renderInspector() {
     var body = el.inspectorBody;
+    // An SSE revision re-render must not destroy a control the user is using
+    // (keyframe/animation inputs, summary editor, buttons being activated).
+    var active = document.activeElement;
+    if (active && body.contains(active)) {
+      var tag = active.tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || tag === "BUTTON" || active.isContentEditable) {
+        return;
+      }
+    }
     body.innerHTML = "";
     if (!state.selectedId) {
       body.innerHTML = '<p class="muted">Select an object on the canvas or in Layers to see its details.</p>';
@@ -1296,6 +1428,10 @@
   }
 
   var STROKE_HEX = { red: "#dc2626", blue: "#2563eb", green: "#16a34a", black: "#111827" };
+  function strokeHex(color) {
+    // Prototype-safe membership check — "constructor" must not resolve to a truthy non-color.
+    return Object.prototype.hasOwnProperty.call(STROKE_HEX, color) ? STROKE_HEX[color] : STROKE_HEX.red;
+  }
 
   async function loadAnnotations() {
     try {
@@ -1401,14 +1537,26 @@
       if (a.screenId !== screenId || !Array.isArray(a.strokes)) return;
       a.strokes.forEach(function (stroke) {
         if (!stroke || !Array.isArray(stroke.points) || stroke.points.length < 2) return;
-        ctx.strokeStyle = STROKE_HEX[stroke.color] || STROKE_HEX.red;
-        ctx.lineWidth = typeof stroke.width === "number" ? stroke.width : 4;
+        if (stroke.points.length > 2000) return; // corrupt/hostile payload — don't freeze the canvas
+        // Validate every point is a finite [x, y] pair before touching the canvas.
+        var pts = [];
+        for (var p = 0; p < stroke.points.length; p++) {
+          var pt = stroke.points[p];
+          if (!Array.isArray(pt) || pt.length < 2) return;
+          var px = Number(pt[0]);
+          var py = Number(pt[1]);
+          if (!isFinite(px) || !isFinite(py)) return;
+          pts.push([px, py]);
+        }
+        ctx.strokeStyle = strokeHex(stroke.color);
+        var w = Number(stroke.width);
+        ctx.lineWidth = isFinite(w) ? Math.min(Math.max(w, 1), 100) : 4;
         ctx.lineCap = "round";
         ctx.lineJoin = "round";
         ctx.beginPath();
-        ctx.moveTo(stroke.points[0][0], stroke.points[0][1]);
-        for (var i = 1; i < stroke.points.length; i++) {
-          ctx.lineTo(stroke.points[i][0], stroke.points[i][1]);
+        ctx.moveTo(pts[0][0], pts[0][1]);
+        for (var i = 1; i < pts.length; i++) {
+          ctx.lineTo(pts[i][0], pts[i][1]);
         }
         ctx.stroke();
       });
@@ -1601,12 +1749,16 @@
       return a.status === "open" && a.screenId === screenId && a.kind === "pin";
     });
     pins.forEach(function (pin, i) {
+      // Malformed payload: no valid finite anchor → skip this pin rather than crash the render.
+      var ax = pin && pin.anchor && Number(pin.anchor.x);
+      var ay = pin && pin.anchor && Number(pin.anchor.y);
+      if (!isFinite(ax) || !isFinite(ay)) return;
       var marker = document.createElement("button");
       marker.className = "pin";
       marker.type = "button";
       marker.textContent = String(i + 1);
-      marker.style.left = pin.anchor.x + "px";
-      marker.style.top = pin.anchor.y + "px";
+      marker.style.left = ax + "px";
+      marker.style.top = ay + "px";
       marker.title = pin.text || "Pin";
       marker.setAttribute("aria-label", "Pin " + (i + 1) + ": " + (pin.text || ""));
       marker.addEventListener("click", function (event) {
@@ -1732,7 +1884,7 @@
     var nudge = { id: null, dx: 0, dy: 0, timer: 0, base: null };
 
     function isTypingTarget(target) {
-      return !!(target && target.closest && target.closest('input, textarea, select, [contenteditable="true"], [role="textbox"]'));
+      return !!(target && target.closest && target.closest('input, textarea, select, [contenteditable], [role="textbox"]'));
     }
 
     function commitNudge() {
@@ -1819,6 +1971,8 @@
       showToast("Select an object first.");
       return;
     }
+    // A commit may be in flight — wait for it so baseRevision reflects the file.
+    if (state.scenePromise) await state.scenePromise.catch(() => {});
     var text = el.feedbackText.value.trim();
     var chips = selectedChips();
     if (!text && chips.length === 0) {
@@ -1849,7 +2003,8 @@
     } catch (err) {
       showToast(err && err.message ? err.message : "Could not add to the queue.");
     } finally {
-      el.addToQueue.disabled = false;
+      // Never re-enable the button on a boot-fatal shell — nothing can work here.
+      if (!fatal) el.addToQueue.disabled = false;
     }
   }
 
@@ -1947,7 +2102,8 @@
   async function loadPatches() {
     try {
       var data = await fetchJson("/api/patches?scene=" + encodeURIComponent(state.sceneId));
-      state.patches = data.patches || [];
+      var list = data && Array.isArray(data.patches) ? data.patches : [];
+      state.patches = list;
       renderTray();
     } catch (err) {
       showToast(err && err.message ? err.message : "Could not load the patch queue.");
@@ -1962,7 +2118,9 @@
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ sceneId: state.sceneId }),
       });
-      var sent = (data.patches || []).length;
+      // The send may have succeeded server-side even if the response body is odd —
+      // never crash here after a successful POST; fall back to reloading the queue.
+      var sent = data && Array.isArray(data.patches) ? data.patches.length : 0;
       // Open the tray so the user sees the sent items and the waiting banner (design.md 4.10)
       state.trayOpen = true;
       el.trayToggle.setAttribute("aria-expanded", "true");
@@ -2032,6 +2190,9 @@
     };
     source.onopen = function () {
       setTrayNotice("");
+      // The server is reachable again — hide the "watch degraded" notice.
+      var watchNotice = $("watch-notice");
+      if (watchNotice) watchNotice.hidden = true;
     };
     source.onerror = function () {
       setTrayNotice("Live updates paused — retrying…");
@@ -2051,8 +2212,17 @@
   async function loadSceneSoft() {
     try {
       var data = await fetchJson("/api/scene?scene=" + encodeURIComponent(state.sceneId));
-      var revisionChanged = !state.scene || state.scene.revision !== data.scene.revision;
-      state.scene = data.scene;
+      var softScene = data && normalizeScenePayload(data.scene);
+      if (!softScene) return;
+      // Never resurrect a stale revision over a newer one (out-of-order responses).
+      if (state.scene && typeof softScene.revision === "number"
+          && typeof state.scene.revision === "number"
+          && softScene.revision < state.scene.revision) {
+        return;
+      }
+      var revisionChanged = !state.scene || state.scene.revision !== softScene.revision;
+      state.scene = softScene;
+      state.locked = Array.isArray(data.locked) ? data.locked : [];
       if (revisionChanged) {
         renderScreens();
         renderLayers();
@@ -2130,18 +2300,40 @@
       el.interviewBody && el.interviewBody.contains(document.activeElement) ? focusKeyOf(document.activeElement) : null;
   }
   function restorePanelFocus() {
-    if (!lastPanelFocusKey) return;
+    if (!lastPanelFocusKey) {
+      // No key to match (e.g. a new question arrived) — focus the question
+      // container so keyboard users don't re-Tab from the top of the document.
+      var fallback = el.interviewBody && el.interviewBody.querySelector(".interview-question, .interview-option, .summary-title");
+      if (fallback) fallback.focus();
+      return;
+    }
     var els = el.interviewBody.querySelectorAll("button, textarea, input, [tabindex='-1']");
+    var matched = false;
     for (var i = 0; i < els.length; i++) {
       if (focusKeyOf(els[i]) === lastPanelFocusKey) {
         els[i].focus();
+        matched = true;
         break;
       }
+    }
+    if (!matched) {
+      var fallback = el.interviewBody && el.interviewBody.querySelector(".interview-question, .interview-option, .summary-title");
+      if (fallback) fallback.focus();
     }
     lastPanelFocusKey = null;
   }
   function isInterviewEditing() {
-    return !!(el.interviewBody && el.interviewBody.querySelector('.summary-items .summary-item span[contenteditable="true"]'));
+    if (!el.interviewBody) return false;
+    // Focused input/textarea/select/contenteditable inside the interview panel —
+    // an SSE interview.changed re-render must not destroy the element mid-typing.
+    var active = document.activeElement;
+    if (active && el.interviewBody.contains(active)) {
+      var tag = active.tagName;
+      if (tag === "TEXTAREA" || tag === "INPUT" || tag === "SELECT") return true;
+      if (active.isContentEditable) return true;
+    }
+    // Legacy guard: a mounted summary contenteditable means an edit may be in flight.
+    return !!el.interviewBody.querySelector('.summary-items .summary-item span[contenteditable]');
   }
 
   // M12: never trust the wire shape; a malformed payload used to blank the tab.
@@ -2160,11 +2352,33 @@
     var validKind = ["start", "choice", "text", "scale", "confirm", "skip", "summary"].indexOf(pending.kind) !== -1;
     if (!validKind) return false;
     if (typeof pending.prompt !== "string") return false;
-    if (pending.options !== undefined && !Array.isArray(pending.options)) return false;
+    if (pending.options !== undefined) {
+      if (!Array.isArray(pending.options)) return false;
+      for (var oi = 0; oi < pending.options.length; oi += 1) {
+        var option = pending.options[oi];
+        if (!option || typeof option !== "object" || Array.isArray(option)) return false;
+        if (typeof option.label !== "string" || typeof option.value !== "string") return false;
+      }
+    }
     if (pending.kind === "summary" && pending.summary !== undefined) {
       if (typeof pending.summary !== "object" || pending.summary === null || Array.isArray(pending.summary)) return false;
-      if (pending.summary.items !== undefined && !Array.isArray(pending.summary.items)) return false;
-      if (pending.summary.delegated !== undefined && !Array.isArray(pending.summary.delegated)) return false;
+      if (pending.summary.items !== undefined) {
+        if (!Array.isArray(pending.summary.items)) return false;
+        for (var ii = 0; ii < pending.summary.items.length; ii += 1) {
+          var item = pending.summary.items[ii];
+          if (!item || typeof item !== "object" || Array.isArray(item)) return false;
+          if (typeof item.text !== "string") return false;
+          if (item.topic !== undefined && typeof item.topic !== "string") return false;
+        }
+      }
+      if (pending.summary.delegated !== undefined) {
+        if (!Array.isArray(pending.summary.delegated)) return false;
+        for (var di = 0; di < pending.summary.delegated.length; di += 1) {
+          var d = pending.summary.delegated[di];
+          if (!d || typeof d !== "object" || Array.isArray(d)) return false;
+          if (typeof d.text !== "string") return false;
+        }
+      }
     }
     return true;
   }
@@ -2444,7 +2658,7 @@
       var items = body.querySelectorAll(".summary-items .summary-item");
       items.forEach(function (item) {
         var textSpan = item.querySelector("span:last-child");
-        if (textSpan) textSpan.setAttribute("contenteditable", "true");
+        if (textSpan) textSpan.setAttribute("contenteditable", "plaintext-only");
       });
       change.disabled = true;
       exactly.disabled = true;
@@ -2458,7 +2672,12 @@
           var changes = [];
           body.querySelectorAll(".summary-items .summary-item").forEach(function (item) {
             var textSpan = item.querySelector("span:last-child");
-            if (textSpan) changes.push(textSpan.textContent || "");
+            if (textSpan) {
+              changes.push(textSpan.textContent || "");
+              // Clear the editable flag — a lingering contenteditable span
+              // permanently suppresses interview re-renders via isInterviewEditing().
+              textSpan.removeAttribute("contenteditable");
+            }
           });
           exactly.disabled = false;
           more.disabled = false;
@@ -2517,7 +2736,7 @@
     el.interviewPanel.addEventListener("keydown", function (event) {
       var t = event.target;
       if (!t) return;
-      if (t.closest && (t.closest("textarea") || t.closest('[contenteditable="true"]'))) {
+      if (t.closest && (t.closest("textarea") || t.closest('[contenteditable]'))) {
         return; // the user is typing in the free-text field or the summary editor
       }
       if (/^[0-9]$/.test(event.key)) {
@@ -2571,9 +2790,10 @@
   // then calls the same restoreVersion path the Inspector button uses.
   function wireUndoKey() {
     document.addEventListener("keydown", function (event) {
-      if (!((event.ctrlKey || event.metaKey) && !event.shiftKey && !event.altKey && (event.key === "z" || event.key === "Z"))) return;
+      if (event.repeat) return; // held key must not re-fire the restore confirm repeatedly
+    if (!((event.ctrlKey || event.metaKey) && !event.shiftKey && !event.altKey && (event.key === "z" || event.key === "Z"))) return;
       var target = event.target;
-      if (target && target.closest && target.closest('input, textarea, select, [contenteditable="true"], [role="textbox"]')) return;
+      if (target && target.closest && target.closest('input, textarea, select, [contenteditable], [role="textbox"]')) return;
       if (state.pinMode || state.annotating) return;
       event.preventDefault();
       fetchJson("/api/versions?sceneId=" + encodeURIComponent(state.sceneId))
@@ -2626,12 +2846,13 @@
         event.preventDefault();
         tabs[next].focus();
         var which = tabs[next] === el.interviewTab ? "interview" : tabs[next] === el.feedbackTab ? "feedback" : tabs[next] === el.profileTab ? "profile" : "inspector";
-        activateTab(which);
+        activateTab(which, { focusPanel: false });
       });
     }
   }
 
-  function activateTab(which) {
+  function activateTab(which, opts) {
+    var focusPanel = !opts || opts.focusPanel !== false; // mouse activation focuses the panel; arrow-key roving must not
     var showFeedback = which === "feedback";
     var showInterview = which === "interview";
     var showProfile = which === "profile";
@@ -2647,8 +2868,8 @@
     el.inspectorPanel.hidden = showFeedback || showInterview || showProfile;
     el.interviewPanel.hidden = !showInterview;
     el.profilePanel.hidden = !showProfile;
-    if (showFeedback) el.feedbackText.focus();
-    if (showInterview) {
+    if (showFeedback && focusPanel) el.feedbackText.focus();
+    if (showInterview && focusPanel) {
       var target = el.interviewBody.querySelector(".interview-question, .interview-option, .summary-title");
       if (target) target.focus();
     }
@@ -2665,6 +2886,10 @@
       if (Number.isFinite(i)) {
         state.screenIndex = i;
         renderScreens();
+        renderLayers();
+        renderInspector();
+        renderAnnotations();
+        renderPins();
         renderPreview();
       }
     });

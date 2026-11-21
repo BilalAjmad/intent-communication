@@ -25,7 +25,8 @@ export interface AnimationCssOptions {
   includeDataIds: boolean;
 }
 
-const SAFE_OBJECT_ID = /^[A-Za-z0-9_-]+$/;
+// Instance-derived ids look like "instance::inner" — the colon is safe inside a quoted attribute selector.
+const SAFE_OBJECT_ID = /^[A-Za-z0-9_:-]+$/;
 
 function collect(node: RenderNode, out: Map<string, Record<string, string>>): void {
   if (node.anim && SAFE_OBJECT_ID.test(node.id)) {

@@ -145,18 +145,16 @@ describe("apply_patch — error codes", () => {
     expect(result.error).toBe(ErrorCodes.E_CONFLICT);
   });
 
-  it("E_BAD_REQUEST — patch path with a forbidden root is rejected by trd 6.2 validation (throws IntentError)", async () => {
+  it("E_BAD_REQUEST — patch path with a forbidden root resolves to { success: false, error: E_BAD_REQUEST } (writePipeline never throws)", async () => {
     await seedLocks([]);
-    try {
-      await handleMCPRequest("apply_patch", { patch: patch({ path: "admin.evil", baseRevision: 1 }) }, context);
-      throw new Error("expected IntentError");
-    } catch (err) {
-      expect(isIntentError(err)).toBe(true);
-      expect((err as { code?: string }).code).toBe(ErrorCodes.E_BAD_REQUEST);
-    }
+    // writePipeline's documented contract: intended failures resolve to
+    // { success: false, error }, never throw — the agent inspects the payload.
+    const result = (await handleMCPRequest("apply_patch", { patch: patch({ path: "admin.evil", baseRevision: 1 }) }, context)) as Record<string, unknown>;
+    expect(result.success).toBe(false);
+    expect(result.error).toBe(ErrorCodes.E_BAD_REQUEST);
   });
 
-  it("E_IO — storage write failure propagates as IntentError with code E_IO (fault-injected writeScene)", async () => {
+  it("E_IO — storage write failure resolves to { success: false, error: E_IO } (fault-injected writeScene)", async () => {
     await seedLocks([]);
     const base = createMCPContext(testDir);
     const failingStorage = {
@@ -166,13 +164,9 @@ describe("apply_patch — error codes", () => {
       },
     };
     const ctx = { ...base, storage: failingStorage };
-    try {
-      await handleMCPRequest("apply_patch", { patch: patch({ baseRevision: 1 }) }, ctx);
-      throw new Error("expected IntentError");
-    } catch (err) {
-      expect(isIntentError(err)).toBe(true);
-      expect((err as { code?: string }).code).toBe(ErrorCodes.E_IO);
-    }
+    const result = (await handleMCPRequest("apply_patch", { patch: patch({ baseRevision: 1 }) }, ctx)) as Record<string, unknown>;
+    expect(result.success).toBe(false);
+    expect(result.error).toBe(ErrorCodes.E_IO);
     // writePipeline's finally must have released the object lock (no leaked lock on failure)
     expect(await context.lockPort.isLocked(SCREEN, TEXT)).toBe(false);
   });
@@ -192,26 +186,21 @@ describe("validate — error surface (no error codes, by design)", () => {
     expect(typeof result.error).toBe("string");
   });
 
-  it("a battery of garbage inputs resolves to a structured result; only null/undefined throw (raw TypeError, outside the handler's try)", async () => {
-    const garbage: unknown[] = [42, "string", [], {}, { type: 42 }, { type: "nope", data: "x" }];
+  it("a battery of garbage inputs — including null/undefined — always resolves to a structured result, never throws", async () => {
+    // The handler enforces its own input shape; null/undefined/arrays/mistyped
+    // `type` all return { valid: false, error } instead of a raw TypeError.
+    const garbage: unknown[] = [42, "string", [], {}, { type: 42 }, { type: "nope", data: "x" }, null, undefined];
     for (const input of garbage) {
       const result = (await handleMCPRequest("validate", input, context)) as Record<string, unknown>;
       expect(typeof result.valid).toBe("boolean");
-    }
-    for (const input of [null, undefined]) {
-      try {
-        await handleMCPRequest("validate", input, context);
-        throw new Error("expected TypeError");
-      } catch (err) {
-        expect(err).toBeInstanceOf(TypeError);
-      }
+      expect(result.valid).toBe(false);
     }
   });
 
-  it("missing `type` does NOT throw — it resolves to { valid: false } via the default branch (handler never validates its input)", async () => {
+  it("missing `type` does NOT throw — it resolves to { valid: false } from the input-shape guard", async () => {
     const result = (await handleMCPRequest("validate", { data: {} }, context)) as Record<string, unknown>;
     expect(result.valid).toBe(false);
-    expect(String(result.error)).toContain("Unknown validate type");
+    expect(String(result.error)).toContain("`type` must be a non-empty string");
   });
 
   it("valid scene data is deterministic across repeated calls", async () => {

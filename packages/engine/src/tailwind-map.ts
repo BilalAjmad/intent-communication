@@ -62,8 +62,12 @@ export interface ClassMapResult {
   consumed: Set<string>;
 }
 
-function classNameFor(prefix: string, key: string): string {
+/** Class-token charset for profile-derived classes — anything else is unmapped (falls back to inline styles), never interpolated into JSX. */
+const SAFE_CLASS_TOKEN = /^[A-Za-z0-9_.-]+$/;
+
+function classNameFor(prefix: string, key: string): string | null {
   const sanitized = key.replace(/_/g, "-");
+  if (!SAFE_CLASS_TOKEN.test(sanitized)) return null; // hostile/corrupt profile key — fall back to inline styles
   return sanitized.includes(".") ? `${prefix}-[${sanitized}]` : `${prefix}-${sanitized}`;
 }
 
@@ -88,6 +92,12 @@ export function mapStyleToClasses(style: Record<string, string>, profile: Design
 
   const classes: string[] = [];
   const rest: Record<string, string> = {};
+  const pushMapped = (prefix: string, key: string): boolean => {
+    const cls = classNameFor(prefix, key);
+    if (cls === null) return false; // unsafe profile token key — fall back to inline styles
+    classes.push(cls);
+    return true;
+  };
   for (const [prop, value] of Object.entries(style)) {
     let mapped = false;
     for (const { prefix, prop: regex } of COLOR_MAP) {
@@ -95,8 +105,7 @@ export function mapStyleToClasses(style: Record<string, string>, profile: Design
       const hex = value.trim().toLowerCase();
       const key = colorByHex.get(hex);
       if (key) {
-        classes.push(classNameFor(prefix, key));
-        mapped = true;
+        mapped = pushMapped(prefix, key);
       }
       break;
     }
@@ -106,8 +115,7 @@ export function mapStyleToClasses(style: Record<string, string>, profile: Design
         const match = PX.exec(value.trim());
         const key = match ? spacingByPx.get(`${match[1]}px`) : undefined;
         if (key) {
-          classes.push(classNameFor(prefix, key));
-          mapped = true;
+          mapped = pushMapped(prefix, key);
         }
         break;
       }
@@ -116,8 +124,7 @@ export function mapStyleToClasses(style: Record<string, string>, profile: Design
       const match = PX.exec(value.trim());
       const key = match ? radiiByPx.get(`${match[1]}px`) : undefined;
       if (key) {
-        classes.push(classNameFor("rounded", key));
-        mapped = true;
+        mapped = pushMapped("rounded", key);
       }
     }
     if (!mapped) rest[prop] = value;

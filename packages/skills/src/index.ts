@@ -86,25 +86,25 @@ const TOOL_USAGE_MD = `# tool-usage.md
 - **Conflict**: Returned when \`baseRevision !== scene.revision\`
 
 ### get_feedback
-- **Purpose**: Retrieve visual/behavioral feedback
+- **Purpose**: Retrieve visual/behavioral feedback plus pending interview answers
 - **Input**: \`{ sceneId, objectIds?, includeImageData?, since? }\`
-- **Output**: \`{ feedback[] }\`
+- **Output**: \`{ feedback[], interviewAnswers[], locked[], annotations[] }\` (interviewAnswers delivered exactly once, Studio wins over chat)
 
 ### ask_user
-- **Purpose**: Ask interview questions
-- **Input**: \`{ questionId, kind, prompt, options?, min?, max?, step?, previousAnswer?, requiredTopics? }\`
-- **Kinds**: \`start\`, \`choice\`, \`text\`, \`scale\`, \`confirm\`, \`skip\`
-- **Output**: \`{ answer, meter, nextQuestion?, briefId?, delegated? }\`
+- **Purpose**: Ask interview questions, one at a time
+- **Input**: \`{ questionId, kind, prompt, options?, min?, max?, step?, previousAnswer?, requiredTopics?, meter?, questionNumber?, estimatedTotal?, whyAsked?, round?, topic?, summary? }\`
+- **Kinds**: \`start\`, \`choice\`, \`text\`, \`scale\`, \`confirm\`, \`skip\`, \`summary\`
+- **Output**: \`{ questionId, renderedText, studio: { open, url }, meterApplied: { percent, capped, reason? }, budget: { asked, softCap, over }, delegated?, note?, recorded?, preFilled? }\`
 
 ### open_studio
-- **Purpose**: Launch Prototype Studio
-- **Input**: \`{ sceneId, userRequested?, quote? }\`
+- **Purpose**: Return the URL of the local Prototype Studio (does NOT open a browser)
+- **Input**: \`{ sceneId?, userRequested?, quote? }\`
 - **Output**: \`{ url, sessionId }\`
 
-### read_config
-- **Purpose**: Read project configuration
-- **Input**: \`{ keys? }\`
-- **Output**: \`{ config }\`
+### validate
+- **Purpose**: Validate scene/patch/config/profile/interviewState/brief/feedback data against the schema (+ lint for scenes) — writes nothing
+- **Input**: \`{ type, data }\`
+- **Output**: \`{ valid, lint?, error? }\`
 
 ## Tool Calling Rules
 
@@ -112,7 +112,7 @@ const TOOL_USAGE_MD = `# tool-usage.md
 2. **Validate input** — Always parse with Zod schema before calling.
 3. **Handle errors** — Catch \`IntentError\` and return structured error to user.
 4. **Context budget** — Respect \`maxBytes\`; truncate if needed.
-4. **Idempotency** — \`get_scene\` and \`read_config\` are idempotent; \`apply_patch\` is not.
+4. **Idempotency** — \`get_scene\`, \`get_feedback\`, \`validate\` and \`open_studio\` are idempotent; \`apply_patch\` is not.
 
 ## MCP Server
 
@@ -212,7 +212,31 @@ token.typography.lineHeight.relaxed # 1.75
 
 - Mobile-first breakpoints
 - Fluid typography with \`clamp()\`
-- Touch targets 44px minimum`;
+## Anti-AI-Slop Rules (final master order 2026-11-21, section C)
+
+These rules are a floor, not a guarantee. They reduce generic AI-looking output; they CANNOT guarantee taste. A human review is still required.
+
+### Banned patterns (a failing linter fixture exists for each)
+- Lorem ipsum or placeholder copy in any shipped screen.
+- Emoji used as icons.
+- Purple-blue gradient hero.
+- Three identical feature cards.
+- Everything centered (centered hero over three equal cards is the signature anti-pattern).
+- Shadow + rounded-xl on every surface.
+- Fake logos, fake testimonials, fake statistics.
+- Vague copy: "Welcome to", "Unlock the power of", "seamless", "revolutionary".
+- Generic names: "John Doe", "Acme".
+
+### Required
+- Realistic domain content written for the actual user and task.
+- One primary action per screen.
+- A clear heading hierarchy (one h1, no skipped levels).
+- All states: loading, empty, error, success, disabled.
+- Both light and dark themes.
+- WCAG contrast (4.5:1 text, 3:1 UI), 44px minimum targets, visible focus.
+
+### Art direction written by \`/prototype\`
+The agent writes a concrete visual idea into scene metadata: neutral palette + ONE accent named from the project tokens and contrast-checked; a system-font plan with at most three sizes; a 4/8px spacing rhythm. The linter checks what can be checked mechanically; the rest is reviewed by a human.`;
 
 const STUDIO_MD = `# studio.md
 
@@ -327,3 +351,12 @@ export async function generateAllSkillFiles(projectRoot: string): Promise<void> 
 }
 
 export { INTENT_CORE_MD, TOOL_USAGE_MD, DESIGN_PRINCIPLES_MD, STUDIO_MD };
+
+export {
+  INTENT_COMMAND_BODY,
+  PROTOTYPE_COMMAND_BODY,
+  intentCommandFiles,
+  INTENT_TRIGGER_PHRASE,
+  PROTOTYPE_TRIGGER_PHRASE,
+} from "./slash-commands.js";
+export type { CommandFile } from "./slash-commands.js";

@@ -93,6 +93,16 @@ describe("Interview simulator (intent.md M1: small interview, real server)", () 
     expect(state.status).toBe("complete");
     expect(state.answers).toHaveLength(3);
 
+    // Final master order 2026-11-21: /intent ends by saving brief.json, and the
+    // brief is built only from recorded answers (no invented colors or names).
+    const stateWithBrief = (await context.storage.readInterviewState())!;
+    expect(stateWithBrief.briefId).toBeTruthy();
+    const brief = await context.storage.readBrief(stateWithBrief.briefId!);
+    expect(brief).toMatchObject({ approvalStatus: "approved", approvedBy: "user" });
+    expect(brief?.summary).toContain("playful app");
+    expect(brief?.goals).toContain("An app");
+    expect(brief?.designDirection.palette).toEqual([]);
+
     const metrics = await readMetrics();
     const session = metrics.sessions[metrics.sessions.length - 1];
     expect(session).toMatchObject({ asked: 4, answered: 3, abandoned: false });

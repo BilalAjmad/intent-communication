@@ -1,5 +1,6 @@
 import { Scene, validateScene } from "@intent/schema";
 import { M2_RULES } from "./m2-rules.js";
+import { ANTI_SLOP_RULES } from "./anti-slop-rules.js";
 import { hexToRgb } from "./color.js";
 
 /**
@@ -104,6 +105,17 @@ function buildColorMap(profile?: LintProfile): Record<string, string> {
     if (hexToRgb(trimmed)) map[`token.color.${key}`] = trimmed;
   }
   return map;
+}
+
+/** Names of profile color tokens whose values are not valid hex strings (never merged into the color map). */
+function invalidProfileTokens(profile?: LintProfile): string[] {
+  const colors = profile?.tokens?.colors;
+  if (!colors) return [];
+  const bad: string[] = [];
+  for (const [key, value] of Object.entries(colors)) {
+    if (typeof value !== "string" || !hexToRgb(value.trim())) bad.push(key);
+  }
+  return bad.sort();
 }
 
 function resolveColor(val: unknown, colorMap: Record<string, string>): [number, number, number] | null {
@@ -237,7 +249,18 @@ function checkTouch(scene: Scene, violations: LintViolation[]): void {
   }
 }
 
-function checkContrast(scene: Scene, violations: LintViolation[], colorMap: Record<string, string>): void {
+function checkContrast(scene: Scene, violations: LintViolation[], colorMap: Record<string, string>, profile?: LintProfile): void {
+  const invalid = invalidProfileTokens(profile);
+  for (const key of invalid) {
+    violations.push({
+      ruleId: "L-CONTRAST",
+      objectId: "(profile)",
+      message: `Design profile color token "${key}" is not a valid hex value — it was skipped`,
+      severity: "warning",
+      path: `tokens.colors.${key}`,
+      suggestion: `Fix the value of "${key}" in .intent/design-profile.json to a #rrggbb hex`,
+    });
+  }
   for (const [id, obj] of Object.entries(scene.objects)) {
     if (obj.type !== "text") continue;
     const style = obj.style ?? {};
@@ -278,7 +301,7 @@ function checkContrast(scene: Scene, violations: LintViolation[], colorMap: Reco
 function checkLock(scene: Scene, locks: string[], violations: LintViolation[]): void {
   const lockSet = new Set(locks ?? []);
   for (const id of lockSet) {
-    if (id in scene.objects) {
+    if (Object.prototype.hasOwnProperty.call(scene.objects, id)) {
       violations.push({
         ruleId: "L-LOCK",
         objectId: id,
@@ -318,7 +341,7 @@ const M1_RULES: LintRule[] = [
     severity: "warning",
     check: (scene, _locks, profile) => {
       const v: LintViolation[] = [];
-      checkContrast(scene, v, buildColorMap(profile));
+      checkContrast(scene, v, buildColorMap(profile), profile);
       return v;
     },
   },
@@ -344,7 +367,7 @@ const M1_RULES: LintRule[] = [
   },
 ];
 
-const ALL_RULES: LintRule[] = [...M1_RULES, ...M2_RULES];
+const ALL_RULES: LintRule[] = [...M1_RULES, ...M2_RULES, ...ANTI_SLOP_RULES];
 
 function lintScene(scene: unknown, locks: string[] = [], profile?: LintProfile): LintResult {
   const validated = validateScene(scene);
@@ -377,4 +400,4 @@ function lintSceneWithRules(scene: unknown, ruleIds: string[], locks: string[] =
   };
 }
 
-export { M1_RULES, ALL_RULES, lintScene, lintSceneWithRules };
+export { M1_RULES, M2_RULES, ANTI_SLOP_RULES, ALL_RULES, lintScene, lintSceneWithRules };

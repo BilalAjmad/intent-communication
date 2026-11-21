@@ -106,3 +106,27 @@ Scope: M1, in-tree state at the current working tree (M2.A engine growth and M2.
 ## Historical snapshot
 
 See `git log --oneline` and the change log in docs/plan.md Â§19. Earlier RC numbers (379/379 unit, pre-Interview-tab) are superseded by the 2026-11-15 state above.
+
+
+## Known limits — 2026-11-21 (Phase 1 RC, v0.1.0-rc.1)
+
+- **HUMAN GATE 1 not yet performed.** tests/smoke/CHECKLIST.md is deliberately unfilled; no live /intent -> /prototype session has been run; no agent version/OS recorded. The owner must run it before claiming the gate.
+- **97% acceptance is an unmeasured target**, not a measured result. The agent-driven trial (tests/trial/) reports measured numbers with denominators and is labelled "agent-driven, simulated personas — does NOT prove human intent match."
+- **Adapters other than Claude Code, Cursor, Gemini CLI and VS Code MCP are UNVERIFIED** (config paths/formats not confirmed against live docs); they ship manual snippets instead of guessed edits.
+- **Single-file bundle is ~4.7 MB** (minified). Acceptable for a local tarball; revisit before npm publish.
+- **No npm publish was performed** (agent forbidden). Owner runs npm login + npm publish --access public.
+- **macOS/Linux fidelity calibration is Windows-only evidence** (CI green on 3 OSes for build/test, but no fidelity re-measurement on mac/linux).
+- **Tier-2 live agent session does not exist**; second agent for Gate 1 is a scripted persona (labelled).
+- **Animations, profile learning, scanner, acceptance-rate views, ReactExporter with Design Profile** are implemented per plan.md progress notes but have not been re-verified in this phase beyond the existing test suite.
+
+
+## Known limits — 2026-11-21 (Phase 1 RC, v0.1.0-rc.1)
+
+- **HUMAN GATE 1 not yet performed.** tests/smoke/CHECKLIST.md is deliberately unfilled; no live /intent -> /prototype session has been run; no agent version/OS recorded. The owner must run it before claiming the gate.
+- **97% acceptance is an unmeasured target**, not a measured result. The agent-driven trial (tests/trial/) reports measured numbers with denominators and is labelled "agent-driven, simulated personas — does NOT prove human intent match."
+- **Adapters other than Claude Code, Cursor, Gemini CLI and VS Code MCP are UNVERIFIED** (config paths/formats not confirmed against live docs); they ship manual snippets instead of guessed edits.
+- **Single-file bundle is ~4.7 MB** (minified). Acceptable for a local tarball; revisit before npm publish.
+- **No npm publish was performed** (agent forbidden). Owner runs npm login + npm publish --access public.
+- **macOS/Linux fidelity calibration is Windows-only evidence** (CI green on 3 OSes for build/test, but no fidelity re-measurement on mac/linux).
+- **Tier-2 live agent session does not exist**; second agent for Gate 1 is a scripted persona (labelled).
+- **Animations, profile learning, scanner, acceptance-rate views, ReactExporter with Design Profile** are implemented per plan.md progress notes but have not been re-verified in this phase beyond the existing test suite.

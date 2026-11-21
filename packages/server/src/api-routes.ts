@@ -1,5 +1,5 @@
 import { handleMCPRequest } from "@intent/mcp-server";
-import { withProjectLock, recordAnswerLearning, recordInterviewMetrics } from "@intent/core";
+import { withProjectLock, recordAnswerLearning, recordInterviewMetrics, pruneConsumedAnswers, approveInterview } from "@intent/core";
 import { IncomingMessage, ServerResponse } from "node:http";
 import {
   CreatePatchInputSchema,
@@ -23,6 +23,7 @@ import {
   saveBeforeSendVersion,
   CHIP_LABELS,
   sendBodyError,
+  sanitizeErrorMessage,
 } from "./api-helpers.js";
 
 /** GET /api/scene â€” full scene + locks for the Studio shell (trd 11.3). */
@@ -389,7 +390,7 @@ export async function handleMcp(ctx: ApiContext, req: IncomingMessage, res: Serv
         success: false,
         error: {
           code: typeof intentError.code === "string" ? intentError.code : "E_INTERNAL",
-          message: (error as Error).message,
+          message: sanitizeErrorMessage((error as Error).message),
         },
       })
     );
@@ -437,33 +438,51 @@ export async function handleApiInterviewAnswer(ctx: ApiContext, req: IncomingMes
     sendSchemaError(res, err);
     return;
   }
-  const state = (await ctx.storage.readInterviewState()) ?? freshInterviewState();
+  let state = (await ctx.storage.readInterviewState()) ?? freshInterviewState();
   const existingStudio = state.answers.find((a) => a.questionId === input.questionId && a.via === "studio");
   if (existingStudio) {
     // Idempotent: a re-send for the same question returns the current state unchanged.
     sendJson(res, 200, { state });
     return;
   }
-  const answeredKind = state.pendingQuestion?.kind ?? null;
+  // Attribute the answered kind ONLY when the answer actually targets the pending
+  // question — a stale/double Studio answer must not be attributed to whatever
+  // question happens to be pending now.
+  const answeredKind =
+    state.pendingQuestion && state.pendingQuestion.questionId === input.questionId ? state.pendingQuestion.kind : null;
   const now = new Date().toISOString();
-  state.answers.push({ questionId: input.questionId, answer: input.answer, via: "studio", answeredAt: now, consumed: false });
+  state.answers.push({
+    questionId: input.questionId,
+    answer: input.answer,
+    via: "studio",
+    answeredAt: now,
+    consumed: false,
+    ...(state.pendingQuestion?.questionId === input.questionId && state.pendingQuestion.topic
+      ? { topic: state.pendingQuestion.topic }
+      : {}),
+  });
   if (state.pendingQuestion?.questionId === input.questionId) {
     state.pendingQuestion = null;
   }
   // trd 17.1: learn from the Studio answer too (best effort; never blocks recording).
   await recordAnswerLearning(ctx.storage, input.answer, input.questionId, now);
-  // Summary "Exactly right" marks the interview complete (trd 10.2); anything else stays in progress.
+  // Summary "Exactly right" completes the interview and saves brief.json (final master order 2026-11-21).
   const answer = input.answer as { summaryChoice?: string } | null;
   if (answer && answer.summaryChoice === "exactly-right") {
-    state.status = "complete";
-  } else if (state.status !== "complete") {
+    await approveInterview(ctx.storage, state, now);
+  } else if (state.status !== "complete" && state.status !== "delegated") {
     state.status = "in_progress";
   }
   state.updatedAt = now;
+  // Cap at the schema's 200-entry answers bound before write — the ask path does the same.
+  state = pruneConsumedAnswers(state);
   await ctx.storage.writeInterviewState(state);
   // intent.md §12 — record session telemetry (best effort; never blocks the answer).
+  // NOTE: `kind: null` on purpose — the "start a new interview" signal belongs to
+  // the ask path (ask_user). Passing the answered kind here would let the recorder
+  // mark the live session abandoned on every Studio answer to the first question.
   await recordInterviewMetrics(ctx.storage, {
-    kind: answeredKind,
+    kind: null,
     currentQuestionIndex: state.currentQuestionIndex,
     meterAfter: state.meter,
     capped: false,

@@ -13,6 +13,7 @@
 import { execSync } from 'child_process';
 import { readFileSync, writeFileSync, rmSync, copyFileSync, existsSync } from 'fs';
 import { resolve } from 'path';
+import os from 'os';
 import { fileURLToPath } from 'url';
 
 const __dirname = resolve(fileURLToPath(import.meta.url), '..');
@@ -98,9 +99,10 @@ process.on('exit', () => {
   restoreFromBackups();
 });
 for (const sig of ['SIGINT', 'SIGTERM', 'SIGHUP']) {
+  const signo = { SIGINT: 2, SIGTERM: 15, SIGHUP: 1 }[sig];
   process.on(sig, () => {
     restoreFromBackups();
-    process.exit(130);
+    process.exit(128 + signo);
   });
 }
 
@@ -133,7 +135,7 @@ function runMutation(mutation) {
   // Crash safety: backup BEFORE the mutation is applied so an interrupted run
   // can be healed by the startup self-heal pass above.
   copyFileSync(filePath, filePath + BAK_SUFFIX);
-  const tmpReport = resolve('C:/Users/AFZAAL~1/AppData/Local/Temp', '.test-mutation-report.json');
+  const tmpReport = resolve(os.tmpdir(), `.test-mutation-report-${process.pid}-${Date.now()}.json`);
 
   try {
     // 1. Apply mutation
@@ -153,8 +155,8 @@ function runMutation(mutation) {
     let exitCode = 0;
     try {
       output = execSync(
-        `pnpm --filter @intent/core exec vitest run src/mutation.test.ts --reporter=json --outputFile=${tmpReport} --testTimeout=30000`,
-        { cwd: ROOT, stdio: 'pipe', timeout: 120000 }
+        `pnpm --filter @intent/core exec vitest run src/mutation.test.ts --reporter=json "--outputFile=${tmpReport}" --testTimeout=30000`,
+        { cwd: ROOT, stdio: 'pipe', timeout: 120000, maxBuffer: 64 * 1024 * 1024 }
       ).toString();
     } catch (e) {
       exitCode = 1;
@@ -172,6 +174,9 @@ function runMutation(mutation) {
     } catch {
       // Fall back to stdout
     }
+    // Always clean up the per-run report file — never let a stale report leak
+    // into a later run and manufacture a false "DETECTED".
+    try { rmSync(tmpReport, { force: true }); } catch { /* best effort */ }
     const failedTests = extractFailedTestsFromJSON(jsonOutput);
     const expectedFailed = failedTests.find((t) => t.includes(mutation.expectedFailingTest));
 

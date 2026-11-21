@@ -7,6 +7,67 @@
 
 ## Install
 
+### Option 1 — global auto (no commands in every session)
+
+```powershell
+npm install -g <path-to>/intent-studio-1.0.0.tgz
+intent --version   # 1.0.0
+```
+
+`intent init` in a project merges the MCP server into that project's agent configs;
+
+Optionally also register globally (one time, all agents):
+- Claude Code: `claude mcp add --scope user intent -- node <path>/intent.cjs mcp` → `claude mcp list` shows **Connected**
+- Cursor: `~/.cursor/mcp.json`, Kilo: `~/.config/kilo/kilo.jsonc`, OpenCode: `~/.config/opencode/opencode.json`, Codex: `~/.codex/config.toml`, Qwen: `~/.qwen/settings.json`, Gemini: `~/.gemini/settings.json` — all get an `intent` stdio entry.
+- A marked `Intent (global)` block is appended to each agent's global instruction file (never overwrites).
+
+After this, just open your agent in a project and say: **"Design a booking app for my salon"** — the agent uses the tools automatically.
+
+### Option 2 — slash commands and universal setup
+
+`intent init` writes these into your project (generated from one canonical source, drift-tested):
+- `.claude/commands/intent.md`, `.claude/commands/prototype.md`
+- `.cursor/commands/intent.mdc`, `.cursor/commands/prototype.mdc`
+
+Use `/intent` **once** at the start of a session (the rules apply for the whole
+session — not every message). `/intent` is interview-only: one question at a
+time with options plus "Don't know"/"Skip", no hard question limit, every
+required topic (`goal, users, screens, flow, style, content`) covered with
+stated evidence, ending when you pick "Exactly right" — then the approved brief
+is saved to `.intent/briefs/<id>.json`. The meter is an honest estimate and the
+server caps it at 89 while a required topic is uncovered; 100 needs real
+evidence. 97% belongs to the acceptance-rate target, never to the meter.
+
+Then run `/prototype`: it refuses to run without the approved brief, writes art
+direction into scene metadata, opens the Studio, applies your feedback with
+`apply_patch` and exports HTML. Agents without slash commands use the `intent:`
+and `prototype:` trigger phrases in the AGENTS/rules block instead.
+
+For agents already installed on your machine, run `intent setup` (checklist),
+or `intent setup --yes --all`, `--agents claude-code,cursor`, `--scope user`,
+`--dry-run`, or `--uninstall`. It merges MCP config + rules + commands,
+backing up first and preserving other servers. Only this explicit command may
+touch user-level agent config; npm postinstall does not (R-B31). Verified doc
+URLs and the UNVERIFIED list are in `docs/versions.md`; unverified agents get
+a manual snippet rather than a guessed config edit.
+
+### From a portable tarball (local, built today)
+
+```powershell
+# Tarball lives at dist-install/intent-studio-1.0.0.tgz in this repo.
+npm install -g <path-to>/intent-studio-1.0.0.tgz
+intent --version   # 1.0.0
+```
+
+The single-file bundle works from any folder (`intent init`, `intent doctor` verified on a fresh project on 2026-11-19).
+To make it installable from GitHub, upload the tarball to a GitHub release (needs owner go-ahead), e.g.:
+
+```powershell
+npm install -g https://github.com/BilalAjmad/intent-communication/releases/download/v0.1.0-rc.1/intent-studio-1.0.0.tgz
+```
+
+### From source
+
 ```powershell
 git clone <repo-url> intent
 cd intent
@@ -82,12 +143,19 @@ Equivalent by hand, from the docs: `claude mcp add --scope project intent -- <no
 1. Run `agent mcp list` — the server is listed with its status and source (project/global). If it is not enabled: `agent mcp enable intent`. Cursor asks before using MCP tools by default.
 2. The editor config and the CLI config are the same files.
 
-Manual fallback (both agents) — paste this trigger line from `context.md` section 8.4:
+Manual fallback (both agents) — paste once, not every message (the session keeps the rules):
+
+```
+/intent
+```
+(equivalent long form from `context.md` section 8.4:)
 
 ```
 Use the Intent rules in this project. Read the "intent" block in AGENTS.md first.
 For design or UI work, interview me with the ask_user tool, one question at a time.
 ```
+
+For visual editing: `/prototype` — switches the session to the Studio workflow.
 
 ### Tier 2 agents
 
@@ -135,7 +203,8 @@ The Studio is a local web app served by `packages/server` at `http://127.0.0.1:<
 
 ## Honest section
 
-- Intent makes no network requests. Your coding agent may send scene and
+- **Interview (final master order 2026-11-21):** there is **no hard question limit** — the interview keeps asking, past the soft cap, until every required topic is covered with stated evidence and the user picks "Exactly right". The meter is an honest estimate and the **server caps it at 89 while any required topic is uncovered**; 100 is reachable only from real evidence. The "97–99% acceptance target" belongs to the acceptance-rate story (two numbers: initial match, final match); 97% there is a target, never a claim.
+- **Intent makes no network requests. Your coding agent may send scene and
   interview content to its own model provider. No API key is needed for Intent.
 - The Interview tab, the SSE replay/resync path and the patch queue are tested and
   pass on this machine (Windows). What is NOT done: a live agent

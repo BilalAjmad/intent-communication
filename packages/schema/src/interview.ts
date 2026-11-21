@@ -45,6 +45,8 @@ export const InterviewAnswerSchema = z.object({
   answeredAt: ISODateTimeSchema,
   consumed: z.boolean().default(false),
   note: z.string().max(200).optional(),
+  /** Topic of the question this answered (when the pending question named one). */
+  topic: z.string().max(40).optional(),
 });
 
 export const AskUserInputSchema = InterviewQuestionCoreSchema.extend({

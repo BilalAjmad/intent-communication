@@ -36,7 +36,7 @@ const results = [];
 function runStep(step) {
   const start = Date.now();
   try {
-    const output = execSync(step.cmd, { cwd: step.cwd, encoding: 'utf-8', timeout: 600000, stdio: 'pipe' });
+    const output = execSync(step.cmd, { cwd: step.cwd, encoding: 'utf-8', timeout: 600000, stdio: 'pipe', maxBuffer: 64 * 1024 * 1024 });
     const duration = Date.now() - start;
     return { step: step.name, pass: true, duration, output: output.toString() };
   } catch (err) {

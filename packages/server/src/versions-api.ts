@@ -6,6 +6,7 @@ import { validateScene } from "@intent/schema";
 import {
   ApiContext,
   sendJson,
+  saveBeforeSendVersion,
 } from "./api-helpers.js";
 
 /**
@@ -14,7 +15,7 @@ import {
  * restore those snapshots. Restore keeps history: it bumps revision by one
  * (restore is itself an edit) and stamps updatedAt.
  */
-const VERSION_FILE = /^([0-9A-Za-z_\-:.]+)Z-r(\d+)-before-send\.json$/;
+const VERSION_FILE = /^([0-9A-Za-z_\-:.]+)Z-r(\d+)(?:-([A-Za-z0-9_-]{1,120}))?-before-send\.json$/;
 const MAX_RESTORE_BYTES = 5 * 1024 * 1024;
 
 interface VersionEntry {
@@ -24,7 +25,7 @@ interface VersionEntry {
   bytes: number;
 }
 
-async function listVersions(projectRoot: string): Promise<{ entries: VersionEntry[]; error?: { status: number; message: string } }> {
+async function listVersions(projectRoot: string, sceneId: string): Promise<{ entries: VersionEntry[]; error?: { status: number; message: string } }> {
   const dir = resolve(projectRoot, ".intent", "versions");
   let names: string[];
   try {
@@ -36,6 +37,10 @@ async function listVersions(projectRoot: string): Promise<{ entries: VersionEntr
   for (const name of names) {
     const match = VERSION_FILE.exec(name);
     if (!match) continue;
+    // New-style snapshots embed the originating sceneId — never leak other
+    // scenes' snapshot names to an authenticated client of `sceneId`.
+    const embeddedSceneId = match[3];
+    if (embeddedSceneId !== undefined && embeddedSceneId !== sceneId) continue;
     try {
       const stats = await fs.stat(resolve(dir, name));
       // Filename stamp is ISO-ish with ':' replaced by '-'; best-effort reverse.
@@ -56,13 +61,17 @@ export async function handleVersionsList(ctx: ApiContext, req: IncomingMessage, 
     sendJson(res, 400, { error: { code: "E_BAD_REQUEST", message: "Invalid sceneId" } });
     return;
   }
-  const { entries } = await listVersions(ctx.projectRoot);
+  const { entries } = await listVersions(ctx.projectRoot, sceneId);
   sendJson(res, 200, { sceneId, versions: entries });
 }
 
 export async function handleVersionRestore(ctx: ApiContext, req: IncomingMessage, res: ServerResponse, url: URL, file: string): Promise<void> {
-  return withProjectLock(ctx.lockPort, "feedback", async () => {
-    const sceneId = url.searchParams.get("sceneId") ?? "default";
+  // The restore reads the scene and overwrites it — hold the SCENE lock (not the
+  // "feedback" lock) so a concurrent keyframes PUT / apply_patch pipeline cannot
+  // interpose between readScene and writeScene. Scene-only scope: taking
+  // scene->feedback would invert the pipeline's scene-then-feedback order.
+  const sceneId = url.searchParams.get("sceneId") ?? "default";
+  return withProjectLock(ctx.lockPort, sceneId, async () => {
     if (!/^[A-Za-z0-9_-]{1,120}$/.test(sceneId)) {
       sendJson(res, 400, { error: { code: "E_BAD_REQUEST", message: "Invalid sceneId" } });
       return;
@@ -70,6 +79,15 @@ export async function handleVersionRestore(ctx: ApiContext, req: IncomingMessage
     const match = VERSION_FILE.exec(file);
     if (!match) {
       sendJson(res, 400, { error: { code: "E_BAD_REQUEST", message: "Invalid version file name" } });
+      return;
+    }
+    // Snapshots written by the current build carry the originating sceneId —
+    // refuse cross-scene restores rather than silently grafting A's objects onto B.
+    const embeddedSceneId = match[3];
+    if (embeddedSceneId !== undefined && embeddedSceneId !== sceneId) {
+      sendJson(res, 409, {
+        error: { code: "E_CONFLICT", message: "That snapshot belongs to a different scene" },
+      });
       return;
     }
     const dir = resolve(ctx.projectRoot, ".intent", "versions");
@@ -103,6 +121,8 @@ export async function handleVersionRestore(ctx: ApiContext, req: IncomingMessage
       sendJson(res, 404, { error: { code: "E_NOT_FOUND", message: "Current scene not found" } });
       return;
     }
+    // Snapshot the pre-restore scene so a mistaken restore is itself recoverable.
+    await saveBeforeSendVersion(ctx.storage, ctx.projectRoot, sceneId);
     restored.revision = current.revision + 1;
     restored.updatedAt = new Date().toISOString();
     await ctx.storage.writeScene(sceneId, restored);

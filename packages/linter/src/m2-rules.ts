@@ -17,7 +17,8 @@ import { hexToRgb } from "./color.js";
  */
 
 const TYPE_SCALE = new Set([12, 14, 16, 20, 24, 32, 40, 48]);
-const RAW_COLOR = /^(#([0-9a-fA-F]{3,8})\b|rgba?\(|hsla?\()/i;
+// Raw colors anywhere — hex, functional notations, oklch/lab/hwb/color, named colors, gradients.
+const RAW_COLOR = /(#[0-9a-fA-F]{3,8}\b|rgba?\s*\(|hsla?\s*\(|hwb\s*\(|oklch\s*\(|oklab\s*\(|lab\s*\(|lch\s*\(|color\s*\(|\b(aliceblue|antiquewhite|aqua|aquamarine|azure|beige|bisque|black|blanchedalmond|blue|blueviolet|brown|burlywood|cadetblue|chartreuse|chocolate|coral|cornflowerblue|cornsilk|crimson|cyan|darkblue|cyan|darkcyan|darkgoldenrod|darkgray|darkgreen|darkgrey|darkkhaki|darkmagenta|darkolivegreen|darkorange|darkorchid|darkred|darksalmon|darkseagreen|darkslateblue|darkslategray|darkslategrey|darkturquoise|darkviolet|deeppink|deepskyblue|dimgray|dimgrey|dodgerblue|firebrick|floralwhite|forestgreen|fuchsia|gainsboro|ghostwhite|gold|goldenrod|gray|green|greenyellow|grey|honeydew|hotpink|indianred|indigo|ivory|khaki|lavender|lavenderblush|lawngreen|lemonchiffon|lightblue|lightcoral|lightcyan|lightgoldenrodyellow|lightgray|lightgreen|lightgrey|lightpink|lightsalmon|lightseagreen|lightskyblue|lightslategray|lightslategrey|lightsteelblue|lightyellow|lime|limegreen|linen|magenta|maroon|mediumaquamarine|mediumblue|mediumorchid|mediumpurple|mediumseagreen|mediumslateblue|mediumspringgreen|mediumturquoise|mediumvioletred|midnightblue|mintcream|mistyrose|moccasin|navajowhite|navy|oldlace|olive|olivedrab|orange|orangered|orchid|palegoldenrod|palegreen|paleturquoise|palevioletred|papayawhip|peachpuff|peru|pink|plum|powderblue|purple|rebeccapurple|red|rosybrown|royalblue|saddlebrown|salmon|sandybrown|seagreen|seashell|sienna|silver|skyblue|slateblue|slategray|slategrey|snow|springgreen|steelblue|tan|teal|thistle|tomato|turquoise|violet|wheat|whitesmoke|white|yellow|yellowgreen)\b)/i;
 const COLOR_KEYS = new Set([
   "color", "background", "backgroundColor", "borderColor", "outlineColor",
   "fill", "stroke", "text", "caret", "textDecorationColor",
@@ -137,6 +138,20 @@ function checkToken(
     };
     for (const [k, v] of Object.entries(obj.style ?? {})) walker(id, v, `style.${k}`, (_id, leaf, path) => visit(path, leaf));
     for (const [k, v] of Object.entries(obj.props ?? {})) walker(id, v, `props.${k}`, (_id, leaf, path) => visit(path, leaf));
+    // State overrides (hover/focus/error/loading/...) also emit verbatim into the export
+    const states = obj.states ?? {};
+    for (const [stateName, stateOverride] of Object.entries(states)) {
+      const stateStyle = (stateOverride as { style?: Record<string, unknown> } | undefined)?.style;
+      if (!stateStyle) continue;
+      for (const [k, v] of Object.entries(stateStyle)) walker(id, v, `states.${stateName}.style.${k}`, (_id, leaf, path) => visit(path, leaf));
+    }
+    // Responsive overrides also ship verbatim
+    const bp = obj.responsive ?? {};
+    for (const bpName of ["sm", "md", "lg"] as const) {
+      const bpStyle = (bp as Record<string, { style?: Record<string, unknown> } | undefined>)[bpName]?.style;
+      if (!bpStyle) continue;
+      for (const [k, v] of Object.entries(bpStyle)) walker(id, v, `responsive.${bpName}.style.${k}`, (_id, leaf, path) => visit(path, leaf));
+    }
   }
 }
 
@@ -238,6 +253,8 @@ function checkHier(scene: Scene, violations: LintViolation[]): void {
 function checkA11y(scene: Scene, violations: LintViolation[]): void {
   for (const [id, obj] of Object.entries(scene.objects)) {
     if (obj.type === "image") {
+      // design.md §9 / R-R33: "Images have alt text" — not negotiable; WCAG decorative-alt
+      // carve-outs are a spec change, not a lint relaxation. Missing OR empty is an error.
       const alt = (obj.props ?? {})["alt"];
       if (typeof alt !== "string" || alt.trim().length === 0) {
         violations.push({
@@ -246,7 +263,7 @@ function checkA11y(scene: Scene, violations: LintViolation[]): void {
           message: "Image is missing alt text",
           severity: "error",
           path: "props.alt",
-          suggestion: "Add a meaningful alt (or alt=\"\" only for decorative images)",
+          suggestion: "Add meaningful alt text",
         });
       }
     }

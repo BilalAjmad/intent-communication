@@ -11,13 +11,23 @@ import { IntentError, ErrorCodes } from "./error.js";
  *
  * The lock lives at `.intent/tmp/<name>.lock`; `name` is reused as a sceneId,
  * so it must pass assertSafeId (letters, digits, underscore, hyphen).
+ *
+ * Acquire is retried briefly: on macOS the lock file's removal can lag behind
+ * release by a few ms under fast sequential requests, so a single failed
+ * acquire is not a hard failure. Retries are bounded (5 x 10 ms) to avoid
+ * hiding genuine contention.
  */
 export async function withProjectLock<T>(
   lockPort: LockPort,
   name: string,
   fn: () => Promise<T>,
 ): Promise<T> {
-  const acquired = await lockPort.acquireSceneLock(name);
+  let acquired = false;
+  for (let attempt = 0; attempt < 5; attempt++) {
+    acquired = await lockPort.acquireSceneLock(name);
+    if (acquired) break;
+    await new Promise((r) => setTimeout(r, 10));
+  }
   if (!acquired) {
     throw new IntentError(ErrorCodes.E_LOCKED, `Project lock "${name}" is busy; retry shortly`);
   }

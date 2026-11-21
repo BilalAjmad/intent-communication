@@ -88,14 +88,17 @@ export function applyMeterUpdate(
   }
 }
 
-/** trd 10.2 rule 2: percent >= 90 while any required topic is none → cap at 89 with a reason. */
+/** Final master order (2026-11-21, section B): while any required topic is
+ *  uncovered the meter is capped at 89 with a reason. The interview keeps
+ *  asking (no hard question limit) until the topics are covered. */
 export function meterWithRequiredTopicCap(
   percent: number,
   requiredTopics: readonly string[],
   topics: Record<string, "none" | "partial" | "covered">,
 ) {
-  if (percent < 90) return { percent, capped: false as const };
+  const clamped = Math.min(100, Math.max(0, percent));
+  if (clamped < 90) return { percent: clamped, capped: false as const };
   const missing = requiredTopics.filter((t) => (topics[t] ?? "none") === "none");
-  if (missing.length === 0) return { percent, capped: false as const };
-  return { percent: 89, capped: true as const, reason: `Required topic not covered: ${missing[0]}` };
+  if (missing.length === 0) return { percent: clamped, capped: false as const };
+  return { percent: 89, capped: true as const, reason: `Ask more — required topic not covered: ${missing[0]}` };
 }

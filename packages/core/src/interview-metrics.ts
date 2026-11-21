@@ -119,7 +119,8 @@ export async function recordInterviewMetrics(storage: StoragePort, input: Interv
       }
       const choice = extractSummaryChoice(recorded.answer);
       if (recorded.questionKind === "summary" && choice) {
-        s = { ...s, summaryChoices: [...s.summaryChoices, choice] };
+        // Keep the newest choices only — the schema caps summaryChoices at 20.
+        s = { ...s, summaryChoices: [...s.summaryChoices.slice(-19), choice] };
         if (choice === "exactly-right") {
           s = { ...s, finalPercent: clampInt(input.meterAfter) };
         }

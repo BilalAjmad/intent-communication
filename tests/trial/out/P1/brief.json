@@ -1,0 +1,31 @@
+{
+  "id": "c_N40S2HKABZC0X76TN40S2HKABZ",
+  "version": 1,
+  "createdAt": "2026-11-21T10:06:43.247Z",
+  "updatedAt": "2026-11-21T10:06:43.247Z",
+  "title": "A booking app for my photography studio",
+  "summary": "A booking app for my photography studio",
+  "goals": [
+    "A booking app for my photography studio"
+  ],
+  "constraints": [],
+  "targetAudience": "end users",
+  "successMetrics": [
+    "A booking app for my photography studio"
+  ],
+  "designDirection": {
+    "tone": "warm, calm, rounded, terracotta accent, comfortable density",
+    "palette": [],
+    "inspiration": [
+      "friendly plain English, dates times client name email"
+    ]
+  },
+  "technicalRequirements": [
+    "Home, Services, Book, Confirmation",
+    "bottom tab bar on mobile"
+  ],
+  "outOfScope": [],
+  "approvalStatus": "approved",
+  "approvedAt": "2026-11-21T10:06:43.247Z",
+  "approvedBy": "user"
+}

@@ -1,0 +1,31 @@
+{
+  "id": "c_002VNABCBVM92CG5002VNABCBV",
+  "version": 1,
+  "createdAt": "2026-11-21T10:06:44.764Z",
+  "updatedAt": "2026-11-21T10:06:44.764Z",
+  "title": "A property listing and showing scheduler",
+  "summary": "A property listing and showing scheduler",
+  "goals": [
+    "A property listing and showing scheduler"
+  ],
+  "constraints": [],
+  "targetAudience": "end users",
+  "successMetrics": [
+    "A property listing and showing scheduler"
+  ],
+  "designDirection": {
+    "tone": "premium, editorial, rounded, warm neutrals gold accent, comfortable",
+    "palette": [],
+    "inspiration": [
+      "professional descriptive, cards images dates prices"
+    ]
+  },
+  "technicalRequirements": [
+    "Listings, Showing, Client, Calendar",
+    "top nav"
+  ],
+  "outOfScope": [],
+  "approvalStatus": "approved",
+  "approvedAt": "2026-11-21T10:06:44.764Z",
+  "approvedBy": "user"
+}

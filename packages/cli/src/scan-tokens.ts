@@ -6,6 +6,7 @@
 import type { DesignProfile } from "./scan-profile.js";
 
 const PX = /^(-?\d+(?:\.\d+)?)px$/;
+const codepointCompare = (a: string, b: string): number => (a < b ? -1 : a > b ? 1 : 0);
 export const pxTo = (value: string): string | null => {
   const match = PX.exec(value.trim());
   return match ? `${match[1]}px` : null;
@@ -14,7 +15,7 @@ export const pxTo = (value: string): string | null => {
 /** Flattens nested literal records ({ a: { b: x } }) into Record<string, string>; keys joined by "-". */
 export function flattenLiterals(obj: unknown, prefix: string, out: Record<string, string>): void {
   if (!obj || typeof obj !== "object" || Array.isArray(obj)) return;
-  const entries = Object.entries(obj as Record<string, unknown>).sort(([a], [b]) => a.localeCompare(b));
+  const entries = Object.entries(obj as Record<string, unknown>).sort(([a], [b]) => codepointCompare(a, b));
   for (const [key, value] of entries) {
     const flatKey = prefix ? `${prefix}-${key}` : key;
     if (value && typeof value === "object" && !Array.isArray(value)) {
@@ -56,7 +57,7 @@ const W3C_SECTIONS: Array<[RegExp, keyof DesignProfile["tokens"]]> = [
 
 export function assignW3cTokens(tokens: DesignProfile["tokens"], flat: Record<string, string>): number {
   let added = 0;
-  for (const [path, value] of Object.entries(flat).sort(([a], [b]) => a.localeCompare(b))) {
+  for (const [path, value] of Object.entries(flat).sort(([a], [b]) => codepointCompare(a, b))) {
     for (const [pattern, section] of W3C_SECTIONS) {
       if (pattern.test(path)) {
         if (!(path in tokens[section])) {

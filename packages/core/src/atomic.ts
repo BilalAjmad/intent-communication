@@ -2,15 +2,13 @@ import { promises as fs } from "node:fs";
 import { resolve, dirname } from "node:path";
 import { IntentError, ErrorCodes } from "./error.js";
 
-export async function writeAtomic(targetPath: string, data: string): Promise<void> {
+export async function writeAtomic(targetPath: string, data: string | Buffer): Promise<void> {
   // Temp file lives in the SAME directory as the target: rename() is then always
   // same-volume (atomic), and tmp files never escape the project (they used to land
   // in <projectRoot>/tmp for root-level targets).
   const tmpDir = dirname(targetPath);
-  const tmpName = `${Date.now()}-${Math.random().toString(36).slice(2)}.tmp`;
-  const tmpPath = resolve(tmpDir, tmpName);
 
-  // Symlink protection: the target's own directory must not be a symlink.
+  // Symlink protection FIRST: the target's own directory must not be a symlink.
   try {
     const st = await fs.lstat(tmpDir);
     if (st.isSymbolicLink()) throw new IntentError(ErrorCodes.E_IO, "Symlink not allowed in path");
@@ -20,12 +18,33 @@ export async function writeAtomic(targetPath: string, data: string): Promise<voi
     if (code !== "ENOENT") throw e;
   }
 
-  const fh = await fs.open(tmpPath, "w", 0o600);
+  // Open with "wx" (exclusive create) and retry on the rare name collision —
+  // never truncate another writer's in-progress tmp file.
+  let fh: import("node:fs").promises.FileHandle | null = null;
+  let tmpPath = "";
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const tmpName = `${Date.now()}-${Math.random().toString(36).slice(2)}.tmp`;
+    const candidate = resolve(tmpDir, tmpName);
+    try {
+      fh = await fs.open(candidate, "wx", 0o600);
+      tmpPath = candidate;
+      break;
+    } catch (e) {
+      if ((e as NodeJS.ErrnoException).code === "EEXIST") continue;
+      throw e;
+    }
+  }
+  if (!fh) throw new IntentError(ErrorCodes.E_IO, "Atomic write failed: could not allocate a temp file");
+
   try {
-    await fh.writeFile(data, "utf-8");
+    await fh.writeFile(data, typeof data === "string" ? "utf-8" : undefined);
     await fh.sync();
-  } finally {
     await fh.close();
+  } catch (err) {
+    // A failed write must not litter the target directory with *.tmp files.
+    try { await fh.close(); } catch { /* already closed */ }
+    try { await fs.unlink(tmpPath); } catch { /* best effort */ }
+    throw err;
   }
 
   const delays = [20, 40, 80, 160, 320];

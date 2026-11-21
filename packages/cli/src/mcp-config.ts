@@ -1,6 +1,7 @@
 import { promises as fs } from "node:fs";
 import { resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
+import { writeAtomic } from "@intent/core";
 
 export interface IntentMcpCommand {
   command: string;
@@ -13,12 +14,25 @@ export interface MergeReport {
   changed: boolean;
 }
 
+/** Resolve `import.meta.url` → path, or null when running inside the single-file bundle
+ *  (esbuild's CJS output leaves `import.meta` undefined). */
+function importMetaPath(): string | null {
+  try {
+    return fileURLToPath(import.meta.url);
+  } catch {
+    return null;
+  }
+}
+
 /** The command the agent will spawn to launch `intent mcp`. process.execPath
  *  is an absolute node path — correct even on Windows where it contains
  *  spaces — and the args array carries paths as single JSON array elements,
  *  never shell-joined (spaces safe by construction). */
 export function defaultIntentCommand(): IntentMcpCommand {
-  const cliJs = resolve(dirname(fileURLToPath(import.meta.url)), "cli.js");
+  // Single-file bundle (global install): the bundle itself IS the CLI — point
+  // the MCP spawn at argv[1], not at a cli.js that doesn't exist there.
+  const bundlePath = importMetaPath() === null ? process.argv[1] : null;
+  const cliJs = bundlePath ?? resolve(dirname(importMetaPath() as string), "cli.js");
   return { command: process.execPath, args: [cliJs, "mcp"] };
 }
 
@@ -34,6 +48,10 @@ async function mergeServerIntoFile(
 ): Promise<MergeReport> {
   let raw: string | null = null;
   try {
+    const st = await fs.lstat(file).catch(() => null);
+    if (st?.isSymbolicLink()) {
+      throw new Error(`${file}: file is a symlink — refusing to edit it`);
+    }
     raw = await fs.readFile(file, "utf-8");
   } catch (err) {
     if ((err as NodeJS.ErrnoException).code !== "ENOENT") throw err;
@@ -70,7 +88,7 @@ async function mergeServerIntoFile(
   const changed = raw === null || JSON.stringify(merged) !== JSON.stringify(parsed);
   if (!dryRun && changed) {
     await fs.mkdir(dirname(file), { recursive: true });
-    await fs.writeFile(file, JSON.stringify(merged, null, 2) + "\n", "utf-8");
+    await writeAtomic(file, JSON.stringify(merged, null, 2) + "\n");
   }
   return { file, changed };
 }

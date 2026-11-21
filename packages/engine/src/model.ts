@@ -5,7 +5,7 @@ import { expandComponentInstances } from "./components.js";
 import { styleDeclarations, resolveSceneValue } from "./style-decl.js";
 import { sanitizeKeyframes } from "./keyframes.js";
 import { responsiveDeclarations } from "./responsive-css.js";
-import { sanitizeUrl, safeClassToken } from "./sanitize.js";
+import { sanitizeUrl, sanitizeImageSrc, safeClassToken } from "./sanitize.js";
 import { sanitizeCssValue } from "./sanitize.js";
 import { LIGHT_VARS, DARK_VARS } from "./vars.js";
 import { DEFAULT_BREAKPOINTS } from "./responsive-css.js";
@@ -204,6 +204,13 @@ function nodeFor(
       .filter((c): c is SceneObject => Boolean(c))
       .map((c) => nodeFor(c, allObjects, depth + 1, budget));
 
+  // Leaf node types carry no children — silently dropping them would produce
+  // empty elements with hidden interactive subtrees. Fail loud instead.
+  const LEAF_TYPES = new Set(["text", "button", "input", "image", "link", "icon", "divider", "list", "checkbox", "radio", "switch"]);
+  if (LEAF_TYPES.has(obj.type) && (obj.children ?? []).length > 0) {
+    throw new IntentError(ErrorCodes.E_SCHEMA, `${obj.type} object ${obj.id} declares children — leaf node types never render children`);
+  }
+
   switch (obj.type) {
     case "screen": {
       node.attrs["data-screen-id"] = obj.id;
@@ -244,7 +251,7 @@ function nodeFor(
       break;
     }
     case "image": {
-      const src = sanitizeUrl(props["src"]);
+      const src = sanitizeImageSrc(props["src"]);
       node.attrs["src"] = src;
       node.attrs["alt"] = typeof props["alt"] === "string" ? props["alt"] : "";
       break;
@@ -367,7 +374,10 @@ function nodeFor(
       node.attrs["data-icon"] = iconName;
       const rawSize = typeof props["size"] === "number" && Number.isFinite(props["size"]) ? Math.floor(props["size"]) : 24;
       node.attrs["data-icon-size"] = String(Math.min(Math.max(rawSize, 1), 256));
-      const color = resolveSceneValue(props["color"]);
+      const rawColor = props["color"];
+      // A numeric "color" is not a paint — resolveSceneValue would emit "12px",
+      // which is invalid for SVG stroke. Keep currentColor instead.
+      const color = typeof rawColor === "number" ? "" : resolveSceneValue(rawColor);
       const safeColor = color ? sanitizeCssValue(color) : "";
       if (safeColor) node.attrs["data-icon-color"] = safeColor;
       break;
@@ -447,7 +457,8 @@ export function normalizeSceneToModel(scene: Scene, options: RenderModelOptions 
   const renderScene = expandComponentInstances(validated);
   const breakpoints = options.breakpoints ?? DEFAULT_BREAKPOINTS;
 
-  const orderedIds = validated.screenOrder.filter((id) => validated.screens[id]);
+  // Dedupe screenOrder — a duplicated screen id would render the screen twice.
+  const orderedIds = [...new Set(validated.screenOrder.filter((id) => validated.screens[id]))];
   const leftover = Object.keys(validated.screens).filter((id) => !orderedIds.includes(id)).sort();
   const allIds = [...orderedIds, ...leftover];
 

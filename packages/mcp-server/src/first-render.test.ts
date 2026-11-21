@@ -66,8 +66,10 @@ describe("first-render baseline marker (trd 17.2)", () => {
 
     const dir = resolve(testDir, ".intent", "versions");
     const afterFirst = await fs.readdir(dir);
-    const markers = afterFirst.filter((name) => /Z-r\d+-first-render\.json$/.test(name));
+    // New-style markers embed the sceneId for cross-scene metric isolation.
+    const markers = afterFirst.filter((name) => /Z-r\d+(-[A-Za-z0-9_-]{1,120})?-first-render\.json$/.test(name));
     expect(markers).toHaveLength(1);
+    expect(markers[0]).toContain("s_01ARZ3NDEKTSV4RRFFQ69G5FAV");
     // Baseline snapshot must carry the scene as of that first write (revision 2 after the patch).
     const baseline = JSON.parse(await fs.readFile(resolve(dir, markers[0] as string), "utf-8")) as { revision: number };
     expect(baseline.revision).toBe(2);
@@ -79,7 +81,7 @@ describe("first-render baseline marker (trd 17.2)", () => {
     )) as Record<string, unknown>;
     expect(second.success).toBe(true);
     const afterSecond = await fs.readdir(dir);
-    expect(afterSecond.filter((name) => /Z-r\d+-first-render\.json$/.test(name))).toHaveLength(1);
+    expect(afterSecond.filter((name) => /Z-r\d+(-[A-Za-z0-9_-]{1,120})?-first-render\.json$/.test(name))).toHaveLength(1);
   });
 
   it("is not written when the patch fails (E_CONFLICT)", async () => {
@@ -91,6 +93,6 @@ describe("first-render baseline marker (trd 17.2)", () => {
     expect(conflict.success).toBe(false);
     const dir = resolve(testDir, ".intent", "versions");
     const markers = await fs.readdir(dir).catch(() => [] as string[]);
-    expect(markers.filter((name) => /Z-r\d+-first-render\.json$/.test(name))).toHaveLength(0);
+    expect(markers.filter((name) => /Z-r\d+(-[A-Za-z0-9_-]{1,120})?-first-render\.json$/.test(name))).toHaveLength(0);
   });
 });

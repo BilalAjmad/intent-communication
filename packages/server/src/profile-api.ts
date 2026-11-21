@@ -4,6 +4,8 @@ import { IntentProfileEntrySchema } from "@intent/schema";
 import {
   ApiContext,
   sendJson,
+  readJsonBody,
+  sendBodyError,
 } from "./api-helpers.js";
 
 /**
@@ -45,28 +47,9 @@ export async function handleProfileIntentPatch(ctx: ApiContext, req: IncomingMes
   }
   let body: unknown;
   try {
-    body = await new Promise((resolvePromise, rejectPromise) => {
-      let raw = "";
-      req.setEncoding("utf-8");
-      req.on("data", (chunk) => {
-        raw += chunk;
-        if (raw.length > 64 * 1024) {
-          rejectPromise(new Error("too large"));
-          req.destroy();
-        }
-      });
-      req.on("end", () => {
-        try {
-          resolvePromise(raw.length ? JSON.parse(raw) : {});
-        } catch {
-          rejectPromise(new Error("invalid json"));
-        }
-      });
-      req.on("error", rejectPromise);
-    });
+    body = await readJsonBody(req, 64 * 1024);
   } catch (err) {
-    const message = (err as Error).message === "too large" ? "Payload too large" : "Request body is not valid JSON";
-    sendJson(res, (err as Error).message === "too large" ? 413 : 400, { error: { code: "E_BAD_REQUEST", message } });
+    sendBodyError(res, err);
     return;
   }
   const text = (body as { text?: unknown }).text;

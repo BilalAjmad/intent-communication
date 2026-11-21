@@ -69,8 +69,7 @@ describe("Meter: works example (intent.md §7.4, small task, M1)", () => {
   it("worked example: 69% for the worked example", () => {
     const { serverPercent, capped, percent } = estimateMeter(baseEvidence, { size: "small" });
     expect(serverPercent).toBe(69);
-    // "at most 89 while a required topic is none" — flow is none here, but 69 < 89 so we land on 69.
-    expect(percent).toBe(69);
+    expect(percent).toBe(69); // no cap: honest 69
     expect(capped).toBe(false);
   });
 
@@ -89,8 +88,16 @@ describe("Meter: works example (intent.md §7.4, small task, M1)", () => {
     expect(result.percent).toBe(91);
   });
 
+  it("reaches 100 honestly when every in-scope slot is stated", () => {
+    const evidence: Record<string, 0 | 0.5 | 1> = {};
+    for (const slot of slotsInScope("small")) evidence[slot] = EVIDENCE.stated;
+    const result = estimateMeter(evidence, { size: "small" });
+    expect(result.percent).toBe(100);
+    expect(result.capped).toBe(false);
+    expect(result.reason).toBe("complete");
+  });
+
   it("caps at 89 while any required topic is none (never exceeds 89)", () => {
-    // Make every required topic `none`: only unknowns outside those topics stated.
     const evidence: Record<string, 0 | 0.5 | 1> = {
       "goal.purpose": EVIDENCE.unknown,
       "goal.platform": EVIDENCE.unknown,
@@ -104,9 +111,23 @@ describe("Meter: works example (intent.md §7.4, small task, M1)", () => {
       "content.tone": EVIDENCE.unknown,
       "content.data": EVIDENCE.unknown,
     };
-    const { percent, capped } = estimateMeter(evidence, { size: "small" });
+    const { percent, capped, reason } = estimateMeter(evidence, { size: "small" });
     expect(percent).toBeLessThanOrEqual(89);
     expect(capped).toBe(false); // 0 < 89, so nothing to cap
+    expect(reason).toBe("required-topic-none"); // agent still knows to ask more
+  });
+
+  it("caps a high server percent at 89 when one required topic is still none", () => {
+    const evidence: Record<string, 0 | 0.5 | 1> = {};
+    for (const slot of slotsInScope("large")) evidence[slot] = EVIDENCE.stated;
+    for (const slot of slotsInScope("large")) {
+      if (slot.startsWith("content.")) evidence[slot] = EVIDENCE.unknown;
+    }
+    const result = estimateMeter(evidence, { size: "large" });
+    expect(result.serverPercent).toBeGreaterThan(89);
+    expect(result.percent).toBe(89);
+    expect(result.capped).toBe(true);
+    expect(result.reason).toBe("required-topic-none");
   });
 });
 

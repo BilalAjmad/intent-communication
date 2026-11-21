@@ -33,8 +33,19 @@ export const validateTool: MCPTool = {
     required: ["type", "data"],
   },
   async handler(input: unknown, _context: MCPContext) {
-    const { type, data } = input as { type: string; data: unknown };
     try {
+      // inputSchema is advisory JSON — never trust it: enforce the shape here
+      // so `null`/arrays/mistyped `type` cannot crash the handler.
+      if (!input || typeof input !== "object" || Array.isArray(input)) {
+        return { valid: false, error: "validate: input must be an object with `type` and `data`" };
+      }
+      const { type, data } = input as { type?: unknown; data?: unknown };
+      if (typeof type !== "string" || type.length === 0 || type.length > 64) {
+        return { valid: false, error: "validate: `type` must be a non-empty string" };
+      }
+      if (data === undefined) {
+        return { valid: false, error: "validate: `data` is required" };
+      }
       switch (type) {
         case "scene": {
           const scene = validateScene(data);
@@ -70,7 +81,9 @@ export const validateTool: MCPTool = {
       }
       return { valid: true };
     } catch (error) {
-      return { valid: false, error: (error as Error).message };
+      // Cap the message — a Zod issue dump can be huge; the boundary schema also caps it.
+      const message = (error as Error).message;
+      return { valid: false, error: message.length > 2000 ? message.slice(0, 2000) : message };
     }
   },
 };

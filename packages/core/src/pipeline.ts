@@ -1,6 +1,6 @@
 import { StoragePort, LockPort } from "./ports.js";
 import { ErrorCodes } from "./error.js";
-import { Patch } from "@intent/schema";
+import { Patch, type Scene } from "@intent/schema";
 import { applyPatch } from "./patch.js";
 
 /**
@@ -27,7 +27,21 @@ export async function writePipeline(
   }
 
   // Pre-batch snapshot — the only reference for consistency checks (trd 6.3).
-  const scene = await storage.readScene(sceneId);
+  // A readScene THROW must release the scene lock too, not just a falsy return —
+  // otherwise the crash leaks .intent/tmp/<sceneId>.lock for this process forever.
+  let scene: Scene | null;
+  try {
+    scene = await storage.readScene(sceneId);
+  } catch (err) {
+    await lockPort.releaseSceneLock(sceneId);
+    const code = (err as { code?: unknown })?.code;
+    const isIntentError = typeof code === "string" && /^E_[A-Z_]+$/.test(code);
+    return {
+      success: false,
+      revision: -1,
+      error: isIntentError ? (code as string) : ErrorCodes.E_INTERNAL,
+    };
+  }
   if (!scene) {
     await lockPort.releaseSceneLock(sceneId);
     return { success: false, revision: -1, error: ErrorCodes.E_NOT_FOUND };
@@ -36,36 +50,31 @@ export async function writePipeline(
   const acquiredPatchLocks: string[] = [];
   try {
     for (const patch of patches) {
-      const acquired = await lockPort.acquire(sceneId, patch.objectId);
-      if (!acquired) {
-        for (const released of [...acquiredPatchLocks].reverse()) {
-          await lockPort.release(sceneId, released);
+      // A sibling patch in the same batch may already hold this object's lock —
+      // that is expected, not a conflict.
+      if (!acquiredPatchLocks.includes(patch.objectId)) {
+        const acquired = await lockPort.acquire(sceneId, patch.objectId);
+        if (!acquired) {
+          return { success: false, revision: scene.revision, error: ErrorCodes.E_LOCKED };
         }
-        return { success: false, revision: scene.revision, error: ErrorCodes.E_LOCKED };
+        acquiredPatchLocks.push(patch.objectId);
       }
-      acquiredPatchLocks.push(patch.objectId);
 
       // Ancestor locks — cycle-safe (corrupt graphs cannot loop forever); a lock
       // this batch already holds is not re-acquired (siblings share ancestors).
       const seenAncestors = new Set<string>();
       let current = scene.objects[patch.objectId]?.parentId;
       while (current) {
+        if (seenAncestors.has(current)) {
+          return { success: false, revision: scene.revision, error: ErrorCodes.E_INVALID_SCENE };
+        }
+        seenAncestors.add(current);
         if (acquiredPatchLocks.includes(current)) {
           current = scene.objects[current]?.parentId;
           continue;
         }
-        if (seenAncestors.has(current)) {
-          for (const released of [...acquiredPatchLocks].reverse()) {
-            await lockPort.release(sceneId, released);
-          }
-          return { success: false, revision: scene.revision, error: ErrorCodes.E_INVALID_SCENE };
-        }
-        seenAncestors.add(current);
         const ancestorAcquired = await lockPort.acquire(sceneId, current);
         if (!ancestorAcquired) {
-          for (const released of [...acquiredPatchLocks].reverse()) {
-            await lockPort.release(sceneId, released);
-          }
           return { success: false, revision: scene.revision, error: ErrorCodes.E_LOCKED };
         }
         acquiredPatchLocks.push(current);
@@ -73,18 +82,17 @@ export async function writePipeline(
       }
 
       // Descendant locks (a writer may not move a subtree under a locked node).
-      const seenDescendants = new Set<string>();
       const lockedObjects = await lockPort.getLockedObjects(sceneId);
       for (const lockedId of lockedObjects) {
         if (acquiredPatchLocks.includes(lockedId)) continue;
+        const seenDescendants = new Set<string>();
         let ancestor = scene.objects[lockedId]?.parentId;
         while (ancestor) {
-          if (seenDescendants.has(ancestor) || seenDescendants.size > Object.keys(scene.objects).length) break;
+          // True cycle check — a per-locked-node visited set; a global size cap
+          // could be exhausted by unrelated walks and silently skip the check.
+          if (seenDescendants.has(ancestor)) break;
           seenDescendants.add(ancestor);
           if (ancestor === patch.objectId) {
-            for (const released of [...acquiredPatchLocks].reverse()) {
-              await lockPort.release(sceneId, released);
-            }
             return { success: false, revision: scene.revision, error: ErrorCodes.E_LOCKED };
           }
           ancestor = scene.objects[ancestor]?.parentId;
@@ -99,20 +107,14 @@ export async function writePipeline(
     // The baseRevision conflict gate below is the real drift check.
 
     // Consistency checks against the PRE-BATCH snapshot, then apply to a working copy.
-
-    // Consistency checks against the PRE-BATCH snapshot, then apply to a working copy.
     let working = scene;
     for (const patch of patches) {
       // trd 6.3: no touched object may have changed since the client's snapshot.
-      const changedObjectIds: string[] = [];
-      for (const other of patches) {
-        const obj = scene.objects[other.objectId];
-        if (!obj) continue;
-        const objRev = obj.rev ?? scene.revision;
-        if (objRev > patch.baseRevision) {
-          changedObjectIds.push(other.objectId);
-        }
-      }
+      // Scoped to this patch's own target — unrelated patches in the same batch
+      // carry the same pre-batch baseRevision and must not cross-flag.
+      const targetObj = scene.objects[patch.objectId];
+      const targetRev = targetObj ? targetObj.rev ?? scene.revision : scene.revision;
+      const changedObjectIds = targetRev > patch.baseRevision ? [patch.objectId] : [];
       if (patch.baseRevision !== scene.revision || changedObjectIds.length > 0) {
         return {
           success: false,
@@ -144,7 +146,19 @@ export async function writePipeline(
     }
 
     await storage.writeScene(sceneId, working);
-    return { success: true, revision: working.revision, details: { changedObjectIds: [] } };
+    return { success: true, revision: working.revision, details: { changedObjectIds: [...new Set(patches.map((p) => p.objectId))] } };
+  } catch (err) {
+    // Intended-failure modes (corrupt scene on disk, schema-rejected working
+    // copy) must never escape as exceptions — callers rely on the documented
+    // {success:false} contract. Locks are still released by `finally`.
+    const code = (err as { code?: unknown })?.code;
+    const isIntentError = typeof code === "string" && /^E_[A-Z_]+$/.test(code);
+    const isZod = (err as { name?: unknown })?.name === "ZodError";
+    return {
+      success: false,
+      revision: scene.revision,
+      error: isIntentError ? (code as string) : isZod ? ErrorCodes.E_SCHEMA : ErrorCodes.E_INTERNAL,
+    };
   } finally {
     // Release the object locks this batch acquired, then the scene lock.
     for (const released of [...acquiredPatchLocks].reverse()) {

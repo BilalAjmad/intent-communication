@@ -11,7 +11,17 @@ import { IntentError, ErrorCodes } from "./error.js";
 export const MAX_ID_LENGTH = 120;
 
 /** Characters that must never appear in an identifier used as a path segment. */
-const ILLEGAL_ID_CHARS = ["..", "/", "\\", "\0"];
+const ILLEGAL_ID_CHARS = ["..", "/", "\\", "\0", ":"];
+
+/** Windows reserved device names — invalid as any file name on Windows (case-insensitive, stem match). */
+const RESERVED_DEVICE_NAMES = new Set([
+  "CON", "PRN", "AUX", "NUL",
+  "COM1", "COM2", "COM3", "COM4", "COM5", "COM6", "COM7", "COM8", "COM9",
+  "LPT1", "LPT2", "LPT3", "LPT4", "LPT5", "LPT6", "LPT7", "LPT8", "LPT9",
+]);
+
+/** Prototype-pollution keys — never valid identifiers, whatever the alphabet allows. */
+const FORBIDDEN_PROTO_KEYS = new Set(["__proto__", "constructor", "prototype"]);
 
 /**
  * Validates an identifier that will be used as a filesystem path segment.
@@ -36,5 +46,16 @@ export function assertSafeId(id: string, label: string): void {
         `${label} must not contain "${bad === "\0" ? "\\0" : bad}"`
       );
     }
+  }
+  // Windows file-name rules: no trailing dot/space, and no reserved device stems.
+  if (id.endsWith(".") || id.endsWith(" ")) {
+    throw new IntentError(ErrorCodes.E_BAD_REQUEST, `${label} must not end with a dot or space`);
+  }
+  const stem = id.split(".")[0]?.toUpperCase() ?? "";
+  if (RESERVED_DEVICE_NAMES.has(stem)) {
+    throw new IntentError(ErrorCodes.E_BAD_REQUEST, `${label} must not be the reserved device name "${stem}"`);
+  }
+  if (FORBIDDEN_PROTO_KEYS.has(id)) {
+    throw new IntentError(ErrorCodes.E_BAD_REQUEST, `${label} must not be "${id}"`);
   }
 }

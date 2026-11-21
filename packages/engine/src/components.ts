@@ -34,13 +34,23 @@ function deepClone<T>(value: T): T {
 
 function preOrder(rootId: string, objects: Record<string, SceneObject>): string[] {
   const order: string[] = [];
+  const inStack = new Set<string>();
+  const visited = new Set<string>();
   const walk = (id: string): void => {
     const obj = objects[id];
     if (!obj) return;
+    if (inStack.has(id)) {
+      throw new IntentError(ErrorCodes.E_LIMIT, `Component definition contains a cycle at object ${id}`);
+    }
+    // A DAG diamond must not multiply walks exponentially — each node is expanded once.
+    if (visited.has(id)) return;
     order.push(id);
+    inStack.add(id);
+    visited.add(id);
     for (const child of obj.children) {
       walk(child);
     }
+    inStack.delete(id);
   };
   walk(rootId);
   return order;
@@ -226,7 +236,13 @@ export function expandComponentInstances(scene: Scene): Scene {
   }
   if (!hasInstances) return scene;
 
-  const defs = new Map(components.map((d) => [d.id, d] as const));
+  const defs = new Map<string, ComponentDef>();
+  for (const def of components) {
+    if (defs.has(def.id)) {
+      throw new IntentError(ErrorCodes.E_SCHEMA, `Duplicate component definition id ${def.id}`);
+    }
+    defs.set(def.id, def);
+  }
   const objects: Record<string, SceneObject> = { ...scene.objects };
   const budget = { remaining: MAX_CLONES };
 
@@ -240,5 +256,6 @@ export function expandComponentInstances(scene: Scene): Scene {
     const def = resolveDef(defs, ref.componentId, instanceId);
     expandInstanceRecursive(instanceId, objects[instanceId], ref, def, objects, defs, 0, budget);
   }
+
   return { ...scene, objects };
 }

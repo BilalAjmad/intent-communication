@@ -1,0 +1,36 @@
+{
+  "version": 1,
+  "revision": 1,
+  "createdAt": "2026-11-21T10:06:45.115Z",
+  "updatedAt": "2026-11-21T10:06:45.115Z",
+  "screens": {},
+  "objects": {},
+  "screenOrder": [],
+  "metadata": {
+    "name": "Trial",
+    "tags": [],
+    "artDirection": {
+      "visualIdea": "dark, technical, sharp corners, dark neutrals cyan accent, dense",
+      "palette": [
+        "cyan"
+      ],
+      "typePlan": "system 3 sizes",
+      "spacing": "4/8"
+    },
+    "screens": [
+      "Issues",
+      "Board",
+      "Detail",
+      "Settings"
+    ],
+    "style": "dark, technical, sharp corners, dark neutrals cyan accent, dense",
+    "theme": "dark",
+    "density": "dense",
+    "corner": "sharp",
+    "tone": "terse",
+    "dataType": "tables",
+    "states": "loading empty error success",
+    "navType": "sidebar",
+    "primaryAction": "New issue"
+  }
+}

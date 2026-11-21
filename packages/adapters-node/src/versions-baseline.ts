@@ -12,7 +12,7 @@ import { validateScene, type Scene } from "@intent/schema";
  * Returns null when no baseline exists or the snapshot is unreadable — never
  * fabricates a baseline.
  */
-const FIRST_RENDER_FILE = /^([0-9A-Za-z_\-:.]+)Z-r(\d+)-first-render\.json$/;
+const FIRST_RENDER_FILE = /^([0-9A-Za-z_\-:.]+)Z-r(\d+)(?:-([A-Za-z0-9_-]{1,120}))?-first-render\.json$/;
 const MAX_SNAPSHOT_BYTES = 5 * 1024 * 1024;
 
 export interface FirstRenderBaseline {
@@ -31,7 +31,12 @@ function stampToIso(stamp: string): string {
   return `${match[1]}:${match[2]}:${match[3]}.${match[4]}Z`;
 }
 
-export async function findFirstRenderBaseline(projectRoot: string): Promise<FirstRenderBaseline | null> {
+/**
+ * @param sceneId when given, only baselines stamped for that scene are
+ * considered (new-style markers embed the scene). Legacy markers without an
+ * embedded scene are included for any scene — they cannot be attributed.
+ */
+export async function findFirstRenderBaseline(projectRoot: string, sceneId?: string): Promise<FirstRenderBaseline | null> {
   const dir = resolve(projectRoot, ".intent", "versions");
   let names: string[];
   try {
@@ -43,14 +48,19 @@ export async function findFirstRenderBaseline(projectRoot: string): Promise<Firs
   const candidates: { name: string; match: RegExpExecArray }[] = [];
   for (const name of names) {
     const match = FIRST_RENDER_FILE.exec(name);
-    if (match) candidates.push({ name, match });
+    const embeddedScene = match?.[3];
+    if (sceneId !== undefined && embeddedScene !== undefined && embeddedScene !== sceneId) continue;
+    // Skip candidates whose stamp is unparseable — a bogus filename must not
+    // sort ahead of every real baseline and null the whole function.
+    if (match && Date.parse(stampToIso(match[1] ?? "")) > 0) candidates.push({ name, match });
   }
   if (candidates.length === 0) return null;
 
   candidates.sort((a, b) => {
     const ta = Date.parse(stampToIso(a.match[1] ?? "")) || 0;
     const tb = Date.parse(stampToIso(b.match[1] ?? "")) || 0;
-    return ta - tb || a.name.localeCompare(b.name);
+    const nameCompare = a.name < b.name ? -1 : a.name > b.name ? 1 : 0;
+    return ta - tb || nameCompare;
   });
 
   const earliest = candidates[0] as (typeof candidates)[number];

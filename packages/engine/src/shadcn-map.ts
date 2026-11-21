@@ -1,5 +1,6 @@
 import type { RenderNode } from "./model.js";
 import type { DesignProfileLike } from "./tailwind-map.js";
+import { IntentError, ErrorCodes } from "@intent/core";
 
 /**
  * trd 13.7 (shadcn half) — map model nodes to imported shadcn components
@@ -45,10 +46,23 @@ function camelClass(cls: string | undefined): string | null {
 
 /** True for the model's synthesized checkbox/radio/switch inner inputs (id `<parent>::input`). */
 function isSynthesizedControlInput(node: RenderNode): boolean {
+  // Defensive: covers the model's synthesized `${id}::input` / `${id}::track` ids
+  // (model.ts: the hidden control inside checkbox/radio/switch must never map to
+  // a shadcn <Input> — it is part of the composed control).
   if (/::(input|track)$/.test(node.id)) return true;
   const type = node.attrs["type"];
   if (type === "checkbox" || type === "radio") return true;
   return node.attrs["role"] === "switch";
+}
+
+const SAFE_COMPONENT = /^[A-Za-z_$][A-Za-z0-9_$]*$/;
+
+function exportNameOf(match: { exportName: string }, role: string): string {
+  const name = match.exportName;
+  if (!SAFE_COMPONENT.test(name)) {
+    throw new IntentError(ErrorCodes.E_SCHEMA, `design-profile.json component export name "${name}" (role "${role}") is not a valid JSX identifier`);
+  }
+  return name;
 }
 
 /** Builds the <Button>/<Input> JSX for a node given the matched profile component, or returns null. */
@@ -57,14 +71,15 @@ export function mapNodeToShadcn(node: RenderNode, profile: DesignProfileLike | u
   const components = (profile as { components?: Array<{ role: string; importPath: string; exportName: string; propMap: Record<string, string> }> }).components ?? [];
   const match = components.find((c) => c.role === node.tag);
   if (!match) return { imports: [], jsx: null, used: [] };
-  const imp = { name: match.exportName, from: match.importPath };
+  const name = exportNameOf(match, node.tag);
+  const imp = { name, from: match.importPath };
 
   if (node.tag === "button") {
     const variant = camelClass(node.attrs["class"]) ?? "primary";
     const label = node.text ?? "Button";
     const disabled = node.attrs["disabled"] !== undefined ? " disabled" : "";
     const type = node.attrs["type"] ? ` type={${JSON.stringify(node.attrs["type"])}}` : ' type="button"';
-    const jsx = `<Button${type} variant={${JSON.stringify(variant)}}${disabled}>{${JSON.stringify(label)}}</Button>`;
+    const jsx = `<${name}${type} variant={${JSON.stringify(variant)}}${disabled}>{${JSON.stringify(label)}}</${name}>`;
     return { imports: [imp], jsx, used: [imp] };
   }
 
@@ -78,7 +93,9 @@ export function mapNodeToShadcn(node: RenderNode, profile: DesignProfileLike | u
     const attrParts = [`type={${JSON.stringify(type)}}`];
     if (placeholder !== undefined) attrParts.push(`placeholder={${JSON.stringify(placeholder)}}`);
     if (aria !== undefined) attrParts.push(`aria-label={${JSON.stringify(aria)}}`);
-    return { imports: [imp], jsx: `<Input${attrParts.length ? " " : ""}${attrParts.join(" ")}${required}${disabled} />`, used: [imp] };
+    if (node.attrs["value"] !== undefined) attrParts.push(`defaultValue={${JSON.stringify(node.attrs["value"])}}`);
+    if (node.attrs["name"] !== undefined) attrParts.push(`name={${JSON.stringify(node.attrs["name"])}}`);
+    return { imports: [imp], jsx: `<${name}${attrParts.length ? " " : ""}${attrParts.join(" ")}${required}${disabled} />`, used: [imp] };
   }
 
   return { imports: [], jsx: null, used: [] };

@@ -25,8 +25,12 @@ export interface AppliedPatchRef {
 export interface AcceptanceMetricsInput {
   baselineObjects: Record<string, unknown>;
   currentObjects: Record<string, unknown>;
-  /** Applied patches (objectId + appliedAt) after the baseline was captured. */
+  /** Applied patches (objectId + appliedAt). If `baselineCapturedAt` is also given,
+   *  only patches applied at or after that instant count as touching the scene. */
   appliedPatches?: AppliedPatchRef[];
+  /** ISO timestamp of the baseline marker. Filters appliedPatches to those applied
+   *  at or after it — patches applied before the baseline must not count as touched. */
+  baselineCapturedAt?: string;
 }
 
 export interface AcceptanceMetrics {
@@ -47,7 +51,7 @@ function objectIdsOf(objects: Record<string, unknown>): Set<string> {
 }
 
 export function computeAcceptanceRate(input: AcceptanceMetricsInput): AcceptanceMetrics {
-  const { baselineObjects, currentObjects, appliedPatches = [] } = input;
+  const { baselineObjects, currentObjects, appliedPatches = [], baselineCapturedAt } = input;
 
   const baselineIds = objectIdsOf(baselineObjects);
   const currentIds = objectIdsOf(currentObjects);
@@ -56,7 +60,12 @@ export function computeAcceptanceRate(input: AcceptanceMetricsInput): Acceptance
   const removedAfterBaseline = baselineIds.size - baselineObjectsStillPresent.length;
   const addedAfterBaseline = [...currentIds].filter((id) => !baselineIds.has(id)).length;
 
-  const appliedIds = new Set(appliedPatches.map((p) => p.objectId).filter((id): id is string => typeof id === "string"));
+  // When a baseline timestamp is known, only patches applied at/after it touched the
+  // scene. Patches without a parseable appliedAt cannot be attributed — exclude them.
+  const relevantPatches = baselineCapturedAt
+    ? appliedPatches.filter((p) => typeof p.appliedAt === "string" && !Number.isNaN(Date.parse(p.appliedAt)) && p.appliedAt >= baselineCapturedAt)
+    : appliedPatches;
+  const appliedIds = new Set(relevantPatches.map((p) => p.objectId).filter((id): id is string => typeof id === "string"));
   const unchanged = baselineObjectsStillPresent.filter((id) => !appliedIds.has(id)).length;
   const changed = baselineObjectsStillPresent.length - unchanged;
 

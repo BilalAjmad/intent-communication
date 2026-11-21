@@ -52,8 +52,10 @@ export interface IconRenderOptions {
 }
 
 export interface IconJsxOptions {
-  /** React style object literal text, e.g. `{{"color":"red"}}` — optional. */
+  /** React style object literal text, e.g. `{{"color":"red"}}` - optional. */
   styleObject?: string;
+  /** Space-separated extra classes merged onto the icon's span (trd 13.7 tailwind mapping). */
+  className?: string;
   /** data-object-id for selection/inspection. */
   objectId?: string;
 }
@@ -114,5 +116,11 @@ export function renderIconJsx(
   // SVG presentation attributes in JSX must be camelCase; the shared glyph
   // bodies only use lowercase SVG attributes that are valid in both forms
   // except the ones below, so keep bodies as-is (all are valid JSX as-is).
-  return `<span className="intent-icon"${idAttr}${aria}${style}><svg width={${s}} height={${s}} viewBox="0 0 24 24" fill="none" stroke={${stroke}} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">${body}</svg></span>`;
+  // Dedupe: the model already classifies icons as "intent-icon"; the caller's
+  // className may carry it too — never emit a class twice.
+  const extraClasses = options.className
+    ? ` ${[...new Set(options.className.split(/\s+/).filter(Boolean))].filter((c) => c !== "intent-icon").join(" ")}`.trimEnd()
+    : "";
+  const spanClass = extraClasses.length > 0 ? `intent-icon ${extraClasses.slice(1)}` : "intent-icon";
+  return `<span className="${spanClass}"${idAttr}${aria}${style}><svg width={${s}} height={${s}} viewBox="0 0 24 24" fill="none" stroke={${stroke}} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">${body}</svg></span>`;
 }

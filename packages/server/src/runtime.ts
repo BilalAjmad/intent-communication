@@ -8,6 +8,7 @@ export interface SseEvent {
   seq: number;
   type: string;
   payload: Record<string, unknown>;
+  sceneId: string | null;
 }
 
 /** Runtime dependencies for the SSE stream and the static file server. */
@@ -25,6 +26,8 @@ export interface RuntimeContext {
   eventLog: SseEvent[];
   /** Append an event to the ring and return its seq (used as the SSE `id`). */
   emitEvent: (type: string, payload: Record<string, unknown>) => number;
+  /** Write an event to ONE response without touching the shared ring. */
+  writeDirect: (res: ServerResponse, type: string, payload: Record<string, unknown>) => number;
 }
 
 function writeSseEvent(res: ServerResponse, seq: number, type: string, payload: Record<string, unknown>): void {
@@ -37,7 +40,13 @@ function writeSseEvent(res: ServerResponse, seq: number, type: string, payload: 
  *  with `Last-Event-ID` receive the events after that id (up to 100);
  *  a larger gap receives a single `resync` event. */
 export async function handleSSE(ctx: RuntimeContext, req: IncomingMessage, res: ServerResponse, url: URL): Promise<void> {
-  const sceneId = url.searchParams.get("scene") || "default";
+  const rawScene = url.searchParams.get("scene");
+  const sceneId = !rawScene ? "default" : /^[A-Za-z0-9_-]{1,120}$/.test(rawScene) ? rawScene : null;
+  if (!sceneId) {
+    res.writeHead(400, { "Content-Type": "application/json" });
+    res.end(JSON.stringify({ error: { code: "E_BAD_REQUEST", message: "Invalid scene id" } }));
+    return;
+  }
   const lastEventIdHeader = req.headers["last-event-id"];
   const lastEventIdValue = Array.isArray(lastEventIdHeader) ? lastEventIdHeader[0] : lastEventIdHeader;
   const lastEventId = parseInt(lastEventIdValue || "0", 10);
@@ -74,35 +83,48 @@ export async function handleSSE(ctx: RuntimeContext, req: IncomingMessage, res: 
   const client = { response: res, sceneId, lastEventId: Number.isFinite(lastEventId) ? lastEventId : 0 };
   const clients = ctx.sseClients.get(sceneId) || [];
   clients.push(client);
+  // Hard cap per scene — beyond it, evict the oldest connection rather than grow without bound.
+  if (clients.length > 64) {
+    const evicted = clients.shift();
+    try { evicted?.response.end(); } catch { /* already gone */ }
+  }
   ctx.sseClients.set(sceneId, clients);
 
-  if (Number.isFinite(lastEventId) && lastEventId > 0 && ctx.eventLog.length > 0) {
-    // Reconnect: replay events newer than the client's last seen id.
-    const oldest = ctx.eventLog[0]!.seq;
-    if (ctx.eventLog.length >= 100 && lastEventId < oldest - 1) {
-      // Gap larger than the replay window — tell the client to refetch everything.
-      const seq = ctx.emitEvent("resync", {});
-      res.write(`id: ${seq}\n`);
-      res.write(`data: ${JSON.stringify({ type: "resync" })}\n\n`);
-    } else {
-      for (const ev of ctx.eventLog) {
-        if (ev.seq > lastEventId) {
-          writeSseEvent(res, ev.seq, ev.type, ev.payload);
-        }
-      }
-    }
-  } else {
-    // Fresh subscriber: one seed event with the current revision.
-    const seq = ctx.emitEvent("revision", { revision: ctx.getRevision() });
-    writeSseEvent(res, seq, "revision", { revision: ctx.getRevision() });
-  }
-
+  // Register the close handler BEFORE any write that may throw — a dead socket
+  // between insertion and replay must never pin a 20s interval + client entry.
   req.on("close", () => {
     clearInterval(ping);
     const list = ctx.sseClients.get(sceneId) || [];
     const idx = list.indexOf(client);
-    if (idx !== -1) clients.splice(idx, 1);
+    if (idx !== -1) list.splice(idx, 1);
+    if (list.length === 0) ctx.sseClients.delete(sceneId);
   });
+
+  if (Number.isFinite(lastEventId) && lastEventId > 0 && ctx.eventLog.length > 0) {
+    // Reconnect: replay events newer than the client's last seen id — only
+    // events for THIS scene plus project-wide ones; never other scenes' patches.
+    const relevant = ctx.eventLog.filter((ev) => ev.sceneId === null || ev.sceneId === sceneId);
+    // Gap accounting against the oldest scene-relevant event, not the global
+    // ring's oldest — other scenes' evictions must not force a resync.
+    const oldest = relevant[0]?.seq ?? ctx.eventLog[0]!.seq;
+    if (ctx.eventLog.length >= 100 && lastEventId < oldest - 1) {
+      // Gap larger than the replay window — tell the client to refetch everything.
+      ctx.writeDirect(res, "resync", {});
+    } else {
+      try {
+        for (const ev of relevant) {
+          if (ev.seq > lastEventId) {
+            writeSseEvent(res, ev.seq, ev.type, ev.payload);
+          }
+        }
+      } catch {
+        // Client died mid-replay — its close handler does the cleanup.
+      }
+    }
+  } else {
+    // Fresh subscriber: one seed event with the current revision.
+    ctx.writeDirect(res, "revision", { revision: ctx.getRevision() });
+  }
 }
 
 /** The SPA file server. Path traversal is refused; "/" serves index.html (no-store); unknown paths 404. */

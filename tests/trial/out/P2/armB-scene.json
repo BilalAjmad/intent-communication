@@ -1,0 +1,36 @@
+{
+  "version": 1,
+  "revision": 1,
+  "createdAt": "2026-11-21T10:06:43.306Z",
+  "updatedAt": "2026-11-21T10:06:43.306Z",
+  "screens": {},
+  "objects": {},
+  "screenOrder": [],
+  "metadata": {
+    "name": "Trial",
+    "tags": [],
+    "artDirection": {
+      "visualIdea": "professional, dense, sharp corners, amber accent, compact",
+      "palette": [
+        "amber"
+      ],
+      "typePlan": "system 3 sizes",
+      "spacing": "4/8"
+    },
+    "screens": [
+      "Dashboard",
+      "Reservations",
+      "Menu",
+      "Settings"
+    ],
+    "style": "professional, dense, sharp corners, amber accent, compact",
+    "theme": "dark",
+    "density": "compact",
+    "corner": "sharp",
+    "tone": "concise",
+    "dataType": "table",
+    "states": "loading empty error success disabled",
+    "navType": "left sidebar nav",
+    "primaryAction": "New reservation"
+  }
+}

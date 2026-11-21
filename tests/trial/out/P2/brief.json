@@ -1,0 +1,31 @@
+{
+  "id": "c_E914YWJK5SZZ6KG3E914YWJK5S",
+  "version": 1,
+  "createdAt": "2026-11-21T10:06:43.552Z",
+  "updatedAt": "2026-11-21T10:06:43.552Z",
+  "title": "A reservation and menu management app",
+  "summary": "A reservation and menu management app",
+  "goals": [
+    "A reservation and menu management app"
+  ],
+  "constraints": [],
+  "targetAudience": "end users",
+  "successMetrics": [
+    "A reservation and menu management app"
+  ],
+  "designDirection": {
+    "tone": "professional, dense, sharp corners, amber accent, compact",
+    "palette": [],
+    "inspiration": [
+      "concise operational, table rows dates party size status"
+    ]
+  },
+  "technicalRequirements": [
+    "Dashboard, Reservations, Menu, Settings",
+    "left sidebar nav"
+  ],
+  "outOfScope": [],
+  "approvalStatus": "approved",
+  "approvedAt": "2026-11-21T10:06:43.552Z",
+  "approvedBy": "user"
+}

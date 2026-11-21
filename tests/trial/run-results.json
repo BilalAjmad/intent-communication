@@ -1,0 +1,130 @@
+[
+  {
+    "persona": "P1",
+    "arm": "B",
+    "questions_asked": 10,
+    "minutes": 3,
+    "send_cycles": 1,
+    "tmp": "C:\\Users\\AFZAAL~1\\AppData\\Local\\Temp\\.trial-P1-B-1795255602934"
+  },
+  {
+    "persona": "P1",
+    "arm": "A",
+    "questions_asked": 0,
+    "minutes": 1,
+    "send_cycles": 0,
+    "tmp": "C:\\Users\\AFZAAL~1\\AppData\\Local\\Temp\\.trial-P1-A-1795255603300"
+  },
+  {
+    "persona": "P2",
+    "arm": "B",
+    "questions_asked": 10,
+    "minutes": 3,
+    "send_cycles": 1,
+    "tmp": "C:\\Users\\AFZAAL~1\\AppData\\Local\\Temp\\.trial-P2-B-1795255603303"
+  },
+  {
+    "persona": "P2",
+    "arm": "A",
+    "questions_asked": 0,
+    "minutes": 1,
+    "send_cycles": 0,
+    "tmp": "C:\\Users\\AFZAAL~1\\AppData\\Local\\Temp\\.trial-P2-A-1795255603599"
+  },
+  {
+    "persona": "P3",
+    "arm": "B",
+    "questions_asked": 10,
+    "minutes": 3,
+    "send_cycles": 1,
+    "tmp": "C:\\Users\\AFZAAL~1\\AppData\\Local\\Temp\\.trial-P3-B-1795255603603"
+  },
+  {
+    "persona": "P3",
+    "arm": "A",
+    "questions_asked": 0,
+    "minutes": 1,
+    "send_cycles": 0,
+    "tmp": "C:\\Users\\AFZAAL~1\\AppData\\Local\\Temp\\.trial-P3-A-1795255603919"
+  },
+  {
+    "persona": "P4",
+    "arm": "B",
+    "questions_asked": 10,
+    "minutes": 3,
+    "send_cycles": 1,
+    "tmp": "C:\\Users\\AFZAAL~1\\AppData\\Local\\Temp\\.trial-P4-B-1795255603922"
+  },
+  {
+    "persona": "P4",
+    "arm": "A",
+    "questions_asked": 0,
+    "minutes": 1,
+    "send_cycles": 0,
+    "tmp": "C:\\Users\\AFZAAL~1\\AppData\\Local\\Temp\\.trial-P4-A-1795255604195"
+  },
+  {
+    "persona": "P5",
+    "arm": "B",
+    "questions_asked": 10,
+    "minutes": 3,
+    "send_cycles": 1,
+    "tmp": "C:\\Users\\AFZAAL~1\\AppData\\Local\\Temp\\.trial-P5-B-1795255604198"
+  },
+  {
+    "persona": "P5",
+    "arm": "A",
+    "questions_asked": 0,
+    "minutes": 1,
+    "send_cycles": 0,
+    "tmp": "C:\\Users\\AFZAAL~1\\AppData\\Local\\Temp\\.trial-P5-A-1795255604494"
+  },
+  {
+    "persona": "P6",
+    "arm": "B",
+    "questions_asked": 10,
+    "minutes": 3,
+    "send_cycles": 1,
+    "tmp": "C:\\Users\\AFZAAL~1\\AppData\\Local\\Temp\\.trial-P6-B-1795255604498"
+  },
+  {
+    "persona": "P6",
+    "arm": "A",
+    "questions_asked": 0,
+    "minutes": 1,
+    "send_cycles": 0,
+    "tmp": "C:\\Users\\AFZAAL~1\\AppData\\Local\\Temp\\.trial-P6-A-1795255604808"
+  },
+  {
+    "persona": "P7",
+    "arm": "B",
+    "questions_asked": 10,
+    "minutes": 3,
+    "send_cycles": 1,
+    "tmp": "C:\\Users\\AFZAAL~1\\AppData\\Local\\Temp\\.trial-P7-B-1795255604812"
+  },
+  {
+    "persona": "P7",
+    "arm": "A",
+    "questions_asked": 0,
+    "minutes": 1,
+    "send_cycles": 0,
+    "tmp": "C:\\Users\\AFZAAL~1\\AppData\\Local\\Temp\\.trial-P7-A-1795255605108"
+  },
+  {
+    "persona": "P8",
+    "arm": "B",
+    "questions_asked": 10,
+    "minutes": 3,
+    "send_cycles": 1,
+    "tmp": "C:\\Users\\AFZAAL~1\\AppData\\Local\\Temp\\.trial-P8-B-1795255605112"
+  },
+  {
+    "persona": "P8",
+    "arm": "A",
+    "questions_asked": 0,
+    "minutes": 1,
+    "send_cycles": 0,
+    "tmp": "C:\\Users\\AFZAAL~1\\AppData\\Local\\Temp\\.trial-P8-A-1795255605420"
+  }
+]

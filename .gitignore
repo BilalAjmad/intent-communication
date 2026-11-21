@@ -59,3 +59,6 @@ opencode.*.local.json
 packages/*/.vitest/
 coverage/
 packages/*/coverage/
+
+# Local bundle artifacts for the installable tarball test
+dist-install/

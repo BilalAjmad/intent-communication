@@ -1,0 +1,31 @@
+{
+  "id": "c_C7K27AJ3DBWM4RJ5C7K27AJ3DB",
+  "version": 1,
+  "createdAt": "2026-11-21T10:06:44.450Z",
+  "updatedAt": "2026-11-21T10:06:44.450Z",
+  "title": "A workout tracking app for clients",
+  "summary": "A workout tracking app for clients",
+  "goals": [
+    "A workout tracking app for clients"
+  ],
+  "constraints": [],
+  "targetAudience": "end users",
+  "successMetrics": [
+    "A workout tracking app for clients"
+  ],
+  "designDirection": {
+    "tone": "energetic, bold, rounded, dark neutrals lime accent, comfortable",
+    "palette": [],
+    "inspiration": [
+      "motivating short, lists progress bars dates"
+    ]
+  },
+  "technicalRequirements": [
+    "Today, Workouts, Progress, Profile",
+    "bottom tabs"
+  ],
+  "outOfScope": [],
+  "approvalStatus": "approved",
+  "approvedAt": "2026-11-21T10:06:44.450Z",
+  "approvedBy": "user"
+}

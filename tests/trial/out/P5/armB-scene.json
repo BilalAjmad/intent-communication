@@ -1,0 +1,36 @@
+{
+  "version": 1,
+  "revision": 1,
+  "createdAt": "2026-11-21T10:06:44.201Z",
+  "updatedAt": "2026-11-21T10:06:44.201Z",
+  "screens": {},
+  "objects": {},
+  "screenOrder": [],
+  "metadata": {
+    "name": "Trial",
+    "tags": [],
+    "artDirection": {
+      "visualIdea": "energetic, bold, rounded, dark neutrals lime accent, comfortable",
+      "palette": [
+        "lime"
+      ],
+      "typePlan": "system 3 sizes",
+      "spacing": "4/8"
+    },
+    "screens": [
+      "Today",
+      "Workouts",
+      "Progress",
+      "Profile"
+    ],
+    "style": "energetic, bold, rounded, dark neutrals lime accent, comfortable",
+    "theme": "dark",
+    "density": "comfortable",
+    "corner": "rounded",
+    "tone": "motivating",
+    "dataType": "progress",
+    "states": "loading empty error success",
+    "navType": "bottom tabs",
+    "primaryAction": "Start workout"
+  }
+}

@@ -1,0 +1,31 @@
+{
+  "id": "c_3FFRN36ERNYEF65F3FFRN36ERN",
+  "version": 1,
+  "createdAt": "2026-11-21T10:06:45.380Z",
+  "updatedAt": "2026-11-21T10:06:45.380Z",
+  "title": "A bug tracker for my game studio",
+  "summary": "A bug tracker for my game studio",
+  "goals": [
+    "A bug tracker for my game studio"
+  ],
+  "constraints": [],
+  "targetAudience": "end users",
+  "successMetrics": [
+    "A bug tracker for my game studio"
+  ],
+  "designDirection": {
+    "tone": "dark, technical, sharp corners, dark neutrals cyan accent, dense",
+    "palette": [],
+    "inspiration": [
+      "terse developer-facing, tables tags priorities dates"
+    ]
+  },
+  "technicalRequirements": [
+    "Issues, Board, Detail, Settings",
+    "sidebar"
+  ],
+  "outOfScope": [],
+  "approvalStatus": "approved",
+  "approvedAt": "2026-11-21T10:06:45.380Z",
+  "approvedBy": "user"
+}
