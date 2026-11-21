@@ -1,0 +1,36 @@
+{
+  "version": 1,
+  "revision": 1,
+  "createdAt": "2026-11-21T10:06:44.814Z",
+  "updatedAt": "2026-11-21T10:06:44.814Z",
+  "screens": {},
+  "objects": {},
+  "screenOrder": [],
+  "metadata": {
+    "name": "Trial",
+    "tags": [],
+    "artDirection": {
+      "visualIdea": "calm, clinical, rounded, cool neutrals teal accent, comfortable",
+      "palette": [
+        "teal"
+      ],
+      "typePlan": "system 3 sizes",
+      "spacing": "4/8"
+    },
+    "screens": [
+      "Shift",
+      "Patients",
+      "Tasks",
+      "Notes"
+    ],
+    "style": "calm, clinical, rounded, cool neutrals teal accent, comfortable",
+    "theme": "light",
+    "density": "comfortable",
+    "corner": "rounded",
+    "tone": "clear",
+    "dataType": "checkboxes",
+    "states": "loading empty error success",
+    "navType": "tabs",
+    "primaryAction": "Mark complete"
+  }
+}

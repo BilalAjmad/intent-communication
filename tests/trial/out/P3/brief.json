@@ -1,0 +1,31 @@
+{
+  "id": "c_4S3BCXS522H7F3Z14S3BCXS522",
+  "version": 1,
+  "createdAt": "2026-11-21T10:06:43.876Z",
+  "updatedAt": "2026-11-21T10:06:43.876Z",
+  "title": "A classroom assignment tracker",
+  "summary": "A classroom assignment tracker",
+  "goals": [
+    "A classroom assignment tracker"
+  ],
+  "constraints": [],
+  "targetAudience": "end users",
+  "successMetrics": [
+    "A classroom assignment tracker"
+  ],
+  "designDirection": {
+    "tone": "playful, approachable, rounded, soft pastels blue accent, comfortable",
+    "palette": [],
+    "inspiration": [
+      "encouraging simple, lists dates scores names"
+    ]
+  },
+  "technicalRequirements": [
+    "Classes, Assignments, Student, Grade",
+    "top nav with tabs"
+  ],
+  "outOfScope": [],
+  "approvalStatus": "approved",
+  "approvedAt": "2026-11-21T10:06:43.876Z",
+  "approvedBy": "user"
+}

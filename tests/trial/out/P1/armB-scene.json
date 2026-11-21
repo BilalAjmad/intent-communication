@@ -1,0 +1,36 @@
+{
+  "version": 1,
+  "revision": 1,
+  "createdAt": "2026-11-21T10:06:42.941Z",
+  "updatedAt": "2026-11-21T10:06:42.942Z",
+  "screens": {},
+  "objects": {},
+  "screenOrder": [],
+  "metadata": {
+    "name": "Trial",
+    "tags": [],
+    "artDirection": {
+      "visualIdea": "warm, calm, rounded, terracotta accent, comfortable density",
+      "palette": [
+        "terracotta"
+      ],
+      "typePlan": "system 3 sizes",
+      "spacing": "4/8"
+    },
+    "screens": [
+      "Home",
+      "Services",
+      "Book",
+      "Confirmation"
+    ],
+    "style": "warm, calm, rounded, terracotta accent, comfortable density",
+    "theme": "light",
+    "density": "comfortable",
+    "corner": "rounded",
+    "tone": "friendly",
+    "dataType": "dates",
+    "states": "loading empty error success disabled",
+    "navType": "bottom tab bar on mobile",
+    "primaryAction": "Book a session"
+  }
+}

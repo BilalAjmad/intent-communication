@@ -1,0 +1,31 @@
+{
+  "id": "c_C956H22WA29A08PZC956H22WA2",
+  "version": 1,
+  "createdAt": "2026-11-21T10:06:45.039Z",
+  "updatedAt": "2026-11-21T10:06:45.039Z",
+  "title": "A patient handover checklist",
+  "summary": "A patient handover checklist",
+  "goals": [
+    "A patient handover checklist"
+  ],
+  "constraints": [],
+  "targetAudience": "end users",
+  "successMetrics": [
+    "A patient handover checklist"
+  ],
+  "designDirection": {
+    "tone": "calm, clinical, rounded, cool neutrals teal accent, comfortable",
+    "palette": [],
+    "inspiration": [
+      "clear unambiguous, lists checkboxes times notes"
+    ]
+  },
+  "technicalRequirements": [
+    "Shift, Patients, Tasks, Notes",
+    "tabs"
+  ],
+  "outOfScope": [],
+  "approvalStatus": "approved",
+  "approvedAt": "2026-11-21T10:06:45.039Z",
+  "approvedBy": "user"
+}

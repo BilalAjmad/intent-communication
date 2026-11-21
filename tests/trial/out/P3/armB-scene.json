@@ -1,0 +1,36 @@
+{
+  "version": 1,
+  "revision": 1,
+  "createdAt": "2026-11-21T10:06:43.606Z",
+  "updatedAt": "2026-11-21T10:06:43.606Z",
+  "screens": {},
+  "objects": {},
+  "screenOrder": [],
+  "metadata": {
+    "name": "Trial",
+    "tags": [],
+    "artDirection": {
+      "visualIdea": "playful, approachable, rounded, soft pastels blue accent, comfortable",
+      "palette": [
+        "blue"
+      ],
+      "typePlan": "system 3 sizes",
+      "spacing": "4/8"
+    },
+    "screens": [
+      "Classes",
+      "Assignments",
+      "Student",
+      "Grade"
+    ],
+    "style": "playful, approachable, rounded, soft pastels blue accent, comfortable",
+    "theme": "light",
+    "density": "comfortable",
+    "corner": "rounded",
+    "tone": "encouraging",
+    "dataType": "lists",
+    "states": "loading empty error success",
+    "navType": "top nav with tabs",
+    "primaryAction": "Add assignment"
+  }
+}

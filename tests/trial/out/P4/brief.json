@@ -1,0 +1,31 @@
+{
+  "id": "c_14BE64B0RQ9B113Q14BE64B0RQ",
+  "version": 1,
+  "createdAt": "2026-11-21T10:06:44.149Z",
+  "updatedAt": "2026-11-21T10:06:44.149Z",
+  "title": "An analytics dashboard for my SaaS",
+  "summary": "An analytics dashboard for my SaaS",
+  "goals": [
+    "An analytics dashboard for my SaaS"
+  ],
+  "constraints": [],
+  "targetAudience": "end users",
+  "successMetrics": [
+    "An analytics dashboard for my SaaS"
+  ],
+  "designDirection": {
+    "tone": "minimal, data-dense, sharp corners, indigo accent, dense",
+    "palette": [],
+    "inspiration": [
+      "technical precise, charts numbers tables filters"
+    ]
+  },
+  "technicalRequirements": [
+    "Overview, Users, Revenue, Settings",
+    "top bar plus sidebar"
+  ],
+  "outOfScope": [],
+  "approvalStatus": "approved",
+  "approvedAt": "2026-11-21T10:06:44.149Z",
+  "approvedBy": "user"
+}
