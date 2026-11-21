@@ -347,3 +347,7 @@ If any box is unchecked, do not say "done". Say what remains.
 - Verify current information (today is 2026-11-13); don't trust old memory.
 - Protect the user's machine, data, and secrets above all.
 - Small steps, verify each, report honestly.
+<!-- intent:setup:start -->
+## Intent
+For design or UI work in this project, use the Intent MCP tools (one question at a time with ask_user; get_scene/apply_patch/get_feedback for the scene; validate before claiming success). Agents without slash commands can say `intent:` to start the interview or `prototype:` to open the Studio and edit visually. Never hand-write UI outside these tools.
+<!-- intent:setup:end -->
