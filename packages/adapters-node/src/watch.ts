@@ -172,6 +172,10 @@ export function createFileWatcher(
     try {
       const handle = fsWatch(dir, { recursive: true }, (_eventType, filename) => {
         if (!filename) return;
+        // macOS occasionally reports the watched directory's own basename as a
+        // filename for events originating inside it; ignore those (they never
+        // name a real file under `dir`).
+        if (filename === dir.split(sep).pop()) return;
         const rel = normalizeRel(dir, filename);
         if (rel) emit(rel);
       });
