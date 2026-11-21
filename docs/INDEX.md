@@ -37,6 +37,7 @@
   - 17 17. Open Questions
   - 18 18. Flags for Later Documents
   - 19 19. Change Log
+  - 8.3.2 8.3.2 Phase 1 actuals (final master order, 2026-11-21)
 
 ## INDEX
 

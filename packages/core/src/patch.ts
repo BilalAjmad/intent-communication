@@ -88,7 +88,7 @@ export function applyPatch(scene: Scene, patch: Patch): Scene {
   const objects = { ...scene.objects };
   const rawObj = objects[validated.objectId];
   if (!rawObj) {
-    throw new IntentError(ErrorCodes.E_NOT_FOUND, `Object ${validated.objectId} not found`);
+    throw new IntentError(ErrorCodes.E_NOT_FOUND, `Object ${validated.objectId} not found — apply_patch can only modify existing objects. Create objects in the Studio first, then modify them here.`);
   }
   // Deep-clone the target object: applyPatch must not mutate the caller's scene.
   const obj = structuredClone(rawObj);

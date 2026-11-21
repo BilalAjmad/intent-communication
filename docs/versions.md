@@ -100,3 +100,11 @@ Everything not listed above is unverified, including but not limited to:
 Run the check against live docs, re-fetch the three URLs above, re-run `date`,
 and mark only what you verified. Do not promote an UNVERIFIED item to verified
 because "it worked last time" or because it sounded right.
+
+
+## Claude Code headless mode - fetched 2026-11-21
+
+- URL: https://code.claude.com/docs/en/headless
+- Result: VERIFIED 2026-11-21. claude -p runs non-interactively; slash commands work when included in the prompt string; --continue / --resume continue a conversation; --allowedTools auto-approves tools; --output-format json returns session_id. MCP servers from .mcp.json connect in -p mode.
+- Limitation observed: this machine Claude Code is configured against OpenRouter (z-ai/glm-5.3-flash) with 0 credits, so no live session could be driven. Fallback used: scripted persona driver speaking MCP to the real server (labelled scripted persona, no live agent).
+- Second agent: only Claude Code, Kilo, Gemini, Cline, OpenCode CLIs are installed; Cursor agent is NOT installed. Kilo Code used as the second agent via its MCP config (config-only verification, no live session possible without credits).
