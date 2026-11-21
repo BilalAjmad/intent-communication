@@ -1,5 +1,5 @@
 # Tier 1 Smoke Checklist
-**Executed**: 2026-11-21 — scripted persona (no live agent); AgentSeeAI available (doctor passes) but live Claude Code IDE session could not be driven in this automated context
+**Executed**: 2026-11-21 ï¿½ scripted persona (no live agent); AgentSeeAI available (doctor passes) but live Claude Code IDE session could not be driven in this automated context
 **Agent name and exact version**: scripted persona driver (Node MCP client) speaking to the real server; Claude Code 2.1.304 installed
 **Date**: 2026-11-21
 **OS**: Windows 11 (win32)
@@ -31,6 +31,15 @@ One result per line. Result words: **Pass**, **Pass with notes**, **Fail**, **No
 | 18 | Finish the interview with "Exactly right" | `.intent/briefs/<id>.json` exists with `approvalStatus: "approved"`; meter never claimed >89 while a topic was uncovered |  |  |
 | 19 | Run `/prototype` with the approved brief; then run it in a fresh project with no brief | Studio opens with the user's own words as quote; art direction written to metadata; HTML exported. Without a brief it tells the user to run `/intent` |  |  |
 | 20 | Anti-slop spot check on the produced scene | No lorem ipsum, emoji icons, purple-blue gradient or three identical cards; light and dark theme; realistic copy |  |  |
+
+## Live session evidence (2026-11-21, Kilo Code 7.8.31)
+
+- Transcript: kilo run session (headless). Evidence files: tests/smoke/2026-11-21/kilo-interview-state.json, tests/smoke/2026-11-21/kilo-salon-booking.html
+- Row 3 (agent starts interview without mentioning Intent): Pass - Kilo read .intent/rules/intent-core.md and started ask_user interview on "Design a salon booking app"
+- Row 8 (Exactly right -> brief saved): Fail - agent declared Approved but did not call ask_user with summaryChoice exactly-right; interview state remained in_progress, briefId null. Agent compliance issue, not a product bug (MCP tools verified by unit tests).
+- Row 17 (interview-only, no building): Fail - agent built salon-booking.html directly without Intent scene population; noted apply_patch cannot create new top-level screens in M1.
+- Non-blocking rows (8, 17) documented as agent-compliance findings, not product bugs.
+- Blocking rows (3,4,9,11,12,13): Row 3 Pass; rows 4,9,11,12,13 not exercised in this session (no Studio feedback, no lock test, no prompt-injection test).
 
 ## HUMAN GATE 1 â€” performed by the owner, not the agent
 

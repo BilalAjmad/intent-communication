@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Lumière Salon — Booking</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --color-primary: #8B6F4E;
+    --color-primary-hover: #7A6040;
+    --color-secondary: #B89A7A;
+    --color-bg: #FAF7F2;
+    --color-surface: #FFFFFF;
+    --color-text: #2B241D;
+    --color-text-secondary: #6B5E50;
+    --color-border: #E5DDD0;
+    --color-focus: #8B6F4E;
+    --color-success: #5A8A6A;
+    --color-error: #B54A4A;
+    --color-warning: #C99A3A;
+    --spacing-xs: 4px;
+    --spacing-sm: 8px;
+    --spacing-md: 16px;
+    --spacing-lg: 24px;
+    --spacing-xl: 32px;
+    --touch: 44px;
+    --font-serif: "Fraunces", Georgia, serif;
+    --font-sans: "Inter", system-ui, -apple-system, sans-serif;
+    --radius-sm: 8px;
+    --radius-md: 12px;
+    --radius-lg: 16px;
+    --shadow-sm: 0 1px 2px rgba(43,36,29,0.06);
+    --shadow-md: 0 4px 12px rgba(43,36,29,0.08);
+    --transition: 150ms ease-out;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+  body {
+    font-family: var(--font-sans);
+    background: #1a1612;
+    color: var(--color-text);
+    display: flex; align-items: center; justify-content: center;
+    min-height: 100vh;
+    -webkit-font-smoothing: antialiased;
+  }
+  .phone {
+    width: 390px; height: 844px; max-height: 92vh;
+    background: var(--color-bg);
+    border-radius: 44px;
+    overflow: hidden;
+    position: relative;
+    box-shadow: 0 30px 80px rgba(0,0,0,0.5);
+    display: flex; flex-direction: column;
+  }
+  .statusbar {
+    height: 48px; padding: 0 24px;
+    display: flex; align-items: center; justify-content: space-between;
+    font-size: 14px; font-weight: 600; color: var(--color-text);
+    flex-shrink: 0;
+  }
+  .screen { flex: 1; overflow-y: auto; padding: 0 var(--spacing-md) var(--spacing-lg); }
+  .screen::-webkit-scrollbar { display: none; }
+  .screen { scrollbar-width: none; }
+  .tabbar {
+    height: 78px; background: var(--color-surface);
+    border-top: 1px solid var(--color-border);
+    display: flex; align-items: center; justify-content: space-around;
+    padding-bottom: 20px; flex-shrink: 0;
+  }
+  .tab {
+    background: none; border: none; cursor: pointer;
+    display: flex; flex-direction: column; align-items: center; gap: 4px;
+    color: var(--color-text-secondary); font-size: 11px; font-weight: 500;
+    min-width: var(--touch); min-height: var(--touch);
+    justify-content: center;
+    transition: color var(--transition);
+  }
+  .tab.active { color: var(--color-primary); }
+  .tab svg { width: 22px; height: 22px; }
+  .header { padding: var(--spacing-md) 0 var(--spacing-sm); }
+  .header h1 { font-family: var(--font-serif); font-size: 28px; font-weight: 500; letter-spacing: -0.01em; }
+  .header .sub { color: var(--color-text-secondary); font-size: 14px; margin-top: 2px; }
+  .card {
+    background: var(--color-surface); border-radius: var(--radius-md);
+    padding: var(--spacing-md); box-shadow: var(--shadow-sm);
+    border: 1px solid var(--color-border);
+  }
+  .stat-row { display: grid; grid-template-columns: 1fr 1fr; gap: var(--spacing-sm); margin: var(--spacing-md) 0; }
+  .stat { background: var(--color-surface); border-radius: var(--radius-md); padding: var(--spacing-md); border: 1px solid var(--color-border); }
+  .stat .label { font-size: 12px; color: var(--color-text-secondary); text-transform: uppercase; letter-spacing: 0.06em; }
+  .stat .value { font-family: var(--font-serif); font-size: 26px; font-weight: 500; margin-top: 4px; }
+  .stat .delta { font-size: 12px; color: var(--color-success); margin-top: 2px; }
+  .quick { display: flex; gap: var(--spacing-sm); margin: var(--spacing-md) 0; }
+  .btn {
+    height: var(--touch); border: none; border-radius: var(--radius-md);
+    font-family: var(--font-sans); font-size: 15px; font-weight: 600;
+    cursor: pointer; display: inline-flex; align-items: center; justify-content: center;
+    gap: 8px; transition: all var(--transition);
+    min-width: var(--touch);
+  }
+  .btn-primary { background: var(--color-primary); color: #fff; flex: 1; }
+  .btn-primary:hover { background: var(--color-primary-hover); }
+  .btn-outline { background: var(--color-surface); color: var(--color-primary); border: 1.5px solid var(--color-primary); flex: 1; }
+  .btn:active { transform: scale(0.98); }
+  .btn:focus-visible { outline: 2px solid var(--color-focus); outline-offset: 2px; }
+  .section-title { font-family: var(--font-serif); font-size: 18px; font-weight: 500; margin: var(--spacing-lg) 0 var(--spacing-sm); }
+  .appt {
+    display: flex; gap: var(--spacing-md); padding: var(--spacing-md);
+    background: var(--color-surface); border-radius: var(--radius-md);
+    border: 1px solid var(--color-border); margin-bottom: var(--spacing-sm);
+    align-items: center;
+  }
+  .appt .strip { width: 4px; height: 44px; border-radius: 2px; flex-shrink: 0; }
+  .appt .time { font-weight: 600; font-size: 14px; }
+  .appt .name { font-size: 15px; margin-top: 2px; }
+  .appt .meta { font-size: 12px; color: var(--color-text-secondary); margin-top: 2px; }
+  .appt .avatar { width: 36px; height: 36px; border-radius: 50%; background: var(--color-secondary); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 600; flex-shrink: 0; }
+  .staff-row { display: flex; gap: var(--spacing-sm); overflow-x: auto; padding-bottom: var(--spacing-sm); }
+  .staff-row::-webkit-scrollbar { display: none; }
+  .staff-chip { flex-shrink: 0; text-align: center; }
+  .staff-chip .av { width: 56px; height: 56px; border-radius: 50%; background: var(--color-secondary); color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 600; margin: 0 auto var(--spacing-xs); }
+  .staff-chip .nm { font-size: 12px; font-weight: 500; }
+  .staff-chip .st { font-size: 11px; color: var(--color-success); }
+  /* Calendar */
+  .cal-header { display: flex; align-items: center; justify-content: space-between; margin: var(--spacing-md) 0; }
+  .cal-header h2 { font-family: var(--font-serif); font-size: 20px; font-weight: 500; }
+  .cal-nav { display: flex; gap: var(--spacing-xs); }
+  .cal-nav button { width: var(--touch); height: var(--touch); border: 1px solid var(--color-border); background: var(--color-surface); border-radius: var(--radius-sm); cursor: pointer; }
+  .day-strip { display: flex; gap: var(--spacing-xs); overflow-x: auto; padding-bottom: var(--spacing-sm); }
+  .day-strip::-webkit-scrollbar { display: none; }
+  .day { flex-shrink: 0; width: 48px; text-align: center; padding: 8px 0; border-radius: var(--radius-sm); cursor: pointer; }
+  .day .dow { font-size: 11px; color: var(--color-text-secondary); text-transform: uppercase; }
+  .day .num { font-size: 16px; font-weight: 600; margin-top: 2px; }
+  .day.active { background: var(--color-primary); color: #fff; }
+  .day.active .dow { color: rgba(255,255,255,0.8); }
+  .cal-grid { display: grid; grid-template-columns: 52px 1fr; gap: 0; }
+  .time-col { font-size: 11px; color: var(--color-text-secondary); }
+  .time-slot { height: 60px; display: flex; align-items: flex-start; padding-top: 4px; border-top: 1px solid var(--color-border); }
+  .appt-block {
+    background: var(--color-primary); color: #fff; border-radius: var(--radius-sm);
+    padding: 6px 8px; font-size: 12px; font-weight: 500; margin: 2px;
+    box-shadow: var(--shadow-sm);
+  }
+  .appt-block .t { font-size: 11px; opacity: 0.85; }
+  .appt-block.rose { background: #B87A8A; }
+  .appt-block.sage { background: #7A9A7A; }
+  .appt-block.tan { background: #B89A7A; }
+  /* Services */
+  .svc { background: var(--color-surface); border-radius: var(--radius-md); padding: var(--spacing-md); border: 1px solid var(--color-border); margin-bottom: var(--spacing-sm); display: flex; justify-content: space-between; align-items: center; }
+  .svc .info h3 { font-size: 15px; font-weight: 600; }
+  .svc .info p { font-size: 12px; color: var(--color-text-secondary); margin-top: 2px; }
+  .svc .price { font-family: var(--font-serif); font-size: 18px; font-weight: 500; color: var(--color-primary); }
+  .svc .dur { font-size: 11px; color: var(--color-text-secondary); text-align: right; }
+  .cat { display: flex; gap: var(--spacing-xs); margin: var(--spacing-md) 0; overflow-x: auto; }
+  .cat::-webkit-scrollbar { display: none; }
+  .chip { flex-shrink: 0; padding: 8px 14px; border-radius: 999px; border: 1px solid var(--color-border); background: var(--color-surface); font-size: 13px; cursor: pointer; }
+  .chip.active { background: var(--color-primary); color: #fff; border-color: var(--color-primary); }
+  /* Staff */
+  .staff-card { background: var(--color-surface); border-radius: var(--radius-md); padding: var(--spacing-md); border: 1px solid var(--color-border); margin-bottom: var(--spacing-sm); display: flex; gap: var(--spacing-md); align-items: center; }
+  .staff-card .av { width: 64px; height: 64px; border-radius: 50%; background: var(--color-secondary); color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 600; font-size: 18px; flex-shrink: 0; }
+  .staff-card h3 { font-size: 16px; font-weight: 600; }
+  .staff-card .role { font-size: 12px; color: var(--color-text-secondary); }
+  .staff-card .tags { display: flex; gap: 6px; margin-top: 6px; flex-wrap: wrap; }
+  .tag { font-size: 11px; padding: 3px 8px; border-radius: 999px; background: var(--color-bg); color: var(--color-text-secondary); }
+  .rating { color: var(--color-warning); font-size: 12px; margin-top: 4px; }
+  /* Booking wizard */
+  .modal-backdrop { position: absolute; inset: 0; background: rgba(43,36,29,0.4); display: none; align-items: flex-end; z-index: 10; }
+  .modal-backdrop.open { display: flex; }
+  .sheet { background: var(--color-surface); width: 100%; border-radius: 24px 24px 0 0; padding: var(--spacing-lg) var(--spacing-md); max-height: 88%; overflow-y: auto; animation: slideUp 200ms ease-out; }
+  @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+  .sheet h2 { font-family: var(--font-serif); font-size: 22px; font-weight: 500; margin-bottom: var(--spacing-md); }
+  .step-ind { display: flex; gap: 6px; margin-bottom: var(--spacing-lg); }
+  .step-ind span { flex: 1; height: 4px; border-radius: 2px; background: var(--color-border); }
+  .step-ind span.done { background: var(--color-primary); }
+  .option { padding: var(--spacing-md); border: 1.5px solid var(--color-border); border-radius: var(--radius-md); margin-bottom: var(--spacing-sm); cursor: pointer; display: flex; justify-content: space-between; align-items: center; transition: all var(--transition); }
+  .option:hover { border-color: var(--color-primary); }
+  .option.selected { border-color: var(--color-primary); background: #F3EDE4; }
+  .option .nm { font-weight: 500; }
+  .option .pr { color: var(--color-primary); font-weight: 600; }
+  .time-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: var(--spacing-sm); margin: var(--spacing-md) 0; }
+  .time-slot-btn { height: var(--touch); border: 1.5px solid var(--color-border); background: var(--color-surface); border-radius: var(--radius-sm); cursor: pointer; font-weight: 500; transition: all var(--transition); }
+  .time-slot-btn:hover { border-color: var(--color-primary); }
+  .time-slot-btn.selected { background: var(--color-primary); color: #fff; border-color: var(--color-primary); }
+  .time-slot-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+  .confirm-box { background: var(--color-bg); border-radius: var(--radius-md); padding: var(--spacing-md); margin: var(--spacing-md) 0; }
+  .confirm-row { display: flex; justify-content: space-between; padding: 6px 0; font-size: 14px; }
+  .confirm-row .k { color: var(--color-text-secondary); }
+  .confirm-row .v { font-weight: 500; }
+  .hidden { display: none; }
+  .toast { position: absolute; bottom: 90px; left: 50%; transform: translateX(-50%); background: var(--color-text); color: #fff; padding: 12px 20px; border-radius: 999px; font-size: 14px; opacity: 0; transition: opacity var(--transition); pointer-events: none; z-index: 20; }
+  .toast.show { opacity: 1; }
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+  }
+</style>
+</head>
+<body>
+<div class="phone">
+  <div class="statusbar"><span>9:41</span><span>●●● 100%</span></div>
+  <div class="screen" id="screen"></div>
+  <nav class="tabbar">
+    <button class="tab active" data-tab="home"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12l9-9 9 9M5 10v10h14V10"/></svg><span>Home</span></button>
+    <button class="tab" data-tab="calendar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg><span>Calendar</span></button>
+    <button class="tab" data-tab="services"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l3 7h7l-6 4 2 7-6-4-6 4 2-7-6-4h7z"/></svg><span>Services</span></button>
+    <button class="tab" data-tab="staff"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="7" r="4"/><path d="M3 21v-2a4 4 0 014-4h4a4 4 0 014 4v2M16 3.13a4 4 0 010 7.75M21 21v-2a4 4 0 00-3-3.85"/></svg><span>Staff</span></button>
+  </nav>
+  <div class="modal-backdrop" id="modal">
+    <div class="sheet" id="sheet"></div>
+  </div>
+  <div class="toast" id="toast"></div>
+</div>
+
+<script>
+const state = { tab: 'home', booking: { service: null, staff: null, date: null, time: null }, step: 0 };
+
+const services = [
+  { id: 1, name: "Women's Haircut", cat: "Hair", dur: "45 min", price: 65, color: "#8B6F4E" },
+  { id: 2, name: "Men's Haircut", cat: "Hair", dur: "30 min", price: 40, color: "#8B6F4E" },
+  { id: 3, name: "Balayage", cat: "Color", dur: "120 min", price: 180, color: "#B87A8A" },
+  { id: 4, name: "Full Color", cat: "Color", dur: "90 min", price: 120, color: "#B87A8A" },
+  { id: 5, name: "Blowout", cat: "Styling", dur: "45 min", price: 55, color: "#7A9A7A" },
+  { id: 6, name: "Bridal Updo", cat: "Styling", dur: "90 min", price: 150, color: "#7A9A7A" },
+  { id: 7, name: "Deep Conditioning", cat: "Treatment", dur: "30 min", price: 35, color: "#B89A7A" },
+  { id: 8, name: "Keratin Treatment", cat: "Treatment", dur: "120 min", price: 220, color: "#B89A7A" },
+];
+const staff = [
+  { id: 1, name: "Emma", role: "Senior Stylist", initials: "EM", rating: 4.9, tags: ["Color", "Balayage", "Cuts"] },
+  { id: 2, name: "James", role: "Barber", initials: "JA", rating: 4.8, tags: ["Men's", "Fades", "Beard"] },
+  { id: 3, name: "Sofia", role: "Colorist", initials: "SO", rating: 5.0, tags: ["Color", "Highlights"] },
+  { id: 4, name: "Mia", role: "Stylist", initials: "MI", rating: 4.7, tags: ["Cuts", "Styling", "Bridal"] },
+];
+const appointments = [
+  { time: "9:00", name: "Olivia M.", svc: "Balayage", stylist: "Emma", color: "rose", dur: "120 min" },
+  { time: "9:30", name: "Liam P.", svc: "Men's Haircut", stylist: "James", color: "tan", dur: "30 min" },
+  { time: "11:00", name: "Ava R.", svc: "Full Color", stylist: "Sofia", color: "rose", dur: "90 min" },
+  { time: "1:00", name: "Noah K.", svc: "Deep Conditioning", stylist: "Mia", color: "sage", dur: "30 min" },
+  { time: "2:30", name: "Isabella T.", svc: "Women's Haircut", stylist: "Emma", color: "tan", dur: "45 min" },
+];
+
+function render() {
+  const s = document.getElementById('screen');
+  if (state.tab === 'home') s.innerHTML = homeHTML();
+  else if (state.tab === 'calendar') s.innerHTML = calendarHTML();
+  else if (state.tab === 'services') s.innerHTML = servicesHTML();
+  else if (state.tab === 'staff') s.innerHTML = staffHTML();
+  attachHandlers();
+}
+
+function homeHTML() {
+  return `
+    <div class="header">
+      <h1>Good morning, Anna</h1>
+      <div class="sub">Lumière Salon · Today, Nov 21</div>
+    </div>
+    <div class="stat-row">
+      <div class="stat"><div class="label">Bookings</div><div class="value">12</div><div class="delta">↑ 3 vs yesterday</div></div>
+      <div class="stat"><div class="label">Revenue</div><div class="value">$840</div><div class="delta">↑ 12%</div></div>
+    </div>
+    <div class="quick">
+      <button class="btn btn-primary" id="newBooking">+ New booking</button>
+      <button class="btn btn-outline" id="walkin">Walk-in</button>
+    </div>
+    <div class="section-title">Today's appointments</div>
+    ${appointments.map(a => `
+      <div class="appt">
+        <div class="strip" style="background:${colorFor(a.color)}"></div>
+        <div style="flex:1">
+          <div class="time">${a.time} · ${a.dur}</div>
+          <div class="name">${a.name}</div>
+          <div class="meta">${a.svc} with ${a.stylist}</div>
+        </div>
+        <div class="avatar">${a.stylist[0]}${a.stylist[1]}</div>
+      </div>
+    `).join('')}
+    <div class="section-title">On duty</div>
+    <div class="staff-row">
+      ${staff.map(s => `<div class="staff-chip"><div class="av">${s.initials}</div><div class="nm">${s.name}</div><div class="st">● Available</div></div>`).join('')}
+    </div>
+  `;
+}
+function colorFor(c){ return c==='rose'?'#B87A8A':c==='sage'?'#7A9A7A':c==='tan'?'#B89A7A':'#8B6F4E'; }
+
+function calendarHTML() {
+  const days = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+  const nums = [17,18,19,20,21,22,23];
+  return `
+    <div class="cal-header">
+      <h2>November 2026</h2>
+      <div class="cal-nav"><button>‹</button><button>›</button></div>
+    </div>
+    <div class="day-strip">
+      ${days.map((d,i)=>`<div class="day ${i===4?'active':''}"><div class="dow">${d}</div><div class="num">${nums[i]}</div></div>`).join('')}
+    </div>
+    <div class="section-title">Friday · 6 appointments</div>
+    <div class="cal-grid">
+      <div class="time-col">
+        ${['9:00','10:00','11:00','12:00','1:00','2:00','3:00','4:00'].map(t=>`<div class="time-slot">${t}</div>`).join('')}
+      </div>
+      <div style="position:relative">
+        ${['9:00','10:00','11:00','12:00','1:00','2:00','3:00','4:00'].map(t=>`<div class="time-slot" style="border-top:1px solid var(--color-border)"></div>`).join('')}
+        <div style="position:absolute; top:0; left:4px; right:4px;">
+          <div class="appt-block rose" style="margin-bottom:4px">9:00 Olivia M.<br><span class="t">Balayage · Emma · 120min</span></div>
+          <div class="appt-block tan" style="margin-top:60px">9:30 Liam P.<br><span class="t">Men's Cut · James · 30min</span></div>
+          <div class="appt-block rose" style="margin-top:60px">11:00 Ava R.<br><span class="t">Full Color · Sofia · 90min</span></div>
+          <div class="appt-block sage" style="margin-top:60px">1:00 Noah K.<br><span class="t">Deep Cond. · Mia · 30min</span></div>
+          <div class="appt-block tan" style="margin-top:90px">2:30 Isabella T.<br><span class="t">Women's Cut · Emma · 45min</span></div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function servicesHTML() {
+  let cat = state.svcCat || 'All';
+  const cats = ['All','Hair','Color','Styling','Treatment'];
+  const filtered = cat==='All' ? services : services.filter(s=>s.cat===cat);
+  return `
+    <div class="header"><h1>Services</h1><div class="sub">Tap a service to book</div></div>
+    <div class="cat">${cats.map(c=>`<div class="chip ${c===cat?'active':''}" data-cat="${c}">${c}</div>`).join('')}</div>
+    ${filtered.map(s=>`
+      <div class="svc">
+        <div class="info"><h3>${s.name}</h3><p>${s.cat} · ${s.dur}</p></div>
+        <div><div class="price">$${s.price}</div><div class="dur">${s.dur}</div></div>
+      </div>
+    `).join('')}
+  `;
+}
+
+function staffHTML() {
+  return `
+    <div class="header"><h1>Our team</h1><div class="sub">Tap a stylist to view availability</div></div>
+    ${staff.map(s=>`
+      <div class="staff-card">
+        <div class="av">${s.initials}</div>
+        <div style="flex:1">
+          <h3>${s.name}</h3>
+          <div class="role">${s.role} · ${s.rating} ★</div>
+          <div class="tags">${s.tags.map(t=>`<span class="tag">${t}</span>`).join('')}</div>
+        </div>
+      </div>
+    `).join('')}
+  `;
+}
+
+function attachHandlers() {
+  document.querySelectorAll('.tab').forEach(t => t.addEventListener('click', () => {
+    state.tab = t.dataset.tab;
+    document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('active', x===t));
+    render();
+  }));
+  const nb = document.getElementById('newBooking');
+  if (nb) nb.addEventListener('click', openBooking);
+  document.querySelectorAll('.chip').forEach(c => c.addEventListener('click', () => { state.svcCat = c.dataset.cat; render(); }));
+  document.querySelectorAll('.svc').forEach((el,i) => el.addEventListener('click', () => { openBooking(services[i].id); }));
+}
+
+function openBooking(svcId) {
+  state.booking = { service: svcId ? services.find(s=>s.id===svcId) : null, staff: null, date: null, time: null };
+  state.step = state.booking.service ? 1 : 0;
+  document.getElementById('modal').classList.add('open');
+  renderSheet();
+}
+function closeBooking() { document.getElementById('modal').classList.remove('open'); }
+
+function renderSheet() {
+  const sheet = document.getElementById('sheet');
+  const b = state.booking;
+  const stepInd = `<div class="step-ind">${[0,1,2,3].map(i=>`<span class="${i<state.step?'done':''}"></span>`).join('')}</div>`;
+  if (state.step === 0) {
+    sheet.innerHTML = `<h2>Choose a service</h2>${stepInd}${services.map(s=>`<div class="option ${b.service&&b.service.id===s.id?'selected':''}" data-svc="${s.id}"><div class="nm">${s.name}</div><div class="pr">$${s.price}</div></div>`).join('')}<button class="btn btn-primary" id="next0" style="width:100%;margin-top:12px">Continue</button>`;
+    sheet.querySelectorAll('.option').forEach(o=>o.addEventListener('click',()=>{ b.service=services.find(s=>s.id==o.dataset.svc); renderSheet(); }));
+    document.getElementById('next0').addEventListener('click',()=>{ if(b.service){state.step=1;renderSheet();}else toast('Pick a service'); });
+  } else if (state.step === 1) {
+    sheet.innerHTML = `<h2>Choose a stylist</h2>${stepInd}${staff.map(s=>`<div class="option ${b.staff&&b.staff.id===s.id?'selected':''}" data-st="${s.id}"><div><div class="nm">${s.name}</div><div style="font-size:12px;color:var(--color-text-secondary)">${s.role}</div></div><div class="pr">${s.rating}★</div></div>`).join('')}<div style="display:flex;gap:8px;margin-top:12px"><button class="btn btn-outline" id="back1">Back</button><button class="btn btn-primary" id="next1">Continue</button></div>`;
+    sheet.querySelectorAll('.option').forEach(o=>o.addEventListener('click',()=>{ b.staff=staff.find(s=>s.id==o.dataset.st); renderSheet(); }));
+    document.getElementById('back1').addEventListener('click',()=>{state.step=0;renderSheet();});
+    document.getElementById('next1').addEventListener('click',()=>{ if(b.staff){state.step=2;renderSheet();}else toast('Pick a stylist'); });
+  } else if (state.step === 2) {
+    const times = ['9:00','9:30','10:00','10:30','11:00','11:30','1:00','1:30','2:00','2:30','3:00','3:30'];
+    sheet.innerHTML = `<h2>Pick a time</h2>${stepInd}<div class="day-strip" style="margin-bottom:8px">${['Mon 17','Tue 18','Wed 19','Thu 20','Fri 21'].map((d,i)=>`<div class="day ${i===4?'active':''}" style="width:62px"><div class="dow">${d.split(' ')[0]}</div><div class="num">${d.split(' ')[1]}</div></div>`).join('')}</div><div class="time-grid">${times.map(t=>`<button class="time-slot-btn ${b.time===t?'selected':''}" data-t="${t}">${t}</button>`).join('')}</div><div style="display:flex;gap:8px;margin-top:12px"><button class="btn btn-outline" id="back2">Back</button><button class="btn btn-primary" id="next2">Continue</button></div>`;
+    sheet.querySelectorAll('.time-slot-btn').forEach(btn=>btn.addEventListener('click',()=>{ b.time=btn.dataset.t; renderSheet(); }));
+    document.getElementById('back2').addEventListener('click',()=>{state.step=1;renderSheet();});
+    document.getElementById('next2').addEventListener('click',()=>{ if(b.time){state.step=3;renderSheet();}else toast('Pick a time'); });
+  } else {
+    sheet.innerHTML = `<h2>Confirm booking</h2>${stepInd}<div class="confirm-box">
+      <div class="confirm-row"><span class="k">Service</span><span class="v">${b.service.name}</span></div>
+      <div class="confirm-row"><span class="k">Stylist</span><span class="v">${b.staff.name}</span></div>
+      <div class="confirm-row"><span class="k">Date</span><span class="v">Fri, Nov 21</span></div>
+      <div class="confirm-row"><span class="k">Time</span><span class="v">${b.time}</span></div>
+      <div class="confirm-row"><span class="k">Duration</span><span class="v">${b.service.dur}</span></div>
+      <div class="confirm-row"><span class="k">Price</span><span class="v">$${b.service.price}</span></div>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:12px"><button class="btn btn-outline" id="back3">Back</button><button class="btn btn-primary" id="confirm">Confirm booking</button></div>`;
+    document.getElementById('back3').addEventListener('click',()=>{state.step=2;renderSheet();});
+    document.getElementById('confirm').addEventListener('click',()=>{ closeBooking(); toast('Booking confirmed! ✓'); });
+  }
+}
+function toast(msg){ const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),2200); }
+
+document.getElementById('modal').addEventListener('click', e => { if(e.target.id==='modal') closeBooking(); });
+
+render();
+</script>
+</body>
+</html>
