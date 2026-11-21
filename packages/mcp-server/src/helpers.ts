@@ -88,14 +88,18 @@ export function applyMeterUpdate(
   }
 }
 
-/** trd 10.2 rule 2: percent >= 90 while any required topic is none → cap at 89 with a reason. */
+/** Owner ruling (2026-11-21): no percentage cap — the interview keeps asking
+ *  until understanding is 100%. A missing required topic is reported as a
+ *  hint (not a lowered number) so the agent knows to ask more. */
 export function meterWithRequiredTopicCap(
   percent: number,
   requiredTopics: readonly string[],
   topics: Record<string, "none" | "partial" | "covered">,
 ) {
-  if (percent < 90) return { percent, capped: false as const };
   const missing = requiredTopics.filter((t) => (topics[t] ?? "none") === "none");
-  if (missing.length === 0) return { percent, capped: false as const };
-  return { percent: 89, capped: true as const, reason: `Required topic not covered: ${missing[0]}` };
+  return {
+    percent: Math.min(100, Math.max(0, percent)),
+    capped: false as const,
+    ...(missing.length > 0 ? { reason: `Ask more — required topic not covered: ${missing[0]}` } : {}),
+  };
 }

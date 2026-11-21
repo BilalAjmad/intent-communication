@@ -69,8 +69,7 @@ describe("Meter: works example (intent.md §7.4, small task, M1)", () => {
   it("worked example: 69% for the worked example", () => {
     const { serverPercent, capped, percent } = estimateMeter(baseEvidence, { size: "small" });
     expect(serverPercent).toBe(69);
-    // "at most 89 while a required topic is none" — flow is none here, but 69 < 89 so we land on 69.
-    expect(percent).toBe(69);
+    expect(percent).toBe(69); // no cap: honest 69
     expect(capped).toBe(false);
   });
 
@@ -89,8 +88,17 @@ describe("Meter: works example (intent.md §7.4, small task, M1)", () => {
     expect(result.percent).toBe(91);
   });
 
-  it("caps at 89 while any required topic is none (never exceeds 89)", () => {
-    // Make every required topic `none`: only unknowns outside those topics stated.
+  it("reaches 100 honestly when every in-scope slot is stated", () => {
+    const evidence: Record<string, 0 | 0.5 | 1> = {};
+    for (const slot of slotsInScope("small")) evidence[slot] = EVIDENCE.stated;
+    const result = estimateMeter(evidence, { size: "small" });
+    expect(result.percent).toBe(100);
+    expect(result.capped).toBe(false);
+    expect(result.reason).toBe("complete");
+  });
+
+  it("never lowers the number for an uncovered topic (owner ruling: no cap)", () => {
+    // Owner ruling 2026-11-21: no 89 cap; the reason still reports the missing topic.
     const evidence: Record<string, 0 | 0.5 | 1> = {
       "goal.purpose": EVIDENCE.unknown,
       "goal.platform": EVIDENCE.unknown,
@@ -104,9 +112,10 @@ describe("Meter: works example (intent.md §7.4, small task, M1)", () => {
       "content.tone": EVIDENCE.unknown,
       "content.data": EVIDENCE.unknown,
     };
-    const { percent, capped } = estimateMeter(evidence, { size: "small" });
-    expect(percent).toBeLessThanOrEqual(89);
-    expect(capped).toBe(false); // 0 < 89, so nothing to cap
+    const { percent, capped, reason } = estimateMeter(evidence, { size: "small" });
+    expect(percent).toBe(0); // honest 0 — no artificial floor or ceiling
+    expect(capped).toBe(false);
+    expect(reason).toBe("required-topic-none"); // agent still knows to ask more
   });
 });
 

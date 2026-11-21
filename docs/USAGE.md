@@ -183,7 +183,8 @@ The Studio is a local web app served by `packages/server` at `http://127.0.0.1:<
 
 ## Honest section
 
-- Intent makes no network requests. Your coding agent may send scene and
+- Interview **no-cap ruling (2026-11-21):** the owner ruled that the interview must keep asking with no hard question limit and no meter ceiling until understanding is 100. The 89% required-topic cap and the "97–99% acceptance target" do not apply to the interview meter; meter reports missing topics via `reason` and reaches 100 only from real slot evidence. The acceptance-rate story still has two numbers (initial + final match) and 97% there is a target, never a claim.
+- **Intent makes no network requests. Your coding agent may send scene and
   interview content to its own model provider. No API key is needed for Intent.
 - The Interview tab, the SSE replay/resync path and the patch queue are tested and
   pass on this machine (Windows). What is NOT done: a live agent

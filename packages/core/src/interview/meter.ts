@@ -8,13 +8,16 @@
  * replaces the earlier value; `reopen` sets it back to unknown. Topic score =
  * mean of its in-scope slot values. Topic status: none (<0.25), partial
  * (0.25-0.74), covered (>=0.75). serverPercent = floor(100 * Σ weight*score
- * / Σ weight). If any required topic is `none` the meter is capped at 89.
+ * / Σ weight). No percentage cap: the user ruled that the interview keeps
+ * asking until understanding is complete (100%), never stops at 89/97.
+ * A topic that is still `none` is reported in `reason` so the agent knows
+ * to ask more — the number itself is never artificially lowered.
  */
 import { ALL_SEEDS, Seed } from "./bank.js";
 
 export type TaskSize = "small" | "medium" | "large";
 export type Milestone = "M1" | "M2" | "M3";
-export type MeterReason = "no-evidence" | "required-topic-none" | "ok";
+export type MeterReason = "no-evidence" | "required-topic-none" | "ok" | "complete";
 export type Evidence = 0 | 0.5 | 1;
 export type TopicStatus = "none" | "partial" | "covered";
 
@@ -96,13 +99,16 @@ export function estimateMeter(
   }
 
   const requiredNone = active.some((t) => REQUIRED.has(t) && topicStatus[t] === "none");
-  const percent = requiredNone ? Math.min(serverPercent, 89) : serverPercent;
-  const capped = percent !== serverPercent;
+  // Owner ruling (2026-11-21): no meter cap. Keep asking until the meter is
+  // actually 100 (all in-scope slots stated) — the reason still tells the
+  // agent which required topics need more questions, but the number is honest.
+  const percent = serverPercent;
+  const capped = false;
   return {
     percent,
     serverPercent,
     capped,
-    reason: requiredNone ? "required-topic-none" : percent === 0 ? "no-evidence" : "ok",
+    reason: requiredNone ? "required-topic-none" : percent === 0 ? "no-evidence" : percent === 100 ? "complete" : "ok",
     topicStatus,
   };
 }
