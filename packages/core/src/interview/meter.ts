@@ -8,10 +8,9 @@
  * replaces the earlier value; `reopen` sets it back to unknown. Topic score =
  * mean of its in-scope slot values. Topic status: none (<0.25), partial
  * (0.25-0.74), covered (>=0.75). serverPercent = floor(100 * Σ weight*score
- * / Σ weight). No percentage cap: the user ruled that the interview keeps
- * asking until understanding is complete (100%), never stops at 89/97.
- * A topic that is still `none` is reported in `reason` so the agent knows
- * to ask more — the number itself is never artificially lowered.
+ * / Σ weight). While any required topic is `none` the reported percent is
+ * capped at 89 (final master order 2026-11-21, section B). The cap lowers the
+ * number, never the question count: there is no hard question limit.
  */
 import { ALL_SEEDS, Seed } from "./bank.js";
 
@@ -99,11 +98,12 @@ export function estimateMeter(
   }
 
   const requiredNone = active.some((t) => REQUIRED.has(t) && topicStatus[t] === "none");
-  // Owner ruling (2026-11-21): no meter cap. Keep asking until the meter is
-  // actually 100 (all in-scope slots stated) — the reason still tells the
-  // agent which required topics need more questions, but the number is honest.
-  const percent = serverPercent;
-  const capped = false;
+  // Final master order (2026-11-21, section B): the server caps the meter at 89
+  // while any required topic is uncovered. The interview itself has no hard
+  // question limit: it keeps asking until every required topic is covered and
+  // the user approves the summary. 100 is reachable only from real evidence.
+  const percent = requiredNone ? Math.min(serverPercent, 89) : serverPercent;
+  const capped = percent !== serverPercent;
   return {
     percent,
     serverPercent,

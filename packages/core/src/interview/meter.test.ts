@@ -97,8 +97,7 @@ describe("Meter: works example (intent.md §7.4, small task, M1)", () => {
     expect(result.reason).toBe("complete");
   });
 
-  it("never lowers the number for an uncovered topic (owner ruling: no cap)", () => {
-    // Owner ruling 2026-11-21: no 89 cap; the reason still reports the missing topic.
+  it("caps at 89 while any required topic is none (never exceeds 89)", () => {
     const evidence: Record<string, 0 | 0.5 | 1> = {
       "goal.purpose": EVIDENCE.unknown,
       "goal.platform": EVIDENCE.unknown,
@@ -113,9 +112,22 @@ describe("Meter: works example (intent.md §7.4, small task, M1)", () => {
       "content.data": EVIDENCE.unknown,
     };
     const { percent, capped, reason } = estimateMeter(evidence, { size: "small" });
-    expect(percent).toBe(0); // honest 0 — no artificial floor or ceiling
-    expect(capped).toBe(false);
+    expect(percent).toBeLessThanOrEqual(89);
+    expect(capped).toBe(false); // 0 < 89, so nothing to cap
     expect(reason).toBe("required-topic-none"); // agent still knows to ask more
+  });
+
+  it("caps a high server percent at 89 when one required topic is still none", () => {
+    const evidence: Record<string, 0 | 0.5 | 1> = {};
+    for (const slot of slotsInScope("large")) evidence[slot] = EVIDENCE.stated;
+    for (const slot of slotsInScope("large")) {
+      if (slot.startsWith("content.")) evidence[slot] = EVIDENCE.unknown;
+    }
+    const result = estimateMeter(evidence, { size: "large" });
+    expect(result.serverPercent).toBeGreaterThan(89);
+    expect(result.percent).toBe(89);
+    expect(result.capped).toBe(true);
+    expect(result.reason).toBe("required-topic-none");
   });
 });
 

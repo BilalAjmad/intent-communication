@@ -183,7 +183,7 @@ The Studio is a local web app served by `packages/server` at `http://127.0.0.1:<
 
 ## Honest section
 
-- Interview **no-cap ruling (2026-11-21):** the owner ruled that the interview must keep asking with no hard question limit and no meter ceiling until understanding is 100. The 89% required-topic cap and the "97–99% acceptance target" do not apply to the interview meter; meter reports missing topics via `reason` and reaches 100 only from real slot evidence. The acceptance-rate story still has two numbers (initial + final match) and 97% there is a target, never a claim.
+- **Interview (final master order 2026-11-21):** there is **no hard question limit** — the interview keeps asking, past the soft cap, until every required topic is covered with stated evidence and the user picks "Exactly right". The meter is an honest estimate and the **server caps it at 89 while any required topic is uncovered**; 100 is reachable only from real evidence. The "97–99% acceptance target" belongs to the acceptance-rate story (two numbers: initial match, final match); 97% there is a target, never a claim.
 - **Intent makes no network requests. Your coding agent may send scene and
   interview content to its own model provider. No API key is needed for Intent.
 - The Interview tab, the SSE replay/resync path and the patch queue are tested and

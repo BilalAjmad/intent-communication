@@ -100,24 +100,24 @@ describe("Interview simulator (intent.md M1: small interview, real server)", () 
     expect(typeof session.finalPercent).toBe("number");
   });
 
-  it("reports missing topics as a hint without lowering the meter (owner ruling: no cap)", async () => {
+  it("caps the meter at 89 while a required topic is uncovered, and uncaps when covered", async () => {
     const capped = await ask({
       kind: "choice", questionId: "cap1", prompt: "Q?", questionNumber: 1,
       options: [{ value: "a", label: "a" }],
       requiredTopics: ["goal"],
       meter: { percent: 95, topics: { goal: "none" } },
     });
-    expect(capped.meterApplied).toMatchObject({ percent: 95, capped: false });
+    expect(capped.meterApplied).toMatchObject({ percent: 89, capped: true });
     expect((capped.meterApplied as { reason?: string }).reason).toContain("goal");
 
-    const complete = await ask({
+    const uncapped = await ask({
       kind: "choice", questionId: "cap2", prompt: "Q?", questionNumber: 2,
       options: [{ value: "a", label: "a" }],
       requiredTopics: ["goal"],
       previousAnswer: { questionId: "cap1", answer: { choiceId: "a" } },
-      meter: { percent: 100, topics: { goal: "covered" } },
+      meter: { percent: 95, topics: { goal: "covered" } },
     });
-    expect(complete.meterApplied).toMatchObject({ percent: 100, capped: false });
+    expect(uncapped.meterApplied).toMatchObject({ percent: 95, capped: false });
   });
 
   it("keeps the interview open on summary ask-more, and counts delegated answers", async () => {

@@ -88,18 +88,17 @@ export function applyMeterUpdate(
   }
 }
 
-/** Owner ruling (2026-11-21): no percentage cap — the interview keeps asking
- *  until understanding is 100%. A missing required topic is reported as a
- *  hint (not a lowered number) so the agent knows to ask more. */
+/** Final master order (2026-11-21, section B): while any required topic is
+ *  uncovered the meter is capped at 89 with a reason. The interview keeps
+ *  asking (no hard question limit) until the topics are covered. */
 export function meterWithRequiredTopicCap(
   percent: number,
   requiredTopics: readonly string[],
   topics: Record<string, "none" | "partial" | "covered">,
 ) {
+  const clamped = Math.min(100, Math.max(0, percent));
+  if (clamped < 90) return { percent: clamped, capped: false as const };
   const missing = requiredTopics.filter((t) => (topics[t] ?? "none") === "none");
-  return {
-    percent: Math.min(100, Math.max(0, percent)),
-    capped: false as const,
-    ...(missing.length > 0 ? { reason: `Ask more — required topic not covered: ${missing[0]}` } : {}),
-  };
+  if (missing.length === 0) return { percent: clamped, capped: false as const };
+  return { percent: 89, capped: true as const, reason: `Ask more — required topic not covered: ${missing[0]}` };
 }
