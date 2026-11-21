@@ -1,5 +1,5 @@
 import { handleMCPRequest } from "@intent/mcp-server";
-import { withProjectLock, recordAnswerLearning, recordInterviewMetrics, pruneConsumedAnswers } from "@intent/core";
+import { withProjectLock, recordAnswerLearning, recordInterviewMetrics, pruneConsumedAnswers, approveInterview } from "@intent/core";
 import { IncomingMessage, ServerResponse } from "node:http";
 import {
   CreatePatchInputSchema,
@@ -451,16 +451,25 @@ export async function handleApiInterviewAnswer(ctx: ApiContext, req: IncomingMes
   const answeredKind =
     state.pendingQuestion && state.pendingQuestion.questionId === input.questionId ? state.pendingQuestion.kind : null;
   const now = new Date().toISOString();
-  state.answers.push({ questionId: input.questionId, answer: input.answer, via: "studio", answeredAt: now, consumed: false });
+  state.answers.push({
+    questionId: input.questionId,
+    answer: input.answer,
+    via: "studio",
+    answeredAt: now,
+    consumed: false,
+    ...(state.pendingQuestion?.questionId === input.questionId && state.pendingQuestion.topic
+      ? { topic: state.pendingQuestion.topic }
+      : {}),
+  });
   if (state.pendingQuestion?.questionId === input.questionId) {
     state.pendingQuestion = null;
   }
   // trd 17.1: learn from the Studio answer too (best effort; never blocks recording).
   await recordAnswerLearning(ctx.storage, input.answer, input.questionId, now);
-  // Summary "Exactly right" marks the interview complete (trd 10.2); anything else stays in progress.
+  // Summary "Exactly right" completes the interview and saves brief.json (final master order 2026-11-21).
   const answer = input.answer as { summaryChoice?: string } | null;
   if (answer && answer.summaryChoice === "exactly-right") {
-    state.status = "complete";
+    await approveInterview(ctx.storage, state, now);
   } else if (state.status !== "complete" && state.status !== "delegated") {
     state.status = "in_progress";
   }

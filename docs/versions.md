@@ -46,6 +46,43 @@ Sources (fetched 2026-11-15): https://cursor.com/docs/context/mcp and https://cu
 `pnpm audit` (2026-11-16): 18 findings (1 low, 13 moderate, 1 high, 3 critical), **all in the dev/test toolchain** (vitest, vite, tinypool, launch-editor, esbuild) — none from a shipped runtime dependency of Intent. The zod advisory is closed.
 `pnpm audit` (2026-11-16, later): **No known vulnerabilities found.** Closed via: zod 3.25.76 → ^4.6.7 (GHSA-mrhx-c7xc-m3w5); vitest 2.1.9 → 5.1.0 + @vitest/coverage-v8 5.1.0; vite 5.4.21 → 8.3.8 (root + studio); @types/node → ^22; @typescript-eslint → 8.72.2; pnpm override `minimatch@>=7 <11 → ^11.0.1`. All bumps are dev/test toolchain; zero changes to shipped runtime deps. Commit 9ff7419.
 
+## npm package name check — 2026-11-21
+
+Checked against the live registry (`npm view <name> version`, 2026-11-21) in the
+order required by the final master order:
+
+| Order | Name | Result |
+|-------|------|--------|
+| 1 | `intent-studio` | **FREE** — `npm error 404 Not Found ... intent-studio - Not found` |
+| 2 | `intent-communication` | FREE — 404 (not used; first free name wins) |
+| 3 | `@intent/cli` | FREE — 404 (not used) |
+
+Decision: the published tarball is `intent-studio` (`dist-install/package.json`,
+`dist-install/intent-studio-1.0.0.tgz`), with the same `intent` bin. The GitHub
+repository remains `BilalAjmad/intent-communication`; only the npm artifact is
+renamed. The old local tarball is a superseded build artifact. No publish was
+performed by the agent.
+
+## Agent config docs fetched 2026-11-21 (universal installer)
+
+Fetched with the current date 2026-11-21 (verified by `date`). Only these official
+pages are marked VERIFIED; everything else is UNVERIFIED with a manual snippet.
+
+| Agent | Official doc URL | Result |
+|-------|------------------|--------|
+| Claude Code | https://code.claude.com/docs/en/mcp | VERIFIED 2026-11-21 — `.mcp.json` / `~/.claude.json`, stdio entry `{command,args}` with no `type` |
+| Cursor | https://cursor.com/docs/context/mcp | VERIFIED 2026-11-21 — `mcp.json`, `mcpServers`, stdio requires `type: "stdio"`; project `.cursor/mcp.json`, global `~/.cursor/mcp.json` |
+| Gemini CLI | https://geminicli.com/docs/tools/mcp-server/ | VERIFIED 2026-11-21 — `settings.json` `mcpServers`, user `~/.gemini/settings.json`, project `.gemini/settings.json` |
+| GitHub Copilot / VS Code MCP | https://code.visualstudio.com/docs/copilot/chat/mcp-servers | VERIFIED 2026-11-21 — workspace `.mcp.json` for shared config; personal config is Copilot Global |
+| OpenCode | https://opencode.ai/docs/mcp | UNVERIFIED 2026-11-21 — both `/docs/mcp` and `/docs/mcp/` returned 404 to this fetch; config key (`mcp` vs `mcpServers`) not confirmed |
+| Windsurf, Cline, Roo Code, Kilo Code, Codex CLI, Zed, Continue, Amp, Goose, JetBrains AI, Claude Desktop | URLs in each adapter header under `packages/cli/src/setup/adapters/` | UNVERIFIED 2026-11-21 — paths/config formats are not claimed; installer prints a manual snippet instead of asserting correctness |
+
+The six-tool MCP contract was checked against a **real spawned client** in
+`packages/cli/src/setup/setup.test.ts`: entries written by the Claude Code,
+Cursor and Gemini CLI adapters all launch the same server and `tools/list`
+returns exactly `apply_patch`, `ask_user`, `get_feedback`, `get_scene`,
+`open_studio`, `validate`.
+
 ## UNVERIFIED — do not claim until checked
 
 Everything not listed above is unverified, including but not limited to:

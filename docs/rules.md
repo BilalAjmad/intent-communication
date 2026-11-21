@@ -89,7 +89,7 @@ This document defines what agents MUST and MUST NOT do. It has two audiences:
 | R-B28 | No secrets in the repo, logs, tests or docs. `.env` is ignored. No API key exists by design | CI |
 | R-B29 | Prefer the standard library. Every new dependency gets a line in `docs/versions.md`: what, why, license (MIT-compatible), size, maintained or not. Pin exact versions. No install scripts unless reviewed. Upgrades go in separate commits. CI runs a dependency audit | CI |
 | R-B30 | The Scanner and every other tool **never execute user code** (trd 16.2). Config files are parsed statically | T |
-| R-B31 | Stay inside the project directory. Never modify or delete outside it. Guard every `rm` path. No `sudo`. No global installs unless the user asks. Never edit the user's global agent configs; `init` edits project files only, with `--dry-run` available and a clear summary | C |
+| R-B31 | Stay inside the project directory. Never modify or delete outside it. Guard every `rm` path. No `sudo`. No global installs unless the user asks. Never edit the user's global agent configs through `init` or npm lifecycle scripts; **only an explicit `intent setup` / `intent setup --uninstall` invocation** may edit user-level agent config, with backup-before-write, merge-only edits, `--dry-run` and a final table | C |
 | R-B32 | Ask before: renaming the package, changing the license, deleting a package, changing a decision recorded in a doc, or changing a public API after v0.1.0 | C |
 | R-B33 | Never `git push`, publish to npm, create a tag, or open a PR unless the user asks in this chat. pr.md governs PRs | C |
 

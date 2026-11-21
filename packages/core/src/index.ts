@@ -35,6 +35,8 @@ export { registerMigration, applyMigrations, checkDocumentVersion, documentVersi
 export { recordInterviewMetrics, summarizeInterviewMetrics } from "./interview-metrics.js";
 export type { InterviewMetricsInput, InterviewEfficiencyReport } from "./interview-metrics.js";
 export { pruneConsumedAnswers } from "./answers.js";
+export { buildApprovedBrief, approveInterview, newBriefId } from "./interview/brief.js";
+export type { BuildBriefOptions } from "./interview/brief.js";
 export { withProjectLock } from "./projectLock.js";
 
 export { SCHEMA_VERSION, SCENE_SCHEMA_VERSION } from "@intent/schema";

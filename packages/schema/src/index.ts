@@ -235,6 +235,12 @@ export const InterviewStateSchema = z.object({
   updatedAt: ISODateTimeSchema,
   pendingQuestion: PendingInterviewQuestionSchema.nullable().default(null),
   answers: z.array(InterviewAnswerSchema).max(200).default([]),
+  /** Snapshot of the last summary question, used to build the approved brief. */
+  lastSummary: z.object({
+    paragraph: z.string().max(800).optional(),
+    items: z.array(z.object({ topic: z.string().max(40), text: z.string().max(300) })).max(50),
+    delegated: z.array(z.object({ questionId: z.string().max(120), topic: z.string().max(40), text: z.string().max(200) })).max(50),
+  }).optional(),
 });
 
 export type InterviewState = z.infer<typeof InterviewStateSchema>;

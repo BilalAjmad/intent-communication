@@ -32,6 +32,26 @@ Intent works with your existing coding agent (Claude Code, Cursor, etc.) via
 MCP tools — no API keys, no LLM calls inside the repo, no cloud. The
 `.intent/` folder on your filesystem is the single source of truth.
 
+### Universal setup (explicit command only)
+
+`intent setup` detects installed agents and shows a preselected checklist. It
+merges the `intent` MCP entry, rules and slash-command files for each selected
+agent, backs up before every write, preserves other config keys, and prints a
+final table. Flags: `--yes --all --agents a,b --scope user|project --dry-run
+--uninstall`. Only this **explicit** command may edit user-level agent config;
+npm lifecycle scripts never do (rule R-B31). Agents whose config format could
+not be verified on 2026-11-21 get a manual snippet instead of a guessed edit;
+see `docs/versions.md`.
+
+In a project, `/intent` runs the interview only (one question at a time, no
+hard limit, server meter capped at 89 while a required topic is uncovered).
+It ends by saving `.intent/briefs/<id>.json`. `/prototype` requires that
+approved brief, writes art direction into scene metadata, opens the Studio and
+exports HTML. Both come from one canonical source in `@intent/skills` and are
+drift-tested; agents without slash commands get `intent:` / `prototype:` triggers.
+The anti-AI-slop rules in `.intent/rules/design-principles.md` are enforced by
+the linter where possible; they reduce generic output but cannot guarantee taste.
+
 ## Verification
 
 All 12 verify steps pass on this machine (Windows 11, Node v22.23.4, pnpm 9.7.1), and CI (Ubuntu/macOS/Windows × Node 20) was **observed green on this repo as of 2026-11-18** (run `44371953296`: install → build → typecheck → test on all three OS images, Playwright e2e on Ubuntu — after root-causing a Linux build-order failure and two Linux-specific e2e defects; `44369132170` had the e2e failure, `44368167556` the build-order failure). Earlier snapshots claiming Windows-only evidence are outdated.

@@ -27,11 +27,21 @@ One result per line. Result words: **Pass**, **Pass with notes**, **Fail**, **No
 | 14 | Kill the agent session mid-interview, open a new one, say "continue" | Did it resume (`resumed: true`) and not restart? |  |  |
 | 15 | Does an image annotation in `get_feedback` render in the agent? (TQ2, M2) | Yes, no, or not supported. Not a gate (test.md 8.2) |  |  |
 | 16 | Export HTML and open it by double click | Works or not |  |  |
+| 17 | Paste `/intent` once in Claude Code, then in one other agent | Interview-only: one question at a time; no building; required topics covered; no hard limit |  |  |
+| 18 | Finish the interview with "Exactly right" | `.intent/briefs/<id>.json` exists with `approvalStatus: "approved"`; meter never claimed >89 while a topic was uncovered |  |  |
+| 19 | Run `/prototype` with the approved brief; then run it in a fresh project with no brief | Studio opens with the user's own words as quote; art direction written to metadata; HTML exported. Without a brief it tells the user to run `/intent` |  |  |
+| 20 | Anti-slop spot check on the produced scene | No lorem ipsum, emoji icons, purple-blue gradient or three identical cards; light and dark theme; realistic copy |  |  |
 
-## What is verified vs not (this file is deliberately empty)
+## HUMAN GATE 1 — performed by the owner, not the agent
+
+This checklist is the Gate 1 evidence. It must be filled from a **live** `/intent`
+→ `/prototype` session in Claude Code and one other agent (Cursor or equivalent).
+The agent may prepare the build and this file, but must NOT fill any Result cell
+and must NOT claim the gate passed. `docs/review.md` V1 requires one fresh-session
+review per gate after the checklist is filled.
 
 - Automated evidence for this build lives in `VERIFY-REPORT.md` (2026-11-15: 12/12 PASS, unit+integration 322/322, full Playwright suite 76/76, mutation proof 5/5). TC-STU-08 (tab card content equals the plain-text card), TC-INT-17 (Studio answer wins, returned once), TC-SRV-04 (SSE Last-Event-ID replay of 100, `resync` on larger gap) and TC-INT-E2E (real-UI roundtrip) all pass.
 - The automated results are NOT a substitute for this checklist. Nothing in this file has been run against a live agent (Claude Code, Cursor, Kilo, Cline); no version is recorded; no claim is made.
-- `docs/versions.md` does not exist, so the exact MCP connection steps for Claude Code and Cursor are UNVERIFIED.
+- `docs/versions.md` now exists: Claude Code, Cursor, Gemini CLI and VS Code MCP docs were fetched and verified on 2026-11-21; other adapters are marked UNVERIFIED with manual snippets. A live agent session has still not been run.
 - Every Result and Notes cell above is intentionally empty. Do not fill them in from tests, memory, or the README — only from an actual agent session per test.md 8.2.
 - Reproduce the environment with: `pnpm verify` (12 steps), then the steps in docs/USAGE.md.

@@ -11,6 +11,7 @@ import {
   recordAnswerLearning,
   recordInterviewMetrics,
   pruneConsumedAnswers,
+  approveInterview,
 } from "@intent/core";
 import {
   Feedback,
@@ -279,17 +280,8 @@ export const askUserTool: MCPTool = {
       state = freshInterviewState();
     }
 
-    // Question kind being answered: attribute only when previousAnswer targets this question.
-    const paForKind = validated.previousAnswer;
-    const paIdForKind =
-      paForKind && typeof paForKind === "object" && typeof (paForKind as { questionId?: unknown }).questionId === "string"
-        ? String((paForKind as { questionId: unknown }).questionId)
-        : undefined;
-    const answeredKind =
-      state.pendingQuestion && paIdForKind && state.pendingQuestion.questionId === paIdForKind ? state.pendingQuestion.kind : null;
-    let recordedAnswer: { answer: unknown; questionKind: string | null } | null = null;
-
     // 1) A previous chat answer is recorded unless a Studio answer already exists (TC-INT-17).
+    // The answered question's kind is attributed only when previousAnswer targets it.
     let note: string | undefined;
     let recordedQuestionId: string | undefined;
     const pa = validated.previousAnswer;
@@ -297,6 +289,9 @@ export const askUserTool: MCPTool = {
       pa && typeof pa === "object" && typeof (pa as { questionId?: unknown }).questionId === "string"
         ? String((pa as { questionId: unknown }).questionId)
         : undefined;
+    const answeredKind =
+      state.pendingQuestion && paId && state.pendingQuestion.questionId === paId ? state.pendingQuestion.kind : null;
+    let recordedAnswer: { answer: unknown; questionKind: string | null } | null = null;
     if (pa && paId && paId.length > 0 && "answer" in (pa as object)) {
       const paAnswer = (pa as { answer: unknown }).answer;
       const studioAnswer = state.answers.find((a) => a.questionId === paId && a.via === "studio");
@@ -309,6 +304,9 @@ export const askUserTool: MCPTool = {
           via: "chat",
           answeredAt: now,
           consumed: false,
+          ...(state.pendingQuestion?.questionId === paId && state.pendingQuestion.topic
+            ? { topic: state.pendingQuestion.topic }
+            : {}),
         });
         recordedQuestionId = paId;
         recordedAnswer = { answer: paAnswer, questionKind: answeredKind };
@@ -318,7 +316,8 @@ export const askUserTool: MCPTool = {
         // Chat answer approving the summary flips status complete — mirrors the Studio path (handleApiInterviewAnswer).
         const paSummaryChoice = paAnswer && typeof paAnswer === "object" ? (paAnswer as { summaryChoice?: unknown }).summaryChoice : undefined;
         if (answeredKind === "summary" && paSummaryChoice === "exactly-right") {
-          state.status = "complete";
+          // Final master order 2026-11-21: /intent ends by saving the approved brief.
+          await approveInterview(context.storage, state, now);
         } else if (state.status !== "complete" && state.status !== "delegated") {
           state.status = "in_progress";
         }
@@ -346,6 +345,7 @@ export const askUserTool: MCPTool = {
       estimatedTotal: validated.estimatedTotal, whyAsked: validated.whyAsked,
       requiredTopics: validated.requiredTopics, summary: validated.summary, askedAt: now };
     state.pendingQuestion = pendingQuestion;
+    if (validated.kind === "summary" && validated.summary) state.lastSummary = validated.summary;
     if (state.status !== "complete") {
       state.status = "in_progress";
       state.currentQuestionIndex =

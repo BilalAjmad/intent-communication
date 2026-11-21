@@ -1,5 +1,6 @@
 import { Scene, validateScene } from "@intent/schema";
 import { M2_RULES } from "./m2-rules.js";
+import { ANTI_SLOP_RULES } from "./anti-slop-rules.js";
 import { hexToRgb } from "./color.js";
 
 /**
@@ -366,7 +367,7 @@ const M1_RULES: LintRule[] = [
   },
 ];
 
-const ALL_RULES: LintRule[] = [...M1_RULES, ...M2_RULES];
+const ALL_RULES: LintRule[] = [...M1_RULES, ...M2_RULES, ...ANTI_SLOP_RULES];
 
 function lintScene(scene: unknown, locks: string[] = [], profile?: LintProfile): LintResult {
   const validated = validateScene(scene);
@@ -399,4 +400,4 @@ function lintSceneWithRules(scene: unknown, ruleIds: string[], locks: string[] =
   };
 }
 
-export { M1_RULES, ALL_RULES, lintScene, lintSceneWithRules };
+export { M1_RULES, M2_RULES, ANTI_SLOP_RULES, ALL_RULES, lintScene, lintSceneWithRules };

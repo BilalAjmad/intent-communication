@@ -16,7 +16,7 @@ import { mergeAgentMcpConfigs } from "./mcp-config.js";
 import { ensureAgentsIntentBlock } from "./agents-block.js";
 import { writeSlashCommandFiles, slashCommandFiles } from "./slash-commands.js";
 import { scanProject } from "./scan.js";
-
+import { registerSetupCommand } from "./setup-command.js";
 import { runMcpStdio } from "./mcp.js";
 
 interface CLIContext {
@@ -166,7 +166,6 @@ async function initCommand(projectRoot: string, options?: { dryRun?: boolean }):
   console.log(chalk.gray("  How to start: say \"Design a booking app for my salon\" to your agent."));
   console.log(chalk.gray("  Agent configs: .mcp.json (Claude Code) and .cursor/mcp.json (Cursor) — review them before approving."));
 }
-
 async function doctorCommand(projectRoot: string): Promise<void> {
   const spinner = ora("Running diagnostics...").start();
   const issues: string[] = [];
@@ -331,7 +330,6 @@ async function printAcceptanceRate(projectRoot: string, sceneId: string, scene: 
     console.log(chalk.dim("acceptance rate: unavailable (see .intent/versions and feedback files)"));
   }
 }
-
 async function exportCommand(projectRoot: string, options: { scene?: string; output?: string; format?: string }): Promise<void> {
   const spinner = ora("Exporting scene...").start();
   const sceneId = options.scene || "default";
@@ -412,6 +410,8 @@ export function createCLI(): Command {
         dryRun: options.dryRun === true,
       });
     });
+
+  registerSetupCommand(program);
 
   program
     .command("mcp")

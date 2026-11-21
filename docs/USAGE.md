@@ -10,7 +10,7 @@
 ### Option 1 — global auto (no commands in every session)
 
 ```powershell
-npm install -g <path-to>/intent-communication-1.0.0.tgz
+npm install -g <path-to>/intent-studio-1.0.0.tgz
 intent --version   # 1.0.0
 ```
 
@@ -23,19 +23,39 @@ Optionally also register globally (one time, all agents):
 
 After this, just open your agent in a project and say: **"Design a booking app for my salon"** — the agent uses the tools automatically.
 
-### Option 2 — slash commands
+### Option 2 — slash commands and universal setup
 
-`intent init` writes these into your project:
+`intent init` writes these into your project (generated from one canonical source, drift-tested):
 - `.claude/commands/intent.md`, `.claude/commands/prototype.md`
 - `.cursor/commands/intent.mdc`, `.cursor/commands/prototype.mdc`
 
-Use: paste `/intent` **once** at the start of a session (the rules apply for the whole session — not every message), then `/prototype` when you want to edit visually in the Studio. Both are also installed globally in each agent's command directory.
+Use `/intent` **once** at the start of a session (the rules apply for the whole
+session — not every message). `/intent` is interview-only: one question at a
+time with options plus "Don't know"/"Skip", no hard question limit, every
+required topic (`goal, users, screens, flow, style, content`) covered with
+stated evidence, ending when you pick "Exactly right" — then the approved brief
+is saved to `.intent/briefs/<id>.json`. The meter is an honest estimate and the
+server caps it at 89 while a required topic is uncovered; 100 needs real
+evidence. 97% belongs to the acceptance-rate target, never to the meter.
+
+Then run `/prototype`: it refuses to run without the approved brief, writes art
+direction into scene metadata, opens the Studio, applies your feedback with
+`apply_patch` and exports HTML. Agents without slash commands use the `intent:`
+and `prototype:` trigger phrases in the AGENTS/rules block instead.
+
+For agents already installed on your machine, run `intent setup` (checklist),
+or `intent setup --yes --all`, `--agents claude-code,cursor`, `--scope user`,
+`--dry-run`, or `--uninstall`. It merges MCP config + rules + commands,
+backing up first and preserving other servers. Only this explicit command may
+touch user-level agent config; npm postinstall does not (R-B31). Verified doc
+URLs and the UNVERIFIED list are in `docs/versions.md`; unverified agents get
+a manual snippet rather than a guessed config edit.
 
 ### From a portable tarball (local, built today)
 
 ```powershell
-# Tarball lives at dist-install/intent-communication-1.0.0.tgz in this repo.
-npm install -g <path-to>/intent-communication-1.0.0.tgz
+# Tarball lives at dist-install/intent-studio-1.0.0.tgz in this repo.
+npm install -g <path-to>/intent-studio-1.0.0.tgz
 intent --version   # 1.0.0
 ```
 
@@ -43,7 +63,7 @@ The single-file bundle works from any folder (`intent init`, `intent doctor` ver
 To make it installable from GitHub, upload the tarball to a GitHub release (needs owner go-ahead), e.g.:
 
 ```powershell
-npm install -g https://github.com/BilalAjmad/intent-communication/releases/download/v1.0.1/intent-communication-1.0.0.tgz
+npm install -g https://github.com/BilalAjmad/intent-communication/releases/download/v0.1.0-rc.1/intent-studio-1.0.0.tgz
 ```
 
 ### From source
