@@ -139,9 +139,7 @@ export const applyPatchTool: MCPTool = {
     }
 
     const result = await writePipeline(context.storage, context.lockPort, patch.sceneId, [vp]);
-    // trd 6.4 status transitions: a successful apply marks the oldest matching
-    // sent feedback as applied; an E_CONFLICT marks it conflict. The agent does not
-    // pass a feedback id, so the target is the patched object, sent first.
+    // trd 6.4: success marks oldest sent feedback applied; E_CONFLICT marks conflict.
     if (result && typeof result === "object" && "success" in result) {
       const r = result as { success: boolean; error?: string };
       if (r.success) {
@@ -150,8 +148,7 @@ export const applyPatchTool: MCPTool = {
       }
       if (r.success || r.error === ErrorCodes.E_CONFLICT) {
         const newStatus = r.success ? ("applied" as const) : ("conflict" as const);
-        // Same lock key the HTTP routes use — HTTP handlers in server/src use
-        // withProjectLock(lockPort, "feedback", ...) on the SAME feedback files.
+        // Same lock key as HTTP routes (server/src) on the same feedback files.
         try {
         await withProjectLock(context.lockPort, "feedback", async () => {
           const feedback = await context.storage.readFeedback(patch.sceneId);
@@ -169,7 +166,7 @@ export const applyPatchTool: MCPTool = {
           }
         });
         } catch (err) {
-          // Patch already committed — never surface a feedback-mark failure as a patch failure.
+          // Patch already committed — never surface a feedback-mark failure as an error.
           console.error("feedback mark failed (patch applied):", (err as Error).message);
         }
       }
@@ -282,8 +279,7 @@ export const askUserTool: MCPTool = {
       state = freshInterviewState();
     }
 
-    // Question kind being answered by this call's previousAnswer (captured before pendingQuestion is overwritten) — for metrics.
-    // Attribute ONLY when previousAnswer actually targets the pending question.
+    // Question kind being answered: attribute only when previousAnswer targets this question.
     const paForKind = validated.previousAnswer;
     const paIdForKind =
       paForKind && typeof paForKind === "object" && typeof (paForKind as { questionId?: unknown }).questionId === "string"
@@ -293,8 +289,7 @@ export const askUserTool: MCPTool = {
       state.pendingQuestion && paIdForKind && state.pendingQuestion.questionId === paIdForKind ? state.pendingQuestion.kind : null;
     let recordedAnswer: { answer: unknown; questionKind: string | null } | null = null;
 
-    // 1) A previous answer (chat, passed via previousAnswer) is recorded — unless a
-    //    Studio answer for the same questionId exists, in which case the Studio answer wins (TC-INT-17).
+    // 1) A previous chat answer is recorded unless a Studio answer already exists (TC-INT-17).
     let note: string | undefined;
     let recordedQuestionId: string | undefined;
     const pa = validated.previousAnswer;
@@ -329,13 +324,13 @@ export const askUserTool: MCPTool = {
         }
         state.answeredTopics = dedupe([...state.answeredTopics, ...(validated.requiredTopics ?? [])]);
         state.updatedAt = now;
-        // trd 17.1: learn from the answer (best effort; never blocks the question).
+        // trd 17.1: best-effort learning; never blocks the question.
         await recordAnswerLearning(context.storage, paAnswer, paId, now);
       }
     }
 
-    // 2) Merge required topics + meter update from the caller
-    state.requiredTopics = dedupe([...state.requiredTopics, ...(validated.requiredTopics ?? [])]);
+      // Merge required topics + update meter.
+      state.requiredTopics = dedupe([...state.requiredTopics, ...(validated.requiredTopics ?? [])]);
     applyMeterUpdate(state, validated.meter);
     const { percent, capped, reason } = meterWithRequiredTopicCap(
       state.meter,
@@ -344,7 +339,7 @@ export const askUserTool: MCPTool = {
     );
     state.meter = percent;
 
-    // 3) Persist pending question (summary questions included) so the Studio Interview tab can render it
+    // 3) Persist pending question so the Studio Interview tab can render it.
     const pendingQuestion = { questionId: validated.questionId, kind: validated.kind, prompt: validated.prompt,
       options: validated.options, min: validated.min, max: validated.max, step: validated.step,
       topic: validated.topic, round: validated.round, questionNumber: validated.questionNumber,
@@ -357,7 +352,7 @@ export const askUserTool: MCPTool = {
         typeof validated.questionNumber === "number" ? Math.max(0, validated.questionNumber - 1) : state.currentQuestionIndex;
     }
     state.updatedAt = now;
-    // trd 10.2: answers are bounded to 200 by the schema; consumed entries go first.
+    // trd 10.2: cap answers at the schema's 200 entries.
     state = pruneConsumedAnswers(state);
     await context.storage.writeInterviewState(state);
 
@@ -372,12 +367,19 @@ export const askUserTool: MCPTool = {
     const config = await context.storage.readConfig();
     const renderedText = renderPlainTextCard(validated, state.meter);
     context.notify?.("interview.changed", { status: state.status });
+    // Soft cap (trd 10.2 / SC-2) is a hint, NOT a hard stop. Past it offer CT2,
+    // but if the user says "ask more", keep going until understanding is complete.
+    const softCap = typeof validated.estimatedTotal === "number" && validated.estimatedTotal >= 1 && validated.estimatedTotal <= 100
+      ? validated.estimatedTotal : 25;
+    const asked = state.currentQuestionIndex + 1;
+    const over = asked > softCap;
     return {
       questionId: validated.questionId,
       renderedText,
       studio: { open: true, url: `http://localhost:${config.studioPort}?scene=default` },
       meterApplied: { percent: state.meter, capped, ...(reason ? { reason } : {}) },
-      budget: { asked: state.currentQuestionIndex + 1, softCap: 25, over: false },
+      budget: { asked, softCap, over },
+      ...(over ? { hint: "Soft cap passed. Offer CT2 (stop and show the summary). If the user says 'ask more', keep asking — no hard limit; continue until understanding is complete." } : {}),
       delegated: state.delegated,
       ...(note ? { note } : {}),
       ...(recordedQuestionId ? { recorded: { previousQuestionId: recordedQuestionId } } : {}),
@@ -465,8 +467,6 @@ function zodToIntentError(err: unknown): IntentError | null {
 }
 
 // Output contracts live in output-schemas.ts (trd 14.3) — every tool payload is parsed at the MCP boundary.
-
-
 export async function handleMCPRequest(
   toolName: string,
   input: unknown,

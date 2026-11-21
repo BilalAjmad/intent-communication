@@ -19,6 +19,7 @@ const AskUserOutputSchema = z.object({
   budget: z.object({ asked: z.number().int().nonnegative(), softCap: z.number().int().positive(), over: z.boolean() }),
   delegated: z.boolean().optional(),
   note: z.string().max(500).optional(),
+  hint: z.string().max(500).optional(),
   recorded: z.object({ previousQuestionId: z.string().max(120) }).optional(),
   preFilled: z.unknown().optional(),
 });
