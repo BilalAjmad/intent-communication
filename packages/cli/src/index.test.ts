@@ -19,7 +19,7 @@ describe("CLI package", () => {
     it("creates CLI program with correct name and version", () => {
       const program = createCLI();
       expect(program.name()).toBe("intent");
-      expect(program.version()).toBe("0.9.0-rc.2");
+      expect(program.version()).toBe("0.9.0-rc.3");
     });
 
     it("has init command", () => {
