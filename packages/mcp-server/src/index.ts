@@ -452,8 +452,7 @@ export const openStudioTool: MCPTool = {
     const { readFile } = await import("node:fs/promises");
     const { existsSync, mkdirSync } = await import("node:fs");
     const { spawn } = await import("node:child_process");
-    const { resolve, dirname } = await import("node:path");
-    const { fileURLToPath } = await import("node:url");
+    const { resolve } = await import("node:path");
 
     try { mkdirSync(projectRoot, { recursive: true }); } catch { /* ignore */ }
     const runtimePath = resolve(projectRoot, ".intent", "runtime.json");
@@ -467,18 +466,6 @@ export const openStudioTool: MCPTool = {
       if (parent === dir) break;
       dir = parent;
     }
-    try {
-      let here = dirname(fileURLToPath(import.meta.url));
-      for (let i = 0; i < 8; i++) {
-        candidates.push(resolve(here, "cli", "dist", "cli.js"));
-        candidates.push(resolve(here, "..", "cli", "dist", "cli.js"));
-        candidates.push(resolve(here, "..", "..", "cli", "dist", "cli.js"));
-        candidates.push(resolve(here, "..", "..", "..", "cli", "dist", "cli.js"));
-        const parent = resolve(here, "..");
-        if (parent === here) break;
-        here = parent;
-      }
-    } catch { /* ignore */ }
     let entry: string | null = null;
     for (const c of candidates) {
       try { if (existsSync(c)) { entry = c; break; } } catch { /* ignore */ }
@@ -500,13 +487,6 @@ export const openStudioTool: MCPTool = {
       const spaCandidates: string[] = [];
       let sdir = process.cwd();
       for (let i = 0; i < 8; i++) { spaCandidates.push(resolve(sdir, "packages", "studio", "public")); const p = resolve(sdir, ".."); if (p === sdir) break; sdir = p; }
-      try {
-        let here = dirname(fileURLToPath(import.meta.url));
-        for (let i = 0; i < 8; i++) {
-          spaCandidates.push(resolve(here, "..", "..", "..", "studio", "public"));
-          const p = resolve(here, ".."); if (p === here) break; here = p;
-        }
-      } catch { /* ignore */ }
       for (const c of spaCandidates) {
         try { if (existsSync(resolve(c, "index.html"))) { spaDir = c; break; } } catch { /* ignore */ }
       }
