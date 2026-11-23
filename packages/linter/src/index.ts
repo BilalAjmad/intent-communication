@@ -129,7 +129,7 @@ function resolveColor(val: unknown, colorMap: Record<string, string>): [number, 
 }
 
 function checkSchema(scene: Scene, violations: LintViolation[]): void {
-  const objectIds = new Set(Object.keys(scene.objects));
+  const objectIds = new Set([...Object.keys(scene.objects), ...Object.keys(scene.screens)]);
   for (const [id, obj] of Object.entries(scene.objects)) {
     if (obj.type === "screen") {
       if (obj.parentId !== null) {

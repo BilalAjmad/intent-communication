@@ -120,6 +120,25 @@ describe("Linter - M1 Rules", () => {
       expect(result.pass).toBe(false);
       expect(result.violations.some(v => v.ruleId === "L-SCHEMA")).toBe(true);
     });
+
+    it("accepts a screen as parent (screens live in scene.screens)", () => {
+      const scene = createBaseScene({
+        objects: {
+          "o_01ARZ3NDEKTSV4RRFFQ69G5FAV": createText(
+            "o_01ARZ3NDEKTSV4RRFFQ69G5FAV",
+            "s_01ARZ3NDEKTSV4RRFFQ69G5FAV",
+            "Hello"
+          ),
+        },
+        screens: {
+          "s_01ARZ3NDEKTSV4RRFFQ69G5FAV": createScreen("s_01ARZ3NDEKTSV4RRFFQ69G5FAV"),
+        },
+        screenOrder: ["s_01ARZ3NDEKTSV4RRFFQ69G5FAV"],
+      });
+      scene.screens["s_01ARZ3NDEKTSV4RRFFQ69G5FAV"].children = ["o_01ARZ3NDEKTSV4RRFFQ69G5FAV"];
+      const result = lintSceneWithRules(scene, ["L-SCHEMA"]);
+      expect(result.pass).toBe(true);
+    });
   });
 
   describe("L-GRID: 4px Grid Alignment", () => {
