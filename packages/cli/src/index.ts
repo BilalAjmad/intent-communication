@@ -398,7 +398,7 @@ export function createCLI(): Command {
   program
     .name("intent")
     .description("Intent — browser-first SPA monorepo for closing the intent gap")
-    .version("0.9.0-rc.1")
+    .version("0.9.0-rc.2")
     .option("-p, --path <path>", "Project root path", process.cwd());
 
   program
