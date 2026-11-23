@@ -114,6 +114,9 @@ importers:
       '@intent/engine':
         specifier: workspace:*
         version: link:../engine
+      '@intent/mcp-server':
+        specifier: workspace:^
+        version: link:../mcp-server
       '@intent/schema':
         specifier: workspace:*
         version: link:../schema

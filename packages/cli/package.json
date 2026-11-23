@@ -27,6 +27,7 @@
     "@intent/adapters-node": "workspace:*",
     "@intent/core": "workspace:*",
     "@intent/engine": "workspace:*",
+    "@intent/mcp-server": "workspace:^",
     "@intent/server": "workspace:*",
     "@intent/schema": "workspace:*",
     "@intent/skills": "workspace:*",
