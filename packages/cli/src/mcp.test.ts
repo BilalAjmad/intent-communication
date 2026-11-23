@@ -99,11 +99,11 @@ describe("intent mcp (stdio)", () => {
     expect(existsSync(CLI_JS)).toBe(true);
   });
 
-  it("lists exactly the six tools over stdio with the real MCP client", async () => {
+  it("lists exactly the eight tools over stdio with the real MCP client", async () => {
     await withClient(async (client) => {
       const { tools } = await client.listTools();
       expect(tools.map((t) => t.name).sort()).toEqual(
-        ["apply_patch", "ask_user", "get_feedback", "get_scene", "open_studio", "validate"],
+        ["apply_patch", "ask_user", "create_object", "delete_object", "get_feedback", "get_scene", "open_studio", "validate"],
       );
       for (const tool of tools) {
         expect((tool.inputSchema as { type?: string }).type).toBe("object");

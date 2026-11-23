@@ -24,6 +24,8 @@ export {
 export type { Seed, ControlSeed } from "./interview/bank.js";
 
 export { applyPatch } from "./patch.js";
+export { createObject, deleteObject, newObjectId } from "./scene-edit.js";
+export type { CreateObjectResult, DeleteObjectResult } from "./scene-edit.js";
 export { computeAcceptanceRate } from "./metrics.js";
 export type { AcceptanceMetricsInput, AcceptanceMetrics, AppliedPatchRef } from "./metrics.js";
 export { detectSignals, mergeSignals, summarizeProfile, preFilledForTopic, answerText, recordAnswerLearning } from "./intent-profile.js";

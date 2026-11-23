@@ -26,14 +26,16 @@ describe("MCP Server", () => {
   });
 
   describe("MCP_TOOLS", () => {
-    it("has 6 tools", () => {
-      expect(MCP_TOOLS.length).toBe(6);
+    it("has 8 tools", () => {
+      expect(MCP_TOOLS.length).toBe(8);
     });
 
     it("includes all required tools", () => {
       const names = MCP_TOOLS.map((t) => t.name);
       expect(names).toContain("get_scene");
       expect(names).toContain("apply_patch");
+      expect(names).toContain("create_object");
+      expect(names).toContain("delete_object");
       expect(names).toContain("get_feedback");
       expect(names).toContain("ask_user");
       expect(names).toContain("open_studio");
@@ -134,10 +136,9 @@ describe("MCP Server", () => {
     it("returns studio URL", async () => {
       const sceneId = "s_01ARZ3NDEKTSV4RRFFQ69G5FAV";
       const result = await handleMCPRequest("open_studio", { sceneId, userRequested: true }, context);
-      expect(result.url).toContain("http://localhost:3457");
-      expect(result.url).toContain(`scene=${sceneId}`);
+      expect(result.url).toMatch(/^http:\/\/127\.0\.0\.1:\d+\/#t=.+$/);
       expect(result.sessionId).toBeDefined();
-    });
+    }, 30000);
   });
 
   describe("getFeedbackTool", () => {

@@ -12,6 +12,8 @@ import {
   recordInterviewMetrics,
   pruneConsumedAnswers,
   approveInterview,
+  createObject,
+  deleteObject,
 } from "@intent/core";
 import {
   Feedback,
@@ -22,6 +24,8 @@ import {
   GetFeedbackInputSchema,
   AskUserInputSchema,
   OpenStudioInputSchema,
+  CreateObjectInputSchema,
+  DeleteObjectInputSchema,
 } from "@intent/schema";
 import { createFileStoragePort, createFileLockPort, createNodeCryptoPort } from "@intent/adapters-node";
 import { z } from "zod";
@@ -173,6 +177,54 @@ export const applyPatchTool: MCPTool = {
       }
     }
     return result;
+  },
+};
+
+export const createObjectTool: MCPTool = {
+  name: "create_object",
+  description:
+    "Create a screen or a UI object (container, text, button, etc.) in a scene and persist it. Use this to build the prototype; use apply_patch to modify existing objects. Creating the first screen is required before adding children. Returns the new objectId and revision; the resulting scene is schema-validated before write.",
+  inputSchema: CreateObjectInputSchema,
+  async handler(input: unknown, context: MCPContext) {
+    const validated = CreateObjectInputSchema.parse(input);
+    const sceneLockAcquired = await context.lockPort.acquireSceneLock(validated.sceneId);
+    if (!sceneLockAcquired) {
+      return { success: false, sceneId: validated.sceneId, revision: -1, error: ErrorCodes.E_LOCKED };
+    }
+    try {
+      const scene = await context.storage.readScene(validated.sceneId);
+      if (!scene) throw new IntentError(ErrorCodes.E_NOT_FOUND, "Scene not found");
+      const { scene: next, objectId, object } = createObject(scene, validated, new Date().toISOString());
+      await context.storage.writeScene(validated.sceneId, next);
+      context.notify?.("scene.changed", { sceneId: validated.sceneId, revision: next.revision });
+      return { success: true, sceneId: validated.sceneId, objectId, revision: next.revision, object };
+    } finally {
+      await context.lockPort.releaseSceneLock(validated.sceneId);
+    }
+  },
+};
+
+export const deleteObjectTool: MCPTool = {
+  name: "delete_object",
+  description:
+    "Delete a screen or object (and its entire subtree) from a scene and persist it. Detaches the target from its parent's children. Use sparingly; prefer modifying objects via apply_patch. Returns the removed ids and new revision.",
+  inputSchema: DeleteObjectInputSchema,
+  async handler(input: unknown, context: MCPContext) {
+    const validated = DeleteObjectInputSchema.parse(input);
+    const sceneLockAcquired = await context.lockPort.acquireSceneLock(validated.sceneId);
+    if (!sceneLockAcquired) {
+      return { success: false, sceneId: validated.sceneId, revision: -1, error: ErrorCodes.E_LOCKED };
+    }
+    try {
+      const scene = await context.storage.readScene(validated.sceneId);
+      if (!scene) throw new IntentError(ErrorCodes.E_NOT_FOUND, "Scene not found");
+      const { scene: next, removed } = deleteObject(scene, validated, new Date().toISOString());
+      await context.storage.writeScene(validated.sceneId, next);
+      context.notify?.("scene.changed", { sceneId: validated.sceneId, revision: next.revision });
+      return { success: true, sceneId: validated.sceneId, objectId: validated.objectId, revision: next.revision, removed };
+    } finally {
+      await context.lockPort.releaseSceneLock(validated.sceneId);
+    }
   },
 };
 
@@ -391,22 +443,121 @@ export const askUserTool: MCPTool = {
 
 export const openStudioTool: MCPTool = {
   name: "open_studio",
-  description: "Return the URL of the local Prototype Studio for a scene. Call this only when the user explicitly asks to open or see the Studio. The local Studio server writes .intent/runtime.json at startup; this tool returns the URL only and writes nothing. Do not print session tokens or expose the URL beyond the user.",
+  description:
+    "Start (or reuse) the local Prototype Studio for a scene and return its URL, including the session token in the fragment. Call this only when the user explicitly asks to open or see the Studio. The URL is the only credential; do not print or forward it beyond the user. If userRequested is true, opens the default browser automatically.",
   inputSchema: OpenStudioInputSchema,
   async handler(input: unknown, context: MCPContext) {
     const validated = OpenStudioInputSchema.parse(input);
-    const config = await context.storage.readConfig();
-    const baseUrl = `http://localhost:${config.studioPort}`;
-    return {
-      url: `${baseUrl}?scene=${validated.sceneId}`,
-      sessionId: `studio-${Date.now()}`,
+    const projectRoot = context.projectRoot;
+    const { readFile } = await import("node:fs/promises");
+    const { existsSync, mkdirSync } = await import("node:fs");
+    const { spawn } = await import("node:child_process");
+    const { resolve, dirname } = await import("node:path");
+    const { fileURLToPath } = await import("node:url");
+
+    try { mkdirSync(projectRoot, { recursive: true }); } catch { /* ignore */ }
+    const runtimePath = resolve(projectRoot, ".intent", "runtime.json");
+
+    const candidates: string[] = [];
+    if (process.argv[1] && /cli\.js$|intent\.cjs$/.test(process.argv[1])) candidates.push(process.argv[1]);
+    let dir = process.cwd();
+    for (let i = 0; i < 8; i++) {
+      candidates.push(resolve(dir, "packages", "cli", "dist", "cli.js"));
+      const parent = resolve(dir, "..");
+      if (parent === dir) break;
+      dir = parent;
+    }
+    try {
+      let here = dirname(fileURLToPath(import.meta.url));
+      for (let i = 0; i < 8; i++) {
+        candidates.push(resolve(here, "cli", "dist", "cli.js"));
+        candidates.push(resolve(here, "..", "cli", "dist", "cli.js"));
+        candidates.push(resolve(here, "..", "..", "cli", "dist", "cli.js"));
+        candidates.push(resolve(here, "..", "..", "..", "cli", "dist", "cli.js"));
+        const parent = resolve(here, "..");
+        if (parent === here) break;
+        here = parent;
+      }
+    } catch { /* ignore */ }
+    let entry: string | null = null;
+    for (const c of candidates) {
+      try { if (existsSync(c)) { entry = c; break; } } catch { /* ignore */ }
+    }
+
+    let runtime: { port?: number; token?: string; pid?: number } | null = null;
+    if (existsSync(runtimePath)) {
+      try { runtime = JSON.parse(await readFile(runtimePath, "utf8")); } catch { runtime = null; }
+    }
+    const probe = async (port: number): Promise<boolean> => {
+      try { const r = await fetch("http://127.0.0.1:" + port + "/"); return r.ok; } catch { return false; }
     };
+
+    if (!runtime?.port || !(await probe(runtime.port))) {
+      if (!entry) throw new IntentError(ErrorCodes.E_INTERNAL, "Cannot locate the intent CLI entry to start the Studio");
+
+      // Resolve a studio public dir to serve.
+      let spaDir: string | null = null;
+      const spaCandidates: string[] = [];
+      let sdir = process.cwd();
+      for (let i = 0; i < 8; i++) { spaCandidates.push(resolve(sdir, "packages", "studio", "public")); const p = resolve(sdir, ".."); if (p === sdir) break; sdir = p; }
+      try {
+        let here = dirname(fileURLToPath(import.meta.url));
+        for (let i = 0; i < 8; i++) {
+          spaCandidates.push(resolve(here, "..", "..", "..", "studio", "public"));
+          const p = resolve(here, ".."); if (p === here) break; here = p;
+        }
+      } catch { /* ignore */ }
+      for (const c of spaCandidates) {
+        try { if (existsSync(resolve(c, "index.html"))) { spaDir = c; break; } } catch { /* ignore */ }
+      }
+      const child = spawn(process.execPath, [entry, "studio", "--no-open"], {
+        cwd: projectRoot,
+        env: { ...process.env, INTENT_PROJECT_ROOT: projectRoot, ...(spaDir ? { INTENT_SPA_DIR: spaDir } : {}) },
+        detached: true,
+        stdio: "ignore",
+      });
+      child.unref();
+
+      const deadline = Date.now() + 15000;
+      while (Date.now() < deadline) {
+        if (existsSync(runtimePath)) {
+          try {
+            const r = JSON.parse(await readFile(runtimePath, "utf8"));
+            if (r?.port && r?.token) { runtime = r; if (await probe(r.port)) break; }
+          } catch { /* keep polling */ }
+        }
+        await new Promise((res) => setTimeout(res, 300));
+      }
+      if (!runtime?.port || !(await probe(runtime.port))) {
+        throw new IntentError(ErrorCodes.E_INTERNAL, "Studio server did not start (no runtime.json)");
+      }
+    }
+
+    const port = runtime?.port as number;
+    const token = runtime?.token as string;
+    const url = "http://127.0.0.1:" + port + "/#t=" + token;
+
+    if (validated.userRequested === true) {
+      try {
+        if (process.platform === "win32") {
+          const c = spawn("cmd", ["/c", "start", "", url], { detached: true, stdio: "ignore" }); c.unref();
+        } else if (process.platform === "darwin") {
+          const c = spawn("open", [url], { detached: true, stdio: "ignore" }); c.unref();
+        } else {
+          const c = spawn("xdg-open", [url], { detached: true, stdio: "ignore" }); c.unref();
+        }
+      } catch { /* best effort */ }
+    }
+
+    return { url, sessionId: "studio-" + Date.now() };
   },
 };
 
 export const MCP_TOOLS: MCPTool[] = [
   getSceneTool,
   applyPatchTool,
+  createObjectTool,
+  deleteObjectTool,
   getFeedbackTool,
   askUserTool,
   openStudioTool,

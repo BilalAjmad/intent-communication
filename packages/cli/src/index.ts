@@ -487,6 +487,80 @@ export function createCLI(): Command {
       });
     });
 
+  program
+    .command("studio")
+    .description("Start the local Prototype Studio server (writes .intent/runtime.json)")
+    .option("--no-open", "Do not open the browser (used by open_studio)")
+    .action(async (options) => {
+      const root = resolve(program.opts()["path"] as string);
+      try {
+        const { createServer } = await import("@intent/server");
+        // Resolve the SPA dir: env override, then alongside the CLI entry, then
+        // the monorepo source tree (dev).
+        const { existsSync } = await import("node:fs");
+        const { resolve: r } = await import("node:path");
+        let staticDir: string | undefined;
+        if (process.env["INTENT_SPA_DIR"] && existsSync(r(process.env["INTENT_SPA_DIR"], "index.html"))) {
+          staticDir = process.env["INTENT_SPA_DIR"];
+        } else {
+          const near = r(dirname(process.argv[1] ?? process.cwd()), "studio");
+          if (existsSync(r(near, "index.html"))) staticDir = near;
+          // monorepo dev: walk up from the cli entry for packages/studio/public
+          if (!staticDir && process.argv[1]) {
+            let d = dirname(process.argv[1]);
+            for (let i = 0; i < 8; i++) {
+              const cand = r(d, "..", "..", "studio", "public");
+              if (existsSync(r(cand, "index.html"))) { staticDir = cand; break; }
+              const parent = r(d, "..");
+              if (parent === d) break;
+              d = parent;
+            }
+          }
+          // monorepo dev: walk up from cwd
+          if (!staticDir) {
+            let d = root;
+            for (let i = 0; i < 8; i++) {
+              const cand = r(d, "packages", "studio", "public");
+              if (existsSync(r(cand, "index.html"))) { staticDir = cand; break; }
+              const parent = r(d, "..");
+              if (parent === d) break;
+              d = parent;
+            }
+          }
+        }
+        const server = createServer({
+          projectRoot: root,
+          previewPort: 0,
+          studioPort: 0,
+          mcpPort: 0,
+          ...(staticDir ? { staticDir } : {}),
+        });
+        const port = await server.start();
+        const token = server.getSessionToken();
+        const url = `http://127.0.0.1:${port}/#t=${token}`;
+        console.log(`Intent Studio running at ${url}`);
+        // Write runtime.json (createServer already does via start()).
+        if (options.open !== false) {
+          const { spawn } = await import("node:child_process");
+          if (process.platform === "win32") {
+            const c = spawn("cmd", ["/c", "start", "", url], { detached: true, stdio: "ignore" });
+            c.unref();
+          } else if (process.platform === "darwin") {
+            const c = spawn("open", [url], { detached: true, stdio: "ignore" });
+            c.unref();
+          } else {
+            const c = spawn("xdg-open", [url], { detached: true, stdio: "ignore" });
+            c.unref();
+          }
+        }
+        // Keep alive.
+        await new Promise(() => {});
+      } catch (err) {
+        console.error(chalk.red("intent studio failed: " + (err instanceof Error ? err.message : String(err))));
+        process.exitCode = 1;
+      }
+    });
+
   return program;
 }
 

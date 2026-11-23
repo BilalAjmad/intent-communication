@@ -53,6 +53,8 @@ describe("AC-M1-03: six-tool contract matrix", () => {
     expect(MCP_TOOLS.map((t) => t.name)).toEqual([
       "get_scene",
       "apply_patch",
+      "create_object",
+      "delete_object",
       "get_feedback",
       "ask_user",
       "open_studio",
@@ -196,9 +198,9 @@ describe("AC-M1-03: six-tool contract matrix", () => {
       { sceneId: "s_01ARZ3NDEKTSV4RRFFQ69G5FAV", userRequested: true, quote: "open the studio" },
       context
     )) as Record<string, unknown>;
-    expect(result.url).toMatch(/^http:\/\/localhost:\d+\?scene=s_01ARZ3NDEKTSV4RRFFQ69G5FAV$/);
+    expect(result.url).toMatch(/^http:\/\/127\.0\.0\.1:\d+\/#t=.+$/);
     expect(typeof result.sessionId).toBe("string");
-  });
+  }, 30000);
 
   // 6. validate
   it("validate — valid scene data returns { valid: true }", async () => {

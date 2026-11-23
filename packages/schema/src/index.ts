@@ -393,6 +393,75 @@ export const OpenStudioOutputSchema = z.object({
 
 export type OpenStudioOutput = z.infer<typeof OpenStudioOutputSchema>;
 
+/**
+ * Scene editing inputs (agent-side object creation). `apply_patch` deliberately
+ * modifies one existing object; creating the first screen/object had no path at
+ * all, which made `/prototype` impossible on a freshly initialized project.
+ * `create_object` and `delete_object` own that responsibility explicitly.
+ */
+export const CREATE_OBJECT_TYPES = [
+  "screen",
+  "container",
+  "text",
+  "image",
+  "button",
+  "input",
+  "checkbox",
+  "radio",
+  "switch",
+  "link",
+  "list",
+  "modal",
+  "icon",
+  "divider",
+] as const;
+
+export const CreateObjectInputSchema = z.object({
+  sceneId: SafeIdSchema.default("default"),
+  type: z.enum(CREATE_OBJECT_TYPES),
+  /** Required for every non-screen type; a screen must not have a parent. */
+  parentId: ObjectIdSchema.nullable().optional(),
+  /** Optional caller-supplied id; must carry the s_ (screen) or o_ (object) prefix. */
+  id: ObjectIdSchema.optional(),
+  props: z.record(z.string(), SceneValueSchema).optional(),
+  style: z.record(z.string(), SceneValueSchema).optional(),
+  meta: z.record(z.string(), z.unknown()).optional(),
+  /** Insertion index inside the parent's children (or the screen order). */
+  index: z.number().int().nonnegative().optional(),
+});
+
+export type CreateObjectInput = z.infer<typeof CreateObjectInputSchema>;
+
+// revision may be -1 on a failure path (E_LOCKED) that never read the scene.
+export const CreateObjectOutputSchema = z.object({
+  success: z.boolean(),
+  sceneId: SafeIdSchema.optional(),
+  objectId: ObjectIdSchema.optional(),
+  revision: z.number().int().min(-1),
+  object: SceneObjectSchema.optional(),
+  error: z.string().optional(),
+});
+
+export type CreateObjectOutput = z.infer<typeof CreateObjectOutputSchema>;
+
+export const DeleteObjectInputSchema = z.object({
+  sceneId: SafeIdSchema.default("default"),
+  objectId: ObjectIdSchema,
+});
+
+export type DeleteObjectInput = z.infer<typeof DeleteObjectInputSchema>;
+
+export const DeleteObjectOutputSchema = z.object({
+  success: z.boolean(),
+  sceneId: SafeIdSchema.optional(),
+  objectId: ObjectIdSchema.optional(),
+  revision: z.number().int().min(-1),
+  removed: z.array(ObjectIdSchema).max(2000).optional(),
+  error: z.string().optional(),
+});
+
+export type DeleteObjectOutput = z.infer<typeof DeleteObjectOutputSchema>;
+
 export const ReadConfigInputSchema = z.object({
   keys: z.array(z.string()).max(2000).optional(),
 });
@@ -458,6 +527,14 @@ export function validateAskUserInput(data: unknown): AskUserInput {
 
 export function validateOpenStudioInput(data: unknown): OpenStudioInput {
   return OpenStudioInputSchema.parse(data);
+}
+
+export function validateCreateObjectInput(data: unknown): CreateObjectInput {
+  return CreateObjectInputSchema.parse(data);
+}
+
+export function validateDeleteObjectInput(data: unknown): DeleteObjectInput {
+  return DeleteObjectInputSchema.parse(data);
 }
 
 export function validateReadConfigInput(data: unknown): ReadConfigInput {

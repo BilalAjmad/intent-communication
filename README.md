@@ -73,7 +73,7 @@ All 12 verify steps pass on this machine (Windows 11, Node v22.23.4, pnpm 9.7.1)
 
 Interview-tab evidence (2026-11-15): TC-INT-17 (Studio answer wins, returned once) 3/3; TC-SRV-04 (SSE Last-Event-ID replay of 100, `resync` on larger gap) 2/2; TC-STU-08 (tab card content equals plain-text card) pass; TC-INT-E2E (agent asks via ask_user → answer clicked in Studio → get_feedback returns it once) pass; axe-core 0 critical/serious on the tab.
 
-Stdio MCP evidence (2026-11-15): `intent mcp` (trd 14.3) starts the MCP server on stdio; a real `@modelcontextprotocol/sdk` client lists **exactly the six tools** over stdio, and stdout carries only protocol messages (stderr empty). `tools/list` `inputSchema` derives from the Zod source of truth (`validate` is the documented hand-written exception; see tool-schemas.test.ts) and every generated schema round-trips a valid and an invalid example (ajv, test-only). `intent init` merges the `intent` server into `.mcp.json` (Claude Code) and `.cursor/mcp.json` (Cursor): other servers preserved, only the `intent` entry changed, idempotent, `--dry-run` writes nothing, absolute node/cli.js paths (spaces-safe on Windows). Tool descriptions ≤120 words each, ≤700 total (trd 10.1).
+Stdio MCP evidence (2026-11-15): `intent mcp` (trd 14.3) starts the MCP server on stdio; a real `@modelcontextprotocol/sdk` client lists **exactly the eight tools** over stdio, and stdout carries only protocol messages (stderr empty). `tools/list` `inputSchema` derives from the Zod source of truth (`validate` is the documented hand-written exception; see tool-schemas.test.ts) and every generated schema round-trips a valid and an invalid example (ajv, test-only). `intent init` merges the `intent` server into `.mcp.json` (Claude Code) and `.cursor/mcp.json` (Cursor): other servers preserved, only the `intent` entry changed, idempotent, `--dry-run` writes nothing, absolute node/cli.js paths (spaces-safe on Windows). Tool descriptions ≤120 words each, ≤700 total (trd 10.1).
 
 Run `pnpm verify` to regenerate `VERIFY-REPORT.md` (gitignored).
 
@@ -125,13 +125,13 @@ Then open `my-app.html` in your browser.
 
 ## Connect an agent (Claude Code, Cursor)
 
-Intent exposes 6 MCP tools over stdio (`intent mcp`): `ask_user`, `get_scene`, `get_feedback`, `apply_patch`, `validate`, `open_studio`. `intent init` already merged the server into both agent configs for you (project scope); the steps below are what the docs say to do from there. Checked 2026-11-15; see `docs/versions.md`. **No live agent session has been run by this repo.**
+Intent exposes 8 MCP tools over stdio (`intent mcp`): `ask_user`, `get_scene`, `get_feedback`, `apply_patch`, `validate`, `open_studio`. `intent init` already merged the server into both agent configs for you (project scope); the steps below are what the docs say to do from there. Checked 2026-11-15; see `docs/versions.md`. **No live agent session has been run by this repo.**
 
 ### Claude Code (project scope)
 
 1. `intent init` has written `.mcp.json` at the repo root — entry: `{"command": "<absolute node>", "args": ["<absolute cli.js>", "mcp"]}` (no `type` = stdio). Equivalent by hand: `claude mcp add --scope project intent -- <node> <cli.js> mcp`.
 2. Run `claude` in the project. The server shows as **pending approval**; approve it in the interactive session (workspace trust). Nothing is connected before you do.
-3. `claude mcp list` shows it connected with six tools. `CLAUDE_PROJECT_DIR` is set for the spawned server.
+3. `claude mcp list` shows it connected with eight tools. `CLAUDE_PROJECT_DIR` is set for the spawned server.
 
 ### Cursor (project scope)
 

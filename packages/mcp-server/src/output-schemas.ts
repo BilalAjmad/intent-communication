@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { GetSceneOutputSchema, ApplyPatchOutputSchema, GetFeedbackOutputSchema } from "@intent/schema";
+import { GetSceneOutputSchema, ApplyPatchOutputSchema, GetFeedbackOutputSchema, CreateObjectOutputSchema, DeleteObjectOutputSchema } from "@intent/schema";
 
 /**
  * trd 14.3 — output contracts for every tool. A handler returning a payload
@@ -38,6 +38,8 @@ const ValidateOutputSchema = z.object({
 export const OUTPUT_SCHEMAS: Record<string, z.ZodTypeAny> = {
   get_scene: GetSceneOutputSchema,
   apply_patch: ApplyPatchOutputSchema,
+  create_object: CreateObjectOutputSchema,
+  delete_object: DeleteObjectOutputSchema,
   get_feedback: GetFeedbackOutputSchema,
   ask_user: AskUserOutputSchema,
   open_studio: OpenStudioOutputSchema,

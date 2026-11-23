@@ -2,7 +2,7 @@
   "name": "@intent/mcp-server",
   "license": "MIT",
   "version": "1.0.0",
-  "description": "Intent MCP Server: 6 tools (get_scene, apply_patch, get_feedback, ask_user, open_studio, read_config)",
+  "description": "Intent MCP Server: 8 tools (get_scene, apply_patch, create_object, delete_object, get_feedback, ask_user, open_studio, validate)",
   "type": "module",
   "main": "dist/index.js",
   "module": "dist/index.mjs",

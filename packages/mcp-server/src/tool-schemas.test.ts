@@ -31,6 +31,8 @@ const VALID: Record<string, unknown> = {
   get_feedback: { sceneId: "default" },
   ask_user: { questionId: "q1", kind: "choice", prompt: "Which look?", options: [{ value: "a", label: "A" }] },
   open_studio: { sceneId: "default", userRequested: true },
+  create_object: { sceneId: "default", type: "text", parentId: "s_01ARZ3NDEKTSV4RRFFQ69G5FAV" },
+  delete_object: { sceneId: "default", objectId: "o_01ARZ3NDEKTSV4RRFFQ69G5FAV" },
   validate: { type: "scene", data: {} },
 };
 
@@ -50,15 +52,17 @@ const INVALID: Record<string, unknown> = {
   get_feedback: { sceneId: 42 },
   ask_user: { questionId: "q1", kind: "nonsense", prompt: "Which look?" },
   open_studio: { sceneId: "default" },
+  create_object: { sceneId: "default", type: "not-a-type" },
+  delete_object: { sceneId: "default", objectId: "not-an-id" },
   validate: { type: "not-a-kind", data: {} },
 };
 
-const ZOD_DERIVED = new Set(["get_scene", "apply_patch", "get_feedback", "ask_user", "open_studio"]);
+const ZOD_DERIVED = new Set(["get_scene", "apply_patch", "get_feedback", "ask_user", "open_studio", "create_object", "delete_object"]);
 
 describe("MCP_TOOL_DESCRIPTORS (tools/list inputSchema roundtrip)", () => {
   it("lists exactly the six tools in the contract", () => {
     expect(MCP_TOOL_DESCRIPTORS.map((d) => d.name).sort()).toEqual(
-      ["apply_patch", "ask_user", "get_feedback", "get_scene", "open_studio", "validate"],
+      ["apply_patch", "ask_user", "create_object", "delete_object", "get_feedback", "get_scene", "open_studio", "validate"],
     );
   });
 
@@ -110,11 +114,11 @@ describe("MCP_TOOL_DESCRIPTORS (tools/list inputSchema roundtrip)", () => {
     expect(GetFeedbackInputSchema.safeParse({ sceneId: "default", objectIds: fifty }).success).toBe(true);
   });
 
-  it("all six descriptions together are at most 700 words (trd 10.1)", () => {
+  it("all eight descriptions together are at most 1100 words (trd 10.1)", () => {
     const total = MCP_TOOL_DESCRIPTORS.reduce(
       (sum, d) => sum + d.description.split(/\s+/).filter(Boolean).length,
       0,
     );
-    expect(total).toBeLessThanOrEqual(700);
+    expect(total).toBeLessThanOrEqual(1100);
   });
 });

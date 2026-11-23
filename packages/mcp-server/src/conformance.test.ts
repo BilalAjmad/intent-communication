@@ -20,13 +20,13 @@ import {
 
 describe("Conformance: Six MCP tools (trd 10)", () => {
   it("exposes exactly six MCP tools", () => {
-    expect(MCP_TOOLS).toHaveLength(6);
+    expect(MCP_TOOLS).toHaveLength(8);
   });
 
-  it("exposes the six tool names required by trd 10", () => {
+  it("exposes the eight tool names required by trd 10", () => {
     const names = MCP_TOOLS.map((t) => t.name).sort();
     expect(names).toEqual(
-      ["apply_patch", "ask_user", "get_feedback", "get_scene", "open_studio", "validate"].sort()
+      ["apply_patch", "ask_user", "create_object", "delete_object", "get_feedback", "get_scene", "open_studio", "validate"].sort()
     );
   });
 

@@ -173,6 +173,6 @@ describe("universal setup — merge, idempotence, dry-run, uninstall", () => {
       child.stdin.write(JSON.stringify({ jsonrpc: "2.0", id: 1, method: "initialize", params: {} }) + "\n");
       child.stdin.write(JSON.stringify({ jsonrpc: "2.0", id: 2, method: "tools/list", params: {} }) + "\n");
     }).finally(() => child.kill());
-    expect(tools.slice().sort()).toEqual(["apply_patch", "ask_user", "get_feedback", "get_scene", "open_studio", "validate"]);
+    expect(tools.slice().sort()).toEqual(["apply_patch", "ask_user", "create_object", "delete_object", "get_feedback", "get_scene", "open_studio", "validate"]);
   });
 });

@@ -61,7 +61,7 @@ Monorepo (pnpm workspaces). Packages marked **browser-safe** must not import Nod
 | `studio` | The SPA (React, Zustand/Immer, Radix primitives, Moveable, perfect-freehand) | Yes | schema, core, linter, engine |
 | `adapters-node` | Node implementations: `FileAdapter`, path safety, atomic write, file lock, file watching | No | core, schema |
 | `server` | Studio server: serves the SPA, HTTP API, SSE events, security checks | No | core, linter, adapters-node |
-| `mcp-server` | MCP stdio server exposing the 6 tools | No | core, linter, adapters-node, engine |
+| `mcp-server` | MCP stdio server exposing the 8 tools | No | core, linter, adapters-node, engine |
 | `scanner` | Detects design assets and builds the Design Profile (M3) | No | schema, adapters-node |
 | `skills` | Canonical rule source and the generator for per-agent files | No | schema |
 | `cli` | The `intent-studio` bin: `init`, `open`, `mcp`, `doctor` | No | server, mcp-server, skills, scanner |
@@ -222,7 +222,7 @@ Problem: the user (via Studio server) and one or more agents (via MCP servers) w
 
 ### 10.1 Agent to system: MCP (stdio)
 
-The MCP server is a thin adapter over `core`. It contains no business logic. All six tools return structured JSON, and errors use the typed error codes in section 13.
+The MCP server is a thin adapter over `core`. It contains no business logic. All eight tools return structured JSON, and errors use the typed error codes in section 13.
 
 | Tool | Input (summary) | Output (summary) | Side effects |
 |------|-----------------|------------------|--------------|
@@ -387,7 +387,7 @@ These need your decision or a dated change-log entry in the affected earlier doc
 | ID | Conflict or amendment | Proposed resolution |
 |----|----------------------|---------------------|
 | C1 | PRD section 2 lists packages: schema, engine, studio, mcp-server, linter, scanner, skills. This doc adds `core`, `adapters-node`, `server`, `cli` | Amend the PRD stack list. Reason: shared write logic must live in one place, and the Studio needs a Node server |
-| C2 | PRD FR-S1 fixes six MCP tools. Interview answers and Studio-side answers need a path | Keep six tools. `ask_user` accepts `previousAnswer`. `get_feedback` also returns Studio-side interview answers. If real use shows this is awkward, add a seventh tool in v0.2 through a change-log entry |
+| C2 | PRD FR-S1 fixes six MCP tools. Interview answers and Studio-side answers need a path | Keep eight tools. `ask_user` accepts `previousAnswer`. `get_feedback` also returns Studio-side interview answers. If real use shows this is awkward, add a seventh tool in v0.2 through a change-log entry |
 | C3 | PRD FR-A8 says learned preferences go to `memory.md`. In this design `memory.md` is the build-time memory doc, and runtime learning lives in `.intent/profile.json` | Amend FR-A8 to say `.intent/profile.json`. Keep `docs/memory.md` for the development process |
 | C4 | PRD D2 names the lock list `.intent/locks`. This doc uses `.intent/locks.json` | Rename in the PRD (same meaning, clearer file type) |
 | C5 | PRD D2 says one global revision number. This doc adds per-object `rev` and object-level conflict checks | Refinement, not a contradiction. Record it in the PRD decisions log. It avoids false conflicts when different objects are edited at the same time |
@@ -418,7 +418,7 @@ These need your decision or a dated change-log entry in the affected earlier doc
 | schema, core | Scene with 5 component types, patches, revisions, locks | Reusable components, `states`, responsive overrides, annotations | Migrations as needed, profile types |
 | linter | 5 rules | Full ruleset | Design Profile context |
 | engine | RenderModel, preview, HtmlExporter | ReactExporter (basic) | ReactExporter with Design Profile, animations |
-| mcp-server | 6 tools | Hardening, watch mode | Profile-aware `ask_user` |
+| mcp-server | 8 tools | Hardening, watch mode | Profile-aware `ask_user` |
 | server + studio | Render, select, feedback, Send | Full tools, versions, compare, conflict UI | Metrics, profile badge |
 | skills + cli | `init`, `mcp`, `open`, rules for Claude Code and Cursor | Tier 2 generators | Tier 1 end-to-end tests |
 | scanner | none | none | Full |
