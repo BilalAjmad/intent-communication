@@ -8,7 +8,7 @@ const END = "<!-- intent:setup:end -->";
 /** Rules block appended to an agent's rules file. Merge-only, marker-delimited. */
 export const SETUP_RULES_BLOCK = `${START}
 ## Intent
-For design or UI work in this project, use the Intent MCP tools (one question at a time with ask_user; get_scene/apply_patch/get_feedback for the scene; validate before claiming success). Agents without slash commands can say \`intent:\` to start the interview or \`prototype:\` to open the Studio and edit visually. Never hand-write UI outside these tools.
+For design or UI work in this project, use the Intent MCP tools (one question at a time with ask_user; create_object to build the scene, apply_patch to modify existing objects only, get_feedback for sent feedback; validate before claiming success — it must return lint pass with zero violations). Agents without slash commands can say \`intent:\` to start the interview or \`prototype:\` to open the Studio and edit visually. Never hand-write UI outside these tools.
 ${END}
 `;
 

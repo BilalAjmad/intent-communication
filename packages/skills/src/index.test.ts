@@ -71,16 +71,18 @@ describe("Skills package", () => {
       expect(content).toContain("Brief emission");
     });
 
-    it("tool-usage.md lists all 6 tools", async () => {
+    it("tool-usage.md lists all 8 tools", async () => {
       await generateSkillFiles({ projectRoot: testDir, outputDir });
       const content = await fs.readFile(resolve(outputDir, "tool-usage.md"), "utf-8");
       expect(content).toContain("get_scene");
       expect(content).toContain("apply_patch");
+      expect(content).toContain("create_object");
+      expect(content).toContain("delete_object");
       expect(content).toContain("get_feedback");
       expect(content).toContain("ask_user");
       expect(content).toContain("open_studio");
       expect(content).toContain("validate");
-      // The six real MCP tools — never the nonexistent read_config.
+      // The eight real MCP tools — never the nonexistent read_config.
       expect(content).not.toContain("read_config");
     });
 

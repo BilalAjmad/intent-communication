@@ -79,11 +79,24 @@ const TOOL_USAGE_MD = `# tool-usage.md
 - **Usage**: Call at start of any task needing scene context
 
 ### apply_patch
-- **Purpose**: Modify scene objects
+- **Purpose**: MODIFY existing scene objects ONLY (cannot create new objects or screens)
 - **Input**: \`{ patch }\`
 - **Patch ops**: \`set\`, \`unset\`, \`add\`, \`remove\`, \`move\`, \`setState\`
 - **Output**: \`{ success, revision, conflict?, error? }\`
 - **Conflict**: Returned when \`baseRevision !== scene.revision\`
+- **Important**: To CREATE a screen/object use \`create_object\` — apply_patch on a missing object returns E_NOT_FOUND.
+
+### create_object
+- **Purpose**: CREATE a new screen or object (the ONLY way to add to a scene)
+- **Input**: \`{ sceneId, type, parentId?, id?, props?, style?, meta?, index? }\`
+- **Types**: \`screen\`, \`container\`, \`text\`, \`image\`, \`button\`, \`input\`, \`checkbox\`, \`radio\`, \`switch\`, \`link\`, \`list\`, \`modal\`, \`icon\`, \`divider\`
+- **Rule**: A screen has parentId=null and is stored in scene.screens + screenOrder. Every other object needs parentId pointing at an existing screen or container.
+- **Output**: \`{ success, objectId, revision, object }\`
+
+### delete_object
+- **Purpose**: DELETE an object/screen and its whole subtree
+- **Input**: \`{ sceneId, objectId }\`
+- **Output**: \`{ success, objectId, revision, removed[] }\`
 
 ### get_feedback
 - **Purpose**: Retrieve visual/behavioral feedback plus pending interview answers
@@ -97,9 +110,10 @@ const TOOL_USAGE_MD = `# tool-usage.md
 - **Output**: \`{ questionId, renderedText, studio: { open, url }, meterApplied: { percent, capped, reason? }, budget: { asked, softCap, over }, delegated?, note?, recorded?, preFilled? }\`
 
 ### open_studio
-- **Purpose**: Return the URL of the local Prototype Studio (does NOT open a browser)
+- **Purpose**: START (or reuse) the local Prototype Studio server and return its URL (opens the browser when userRequested=true)
 - **Input**: \`{ sceneId?, userRequested?, quote? }\`
-- **Output**: \`{ url, sessionId }\`
+- **Output**: \`{ url, sessionId }\` — url carries the session token in the \`#t=\` fragment; treat it as a secret
+- **Rule**: Only call when the user explicitly asks to see/open the Studio. The returned URL opens the real Studio UI.
 
 ### validate
 - **Purpose**: Validate scene/patch/config/profile/interviewState/brief/feedback data against the schema (+ lint for scenes) — writes nothing
@@ -112,11 +126,12 @@ const TOOL_USAGE_MD = `# tool-usage.md
 2. **Validate input** — Always parse with Zod schema before calling.
 3. **Handle errors** — Catch \`IntentError\` and return structured error to user.
 4. **Context budget** — Respect \`maxBytes\`; truncate if needed.
-4. **Idempotency** — \`get_scene\`, \`get_feedback\`, \`validate\` and \`open_studio\` are idempotent; \`apply_patch\` is not.
+5. **Idempotency** — \`get_scene\`, \`get_feedback\`, \`validate\` and \`open_studio\` are idempotent; \`create_object\`, \`delete_object\` and \`apply_patch\` are not.
+6. **Prototype build order** — create the screen with \`create_object\`, add children with \`create_object\`, add required states with \`apply_patch\` setState, then \`validate\` — it must return lint pass with zero violations. Never export with lint errors.
 
 ## MCP Server
 
-The MCP server exposes all 6 tools at \`/api/mcp\` endpoint. Tools are called via HTTP POST with \`{ tool, input }\`.
+The MCP server exposes all 8 tools (get_scene, apply_patch, create_object, delete_object, get_feedback, ask_user, open_studio, validate). The stdio transport is \`intent mcp\`; the HTTP endpoint is \`/api/mcp\`.
 
 ## Studio Integration
 
